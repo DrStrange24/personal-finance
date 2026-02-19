@@ -5,6 +5,9 @@ Personal Finance is a [Next.js](https://nextjs.org) project bootstrapped with [`
 Read relevant docs before making code changes. If docs are missing or outdated, update docs first or alongside code changes.
 
 Project documentation lives in the docs/ folder.
+Folder placement policy for AI/human contributions is defined in `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
+Current technology inventory is documented in `docs/TECH_STACK.md`.
+When adding, changing, or removing technologies, update `docs/TECH_STACK.md` in the same change.
 
 ## Current App Routes
 
@@ -45,7 +48,8 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Styling
 
 - Frontend UI uses React Bootstrap (`react-bootstrap`) and Bootstrap CSS.
-- Global theme tokens and overrides live in `app/globals.scss`.
+- Global stylesheet entrypoint is `app/globals.scss`.
+- Global style source files live under `app/styles/` (`_theme-tokens.scss`, `_base.scss`, `_components.scss`).
 - Theme colors are standardized as:
   - `--color-primary` (brand/action)
   - `--color-secondary` (positive/success)

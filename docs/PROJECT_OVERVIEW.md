@@ -15,6 +15,8 @@ This project is a personal finance web app built with Next.js (App Router) and T
 - Sass (SCSS modules + global SCSS)
 - PostgreSQL + Prisma
 
+For the detailed and versioned stack list, see `docs/TECH_STACK.md`.
+
 ## Theming
 
 - Global light/dark mode is supported across auth and app routes.
