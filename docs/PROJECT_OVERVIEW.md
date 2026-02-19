@@ -12,6 +12,7 @@ This project is a personal finance web app built with Next.js (App Router) and T
 - Next.js App Router
 - React
 - TypeScript
+- Sass (SCSS modules + global SCSS)
 - PostgreSQL + Prisma
 
 ## Authentication

@@ -18,23 +18,35 @@ Project documentation lives in the docs/ folder.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+If port 3000 is busy, choose another port:
+
+```bash
+npm run dev -- -p 3002
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Styling
+
+- Styling uses Sass (`sass`) with:
+  - global styles in `app/globals.scss`
+  - route/component-scoped styles in `*.module.scss`
 
 ## Learn More
 

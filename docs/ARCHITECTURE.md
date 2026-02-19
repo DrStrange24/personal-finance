@@ -21,6 +21,11 @@
 - The layout renders a persistent sidebar and page content area.
 - Sidebar links: `/wallet`, `/monthly-overview`, and a logout action.
 
+## Styling
+
+- Global styles are defined in `app/globals.scss`.
+- Route and component styles are defined with Sass modules (`*.module.scss`).
+
 ## Data Layer
 
 - Prisma connects the app to PostgreSQL.
