@@ -1,0 +1,38 @@
+.pf-surface-card {
+  border: 1px solid var(--color-border-default);
+  border-radius: 1.5rem;
+  background: var(--color-surface-card);
+  box-shadow: var(--color-shadow-card);
+  backdrop-filter: blur(8px);
+}
+
+.pf-surface-panel {
+  border: 1px solid var(--color-border-default);
+  border-radius: 1.5rem;
+  background: var(--color-surface-panel);
+  backdrop-filter: blur(8px);
+}
+
+.form-control {
+  border-color: var(--color-border-default);
+  border-radius: 1rem;
+  background: var(--color-surface-input);
+  color: var(--color-text-strong);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-control:focus {
+  border-color: var(--color-border-accent);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.15);
+  background: var(--color-surface-input);
+  color: var(--color-text-strong);
+}
+
+.alert-danger {
+  border-color: var(--color-border-danger);
+  background: var(--color-bg-danger);
+  color: var(--color-text-danger);
+}

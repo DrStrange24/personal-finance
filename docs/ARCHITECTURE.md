@@ -23,9 +23,13 @@
 
 ## Styling
 
-- Global styles are defined in `app/globals.scss`.
+- Global stylesheet entrypoint is `app/globals.scss`.
+- Global style source files are organized in `app/styles/`:
+  - `_theme-tokens.scss` for CSS variables and Bootstrap mapping.
+  - `_base.scss` for reset/base element styles.
+  - `_components.scss` for shared global utility/component classes.
 - Route and component styles are defined with Sass modules (`*.module.scss`).
-- Theme tokens are defined as CSS variables in `app/globals.scss`.
+- Theme tokens are defined as CSS variables in `app/styles/_theme-tokens.scss`.
 - Color mode is set on `<html data-theme="light|dark">` and persisted in `localStorage` using the `pf-theme` key.
 - `app/theme-toggle.tsx` provides the global theme switcher and is mounted from `app/layout.tsx`.
 

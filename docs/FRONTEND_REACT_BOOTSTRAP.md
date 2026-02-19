@@ -62,6 +62,12 @@ Use Bootstrap variable overrides in `app/globals.scss` so React Bootstrap compon
 
 Set overrides for both base `:root` and `:root[data-theme="light"]` where needed.
 
+Implementation note:
+
+- `app/globals.scss` is the global import entrypoint for Next.js.
+- Keep actual token/base/component global style source in `app/styles/`.
+- Place token and Bootstrap variable changes in `app/styles/_theme-tokens.scss`.
+
 Theme color policy for all pages/components:
 
 1. Primary: `--color-primary` (`Button variant="primary"`, key brand actions).
@@ -86,7 +92,8 @@ Migrate page-by-page, not all at once.
    - grid layouts -> `Container`, `Row`, `Col`
 3. Keep business logic and API calls unchanged; only change view layer markup/styles.
 4. Remove duplicated module styles only after each migrated screen is visually validated.
-5. Keep theme variables in `app/globals.scss`; avoid hardcoded color values in component-level CSS.
+5. Keep theme variables in `app/styles/_theme-tokens.scss`; avoid hardcoded color values in component-level CSS.
+6. Keep folder placement aligned with `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
 
 ## 6) What Not to Migrate
 

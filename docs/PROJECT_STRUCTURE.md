@@ -17,6 +17,10 @@
       - login/ (login endpoint)
       - logout/ (logout endpoint)
       - signup/ (signup endpoint)
+  - styles/
+    - _theme-tokens.scss (global theme tokens + Bootstrap variable mapping)
+    - _base.scss (global reset/typography/base elements)
+    - _components.scss (global shared utility/component classes)
   - globals.scss
   - layout.tsx
   - page.tsx
@@ -32,6 +36,7 @@ Notes:
 - The App Router is used for pages and API route handlers.
 - Auth endpoints live in `app/api`.
 - Protected pages live in `app/(app)` and redirect to `/login` when `pf_session` is missing/invalid.
-- Styling uses global Sass tokens/utilities in `app/globals.scss`, with React Bootstrap components for frontend UI.
+- Styling uses `app/globals.scss` as the global entrypoint and `app/styles/` partials for source organization.
 - Theme colors follow semantic tokens (`--color-primary`, `--color-secondary`, `--color-tertiary`) defined in `app/globals.scss`.
 - React Bootstrap adoption guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.
+- Folder placement conventions: `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.

@@ -43,6 +43,8 @@ npm run dev -- -p 3002
 ## Theming Rules
 
 - The app supports both dark and light themes globally.
-- All new UI code must use semantic CSS variables from `app/globals.scss` (for example `var(--color-text-primary)`), not hardcoded hex/rgb values.
+- All new UI code must use semantic CSS variables from `app/styles/_theme-tokens.scss` (for example `var(--color-text-primary)`), not hardcoded hex/rgb values.
 - Theme selection is stored in `localStorage` under `pf-theme` and applied on the root html element as `data-theme`.
-- Keep React Bootstrap colors/theme aligned by overriding Bootstrap CSS variables in `app/globals.scss`.
+- Keep React Bootstrap colors/theme aligned by overriding Bootstrap CSS variables in `app/styles/_theme-tokens.scss`.
+- Keep `app/globals.scss` as the import entrypoint only; global style organization belongs in `app/styles/`.
+- Follow folder placement policy in `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
