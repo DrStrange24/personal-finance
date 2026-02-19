@@ -37,3 +37,4 @@ Notes:
 - Auth endpoints live in `app/api`.
 - Protected pages live in `app/(app)` and redirect to `/login` when `pf_session` is missing/invalid.
 - Styling uses Sass with global styles in `app/globals.scss` and component-scoped styles in `*.module.scss`.
+- React Bootstrap adoption guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.

@@ -47,6 +47,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Styling uses Sass (`sass`) with:
   - global styles in `app/globals.scss`
   - route/component-scoped styles in `*.module.scss`
+- React Bootstrap can also be used for UI components. See `docs/FRONTEND_REACT_BOOTSTRAP.md` for setup and migration guidance.
 
 ## Learn More
 
