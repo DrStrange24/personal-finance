@@ -40,6 +40,12 @@ If port 3000 is already in use:
 
 npm run dev -- -p 3002
 
+## Data Access Rule
+
+- Default: load page data in Server Components.
+- Use `/api/*` from Client Components for user-triggered actions or live browser-side updates.
+- Keep Prisma access server-side only (Server Components, API handlers, or server utilities), never in browser code.
+
 ## Theming Rules
 
 - The app supports both dark and light themes globally.

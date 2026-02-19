@@ -8,6 +8,7 @@ Project documentation lives in the docs/ folder.
 Folder placement policy for AI/human contributions is defined in `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
 Current technology inventory is documented in `docs/TECH_STACK.md`.
 When adding, changing, or removing technologies, update `docs/TECH_STACK.md` in the same change.
+Data access convention: prefer Server Components for page data; use `app/api/*` from Client Components for browser-driven actions.
 
 ## Current App Routes
 

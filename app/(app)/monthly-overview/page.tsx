@@ -1,6 +1,7 @@
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Table from "react-bootstrap/Table";
+import type { Decimal } from "@prisma/client/runtime/library";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifySessionToken } from "@/lib/auth";
@@ -12,6 +13,13 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
     currency: "USD",
 });
 
+type MonthlyOverviewRow = {
+    id: string;
+    entryDate: Date;
+    walletAmount: Decimal | string | number;
+    remarks: string | null;
+};
+
 export default async function MonthlyOverviewPage() {
     const cookieStore = await cookies();
     const token = cookieStore.get("pf_session")?.value;
@@ -21,10 +29,17 @@ export default async function MonthlyOverviewPage() {
         redirect("/login");
     }
 
-    const entries = await prisma.monthlyOverviewEntry?.findMany({
-        where: { userId: session.userId },
-        orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
-    });
+    const entries: MonthlyOverviewRow[] = prisma.monthlyOverviewEntry
+        ? await prisma.monthlyOverviewEntry.findMany({
+            where: { userId: session.userId },
+            orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+        })
+        : await prisma.$queryRaw<MonthlyOverviewRow[]>`
+            SELECT "id", "entryDate", "walletAmount", "remarks"
+            FROM "MonthlyOverviewEntry"
+            WHERE "userId" = ${session.userId}
+            ORDER BY "entryDate" DESC, "createdAt" DESC
+        `;
 
     return (
         <section className="d-grid gap-4">
@@ -48,14 +63,14 @@ export default async function MonthlyOverviewPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {entries?.length === 0 ? (
+                                {entries.length === 0 ? (
                                     <tr>
                                         <td colSpan={3} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No monthly overview entries yet.
                                         </td>
                                     </tr>
                                 ) : (
-                                    entries?.map((entry) => (
+                                    entries.map((entry) => (
                                         <tr key={entry.id}>
                                             <td>{dateFormatter.format(entry.entryDate)}</td>
                                             <td>{currencyFormatter.format(Number(entry.walletAmount))}</td>

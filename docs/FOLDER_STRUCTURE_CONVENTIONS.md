@@ -33,6 +33,15 @@ docs/
 - Route files (`page.tsx`, `layout.tsx`) stay in `app/` route segments.
 - Keep route-only code in the same segment folder.
 - Shared route UI can be extracted to `app/components/` when duplication appears.
+- Server Components are the default for loading page data.
+- Client Components should use `fetch` to `app/api/*` for browser-triggered operations.
+- Do not import Prisma client into browser/client components.
+
+## API and Data Access
+
+- `app/api/`: request validation, auth/session checks, mutations, and endpoints consumed by client-side UI/external callers.
+- `lib/`: shared utilities; database access helpers should be server-only.
+- Prisma access must stay server-side (Server Components, API handlers, server-only modules).
 
 ## Components
 

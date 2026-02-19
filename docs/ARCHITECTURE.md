@@ -4,6 +4,8 @@
 
 - Pages live under app/ and use server or client components as needed.
 - API route handlers live under app/api.
+- Server Components are the default for page-level data loading.
+- Client Components should call `/api/*` for browser-driven reads/writes.
 
 ## Auth Flow
 
@@ -37,3 +39,5 @@
 
 - Prisma connects the app to PostgreSQL.
 - User records are stored in the database with hashed passwords.
+- Server Components may read data directly from Prisma/server utilities.
+- API handlers are required for client-triggered mutations and external consumers.
