@@ -6,7 +6,7 @@
     - layout.module.scss
     - app-sidebar.tsx
     - wallet/ (main authenticated page)
-    - monthly-overview/ (monthly overview placeholder page)
+    - monthly-overview/ (monthly overview table page)
   - (auth)/
     - layout.tsx (unauthenticated auth pages layout)
     - layout.module.scss
@@ -30,12 +30,16 @@
   - prisma.ts (Prisma client)
 - prisma/
   - schema.prisma
+  - migrations/
+    - 20260219095824_init/
+    - 20260219113000_add_monthly_overview_entry/
 - public/
 
 Notes:
 - The App Router is used for pages and API route handlers.
 - Auth endpoints live in `app/api`.
 - Protected pages live in `app/(app)` and redirect to `/login` when `pf_session` is missing/invalid.
+- Monthly overview data is persisted in Prisma model `MonthlyOverviewEntry` and scoped by `userId`.
 - Styling uses `app/globals.scss` as the global entrypoint and `app/styles/` partials for source organization.
 - Theme colors follow semantic tokens (`--color-primary`, `--color-secondary`, `--color-tertiary`) defined in `app/globals.scss`.
 - React Bootstrap adoption guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.

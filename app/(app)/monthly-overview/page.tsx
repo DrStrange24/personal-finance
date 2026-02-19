@@ -1,20 +1,71 @@
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
+import Table from "react-bootstrap/Table";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { verifySessionToken } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-export default function MonthlyOverviewPage() {
+const dateFormatter = new Intl.DateTimeFormat("en-US");
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+});
+
+export default async function MonthlyOverviewPage() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("pf_session")?.value;
+    const session = token ? verifySessionToken(token) : null;
+
+    if (!session) {
+        redirect("/login");
+    }
+
+    const entries = await prisma.monthlyOverviewEntry?.findMany({
+        where: { userId: session.userId },
+        orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+    });
+
     return (
         <section className="d-grid gap-4">
             <header className="d-grid gap-2">
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-tertiary)" }}>Planning</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Monthly Overview</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Placeholder UI for monthly money tracking and summaries.
+                    Review your historical wallet totals with notes.
                 </p>
             </header>
 
-            <Card className="pf-surface-panel" style={{ borderStyle: "dashed", borderColor: "var(--color-border-dashed)" }}>
-                <CardBody className="text-center py-5">
-                    <p className="m-0" style={{ color: "var(--color-text-muted)" }}>Monthly overview content is coming next.</p>
+            <Card className="pf-surface-panel">
+                <CardBody>
+                    <div className="table-responsive">
+                        <Table hover className="align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Wallet</th>
+                                    <th scope="col">Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {entries?.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={3} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                            No monthly overview entries yet.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    entries?.map((entry) => (
+                                        <tr key={entry.id}>
+                                            <td>{dateFormatter.format(entry.entryDate)}</td>
+                                            <td>{currencyFormatter.format(Number(entry.walletAmount))}</td>
+                                            <td>{entry.remarks?.trim() || "-"}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </Table>
+                    </div>
                 </CardBody>
             </Card>
         </section>

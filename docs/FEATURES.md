@@ -11,7 +11,7 @@
   - Monthly Overview
   - Logout
 - Wallet page (`/wallet`) as the default post-auth landing page.
-- Monthly overview placeholder page (`/monthly-overview`).
+- Monthly overview table page (`/monthly-overview`) with Date, Wallet (USD), and Remarks columns.
 
 ## API
 

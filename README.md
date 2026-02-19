@@ -17,7 +17,7 @@ When adding, changing, or removing technologies, update `docs/TECH_STACK.md` in 
   - `/signup`
 - Authenticated (requires `pf_session` cookie):
   - `/wallet` (default post-login/post-signup landing page)
-  - `/monthly-overview`
+  - `/monthly-overview` (DB-backed table: Date, Wallet, Remarks)
 
 ## Getting Started
 
@@ -25,6 +25,12 @@ Install dependencies:
 
 ```bash
 npm install
+```
+
+Apply Prisma migrations before running authenticated pages:
+
+```bash
+npx prisma migrate dev
 ```
 
 Run the development server:
