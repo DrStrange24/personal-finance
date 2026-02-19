@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifySessionToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import MonthlyOverviewChartModal from "./chart-modal";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
     month: "long",
@@ -45,6 +46,13 @@ export default async function MonthlyOverviewPage() {
             ORDER BY "entryDate" DESC, "createdAt" DESC
         `;
 
+    const chartEntries = [...entries].reverse();
+    const chartData = chartEntries.map((entry) => ({
+        id: entry.id,
+        dateLabel: dateFormatter.format(entry.entryDate),
+        walletValue: Number(entry.walletAmount),
+    }));
+
     return (
         <section className="d-grid gap-4">
             <header className="d-grid gap-2">
@@ -57,6 +65,18 @@ export default async function MonthlyOverviewPage() {
 
             <Card className="pf-surface-panel">
                 <CardBody>
+                    <div className="mb-4">
+                        <h3 className="fs-6 fw-semibold mb-3" style={{ color: "var(--color-text-strong)" }}>
+                            Wallet Trend
+                        </h3>
+                        {chartEntries.length === 0 ? (
+                            <p className="m-0" style={{ color: "var(--color-text-muted)" }}>
+                                Add entries to display the chart.
+                            </p>
+                        ) : (
+                            <MonthlyOverviewChartModal points={chartData} />
+                        )}
+                    </div>
                     <div className="table-responsive">
                         <Table hover className="align-middle mb-0">
                             <thead>

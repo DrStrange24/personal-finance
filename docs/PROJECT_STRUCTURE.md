@@ -7,6 +7,8 @@
     - app-sidebar.tsx
     - wallet/ (main authenticated page)
     - monthly-overview/ (monthly overview table page)
+      - page.tsx (monthly overview page with table + chart trigger)
+      - chart-modal.tsx (client modal chart with zoom/pan controls)
   - (auth)/
     - layout.tsx (unauthenticated auth pages layout)
     - layout.module.scss
