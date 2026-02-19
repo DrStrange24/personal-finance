@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Documentation Workflow
+
+Read relevant docs before making code changes. If docs are missing or outdated, update docs first or alongside code changes.
+
+Project documentation lives in the docs/ folder.
+
 ## Getting Started
 
 First, run the development server:
