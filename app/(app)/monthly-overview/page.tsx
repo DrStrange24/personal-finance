@@ -7,7 +7,11 @@ import { redirect } from "next/navigation";
 import { verifySessionToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const dateFormatter = new Intl.DateTimeFormat("en-US");
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+});
 const currencyFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "PHP",
