@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import ThemeToggle from "@/app/theme-toggle";
 import "./globals.scss";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const appSans = Space_Grotesk({
+  variable: "--font-app-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const appMono = Space_Mono({
+  variable: "--font-app-mono",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -39,7 +40,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${appSans.variable} ${appMono.variable}`}>
         <ThemeToggle />
         {children}
       </body>
