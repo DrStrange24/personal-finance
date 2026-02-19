@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -10,6 +10,11 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -52,45 +57,53 @@ export default function LoginPage() {
                 </p>
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
-                <label className="block text-sm text-slate-200">
-                    Email
-                    <input
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/60"
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        required
-                        autoComplete="email"
-                    />
-                </label>
-                <label className="block text-sm text-slate-200">
-                    Password
-                    <input
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/60"
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        required
-                        minLength={8}
-                        autoComplete="current-password"
-                    />
-                </label>
+            {isMounted ? (
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                    <label className="block text-sm text-slate-200">
+                        Email
+                        <input
+                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                            type="email"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            required
+                            autoComplete="email"
+                        />
+                    </label>
+                    <label className="block text-sm text-slate-200">
+                        Password
+                        <input
+                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                            type="password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            required
+                            minLength={8}
+                            autoComplete="current-password"
+                        />
+                    </label>
 
-                {error ? (
-                    <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                        {error}
-                    </div>
-                ) : null}
+                    {error ? (
+                        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                            {error}
+                        </div>
+                    ) : null}
 
-                <button
-                    className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-                    type="submit"
-                    disabled={isSubmitting}
-                >
-                    {isSubmitting ? "Signing in..." : "Sign in"}
-                </button>
-            </form>
+                    <button
+                        className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="submit"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? "Signing in..." : "Sign in"}
+                    </button>
+                </form>
+            ) : (
+                <div className="space-y-5" aria-hidden="true">
+                    <div className="h-20 rounded-2xl border border-white/10 bg-slate-950/40" />
+                    <div className="h-20 rounded-2xl border border-white/10 bg-slate-950/40" />
+                    <div className="h-12 rounded-2xl bg-emerald-400/40" />
+                </div>
+            )}
 
             <p className="text-center text-sm text-slate-300">
                 New here?{" "}
