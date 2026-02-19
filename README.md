@@ -6,6 +6,16 @@ Read relevant docs before making code changes. If docs are missing or outdated, 
 
 Project documentation lives in the docs/ folder.
 
+## Current App Routes
+
+- Public:
+  - `/` marketing page
+  - `/login`
+  - `/signup`
+- Authenticated (requires `pf_session` cookie):
+  - `/wallet` (default post-login/post-signup landing page)
+  - `/monthly-overview`
+
 ## Getting Started
 
 First, run the development server:

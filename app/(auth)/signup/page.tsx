@@ -33,7 +33,7 @@ export default function SignupPage() {
                 return;
             }
 
-            router.push("/");
+            router.push("/wallet");
         } catch {
             setError("Unable to connect. Please try again.");
         } finally {
