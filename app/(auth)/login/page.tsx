@@ -59,7 +59,7 @@ export default function LoginPage() {
         <Card className="pf-surface-card w-100 border-0" style={{ maxWidth: "28rem" }}>
             <CardBody className="p-4 d-grid gap-4">
                 <div className="d-grid gap-2">
-                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-emerald)" }}>
+                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>
                     Personal Finance
                     </p>
                     <h1 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Welcome back</h1>
@@ -98,7 +98,7 @@ export default function LoginPage() {
                             </Alert>
                         ) : null}
 
-                        <Button type="submit" variant="success" disabled={isSubmitting} className="w-100 rounded-3 py-2 fw-semibold">
+                        <Button type="submit" variant="primary" disabled={isSubmitting} className="w-100 rounded-3 py-2 fw-semibold">
                             {isSubmitting ? "Signing in..." : "Sign in"}
                         </Button>
                     </Form>
@@ -111,14 +111,14 @@ export default function LoginPage() {
                             <Placeholder xs={12} style={{ height: "4rem", borderRadius: "1rem" }} />
                         </Placeholder>
                         <Placeholder as="div" animation="wave">
-                            <Placeholder bg="success" xs={12} style={{ height: "2.75rem", borderRadius: "1rem" }} />
+                            <Placeholder bg="primary" xs={12} style={{ height: "2.75rem", borderRadius: "1rem" }} />
                         </Placeholder>
                     </Stack>
                 )}
 
                 <p className="mb-0 text-center small" style={{ color: "var(--color-text-muted)" }}>
                     New here?{" "}
-                    <Link className="fw-semibold" style={{ color: "var(--color-link-emerald)" }} href="/signup">
+                    <Link className="fw-semibold" style={{ color: "var(--color-link-primary)" }} href="/signup">
                         Create an account
                     </Link>
                 </p>

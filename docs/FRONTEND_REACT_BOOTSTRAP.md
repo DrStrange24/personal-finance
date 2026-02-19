@@ -54,11 +54,25 @@ Use Bootstrap variable overrides in `app/globals.scss` so React Bootstrap compon
   --bs-body-bg: var(--color-bg-page);
   --bs-body-color: var(--color-text-primary);
   --bs-border-color: var(--color-border-default);
-  --bs-primary: var(--color-emerald);
+  --bs-primary: var(--color-primary);
+  --bs-success: var(--color-secondary);
+  --bs-info: var(--color-tertiary);
 }
 ```
 
 Set overrides for both base `:root` and `:root[data-theme="light"]` where needed.
+
+Theme color policy for all pages/components:
+
+1. Primary: `--color-primary` (`Button variant="primary"`, key brand actions).
+2. Secondary: `--color-secondary` (`Button variant="success"`, positive status/confirmations).
+3. Tertiary: `--color-tertiary` (`Button variant="info"`, planning/highlight accents).
+
+When adding new UI code:
+
+1. Use semantic tokens (`--color-primary`, `--color-secondary`, `--color-tertiary`, plus `--color-kicker-*` and `--color-link-*` semantic variants) instead of hardcoded hex values.
+2. Prefer Bootstrap semantic variants (`primary`, `success`, `info`) so components stay synced with theme tokens.
+3. Do not introduce new usage of legacy tokens like `--color-emerald` or `--color-cyan`; they are compatibility aliases.
 
 ## 5) Migration Strategy (Existing Sass Modules)
 

@@ -46,6 +46,11 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 - Frontend UI uses React Bootstrap (`react-bootstrap`) and Bootstrap CSS.
 - Global theme tokens and overrides live in `app/globals.scss`.
+- Theme colors are standardized as:
+  - `--color-primary` (brand/action)
+  - `--color-secondary` (positive/success)
+  - `--color-tertiary` (planning/highlight)
+- Component/page code should use the semantic `primary/secondary/tertiary` tokens (or Bootstrap `primary/success/info` variants mapped to those tokens), not legacy color names.
 - Layout/theme-specific modules still exist where needed (for example `app/(app)/layout.module.scss` and `app/theme-toggle.module.scss`).
 - Migration/setup guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.
 

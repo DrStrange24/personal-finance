@@ -33,4 +33,5 @@ Notes:
 - Auth endpoints live in `app/api`.
 - Protected pages live in `app/(app)` and redirect to `/login` when `pf_session` is missing/invalid.
 - Styling uses global Sass tokens/utilities in `app/globals.scss`, with React Bootstrap components for frontend UI.
+- Theme colors follow semantic tokens (`--color-primary`, `--color-secondary`, `--color-tertiary`) defined in `app/globals.scss`.
 - React Bootstrap adoption guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.

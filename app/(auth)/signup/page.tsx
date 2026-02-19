@@ -60,7 +60,7 @@ export default function SignupPage() {
         <Card className="pf-surface-card w-100 border-0" style={{ maxWidth: "28rem" }}>
             <CardBody className="p-4 d-grid gap-4">
                 <div className="d-grid gap-2">
-                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-cyan)" }}>
+                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>
                     Personal Finance
                     </p>
                     <h1 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Create account</h1>
@@ -118,14 +118,14 @@ export default function SignupPage() {
                         </Alert>
                     ) : null}
 
-                    <Button type="submit" variant="info" disabled={isSubmitting} className="w-100 rounded-3 py-2 fw-semibold">
+                    <Button type="submit" variant="primary" disabled={isSubmitting} className="w-100 rounded-3 py-2 fw-semibold">
                         {isSubmitting ? "Creating account..." : "Create account"}
                     </Button>
                 </Form>
 
                 <p className="mb-0 text-center small" style={{ color: "var(--color-text-muted)" }}>
                     Already have an account?{" "}
-                    <Link className="fw-semibold" style={{ color: "var(--color-link-cyan)" }} href="/login">
+                    <Link className="fw-semibold" style={{ color: "var(--color-link-primary)" }} href="/login">
                         Sign in
                     </Link>
                 </p>
