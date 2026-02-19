@@ -4,10 +4,10 @@
   display: grid;
   gap: 2rem;
   border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-card);
   padding: 2rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--color-shadow-card);
   backdrop-filter: blur(8px);
 }
 
@@ -21,12 +21,12 @@
   font-size: 0.75rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(110, 231, 183, 0.8);
+  color: var(--color-kicker-emerald);
 }
 
 .title {
   margin: 0;
-  color: #ffffff;
+  color: var(--color-text-strong);
   font-size: 1.875rem;
   font-weight: 600;
 }
@@ -34,7 +34,7 @@
 .description {
   margin: 0;
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
 }
 
 .form {
@@ -45,50 +45,50 @@
 .label {
   display: block;
   font-size: 0.875rem;
-  color: #e2e8f0;
+  color: var(--color-text-subtle);
 }
 
 .input {
   width: 100%;
   margin-top: 0.5rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(2, 6, 23, 0.4);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-input);
   padding: 0.75rem 1rem;
-  color: #ffffff;
+  color: var(--color-text-strong);
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.2s ease;
 }
 
 .input:focus {
-  border-color: rgba(52, 211, 153, 0.6);
+  border-color: var(--color-border-accent);
 }
 
 .error {
   border-radius: 1rem;
-  border: 1px solid rgba(251, 113, 133, 0.4);
-  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid var(--color-border-danger);
+  background: var(--color-bg-danger);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  color: #fecdd3;
+  color: var(--color-text-danger);
 }
 
 .submitButton {
   width: 100%;
   border: 0;
   border-radius: 1rem;
-  background: #34d399;
+  background: var(--color-emerald);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--color-emerald-text);
   cursor: pointer;
   transition: background-color 0.2s ease, opacity 0.2s ease;
 }
 
 .submitButton:hover {
-  background: #6ee7b7;
+  background: var(--color-emerald-hover);
 }
 
 .submitButton:disabled {
@@ -104,24 +104,24 @@
 .skeletonField {
   height: 5rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(2, 6, 23, 0.4);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-placeholder);
 }
 
 .skeletonButton {
   height: 3rem;
   border-radius: 1rem;
-  background: rgba(52, 211, 153, 0.4);
+  background: var(--color-border-accent);
 }
 
 .footerText {
   margin: 0;
   font-size: 0.875rem;
   text-align: center;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
 }
 
 .footerLink {
   font-weight: 600;
-  color: #6ee7b7;
+  color: var(--color-link-emerald);
 }

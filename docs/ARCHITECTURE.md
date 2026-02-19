@@ -25,6 +25,9 @@
 
 - Global styles are defined in `app/globals.scss`.
 - Route and component styles are defined with Sass modules (`*.module.scss`).
+- Theme tokens are defined as CSS variables in `app/globals.scss`.
+- Color mode is set on `<html data-theme="light|dark">` and persisted in `localStorage` using the `pf-theme` key.
+- `app/theme-toggle.tsx` provides the global theme switcher and is mounted from `app/layout.tsx`.
 
 ## Data Layer
 

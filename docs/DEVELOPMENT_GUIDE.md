@@ -35,3 +35,9 @@ npm run dev
 If port 3000 is already in use:
 
 npm run dev -- -p 3002
+
+## Theming Rules
+
+- The app supports both dark and light themes globally.
+- All new UI code must use semantic CSS variables from `app/globals.scss` (for example `var(--color-text-primary)`), not hardcoded hex/rgb values in module files.
+- Theme selection is stored in `localStorage` under `pf-theme` and applied on the root html element as `data-theme`.

@@ -13,12 +13,12 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.3em;
-  color: rgba(103, 232, 249, 0.8);
+  color: var(--color-kicker-cyan);
 }
 
 .title {
   margin: 0;
-  color: #ffffff;
+  color: var(--color-text-strong);
   font-size: 1.875rem;
   font-weight: 600;
 }
@@ -26,13 +26,13 @@
 .description {
   margin: 0;
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
 }
 
 .placeholder {
   border-radius: 1.5rem;
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  background: rgba(2, 6, 23, 0.4);
+  border: 1px dashed var(--color-border-dashed);
+  background: var(--color-surface-placeholder);
   padding: 2.5rem;
   text-align: center;
 }
@@ -40,5 +40,5 @@
 .placeholderText {
   margin: 0;
   font-size: 1rem;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
 }
