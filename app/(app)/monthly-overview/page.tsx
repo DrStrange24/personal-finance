@@ -57,6 +57,7 @@ export default async function MonthlyOverviewPage() {
                         <Table hover className="align-middle mb-0">
                             <thead>
                                 <tr>
+                                    <th scope="col">#</th>
                                     <th scope="col">Date</th>
                                     <th scope="col">Wallet</th>
                                     <th scope="col">Remarks</th>
@@ -65,13 +66,14 @@ export default async function MonthlyOverviewPage() {
                             <tbody>
                                 {entries.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={4} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No monthly overview entries yet.
                                         </td>
                                     </tr>
                                 ) : (
-                                    entries.map((entry) => (
+                                    entries.map((entry, index) => (
                                         <tr key={entry.id}>
+                                            <td>{index + 1}</td>
                                             <td>{dateFormatter.format(entry.entryDate)}</td>
                                             <td>{currencyFormatter.format(Number(entry.walletAmount))}</td>
                                             <td>{entry.remarks?.trim() || "-"}</td>
