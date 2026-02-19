@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 const dateFormatter = new Intl.DateTimeFormat("en-US");
 const currencyFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: "PHP",
 });
 
 type MonthlyOverviewRow = {
