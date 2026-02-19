@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Orbitron, Space_Grotesk, Space_Mono } from "next/font/google";
 import ThemeToggle from "@/app/theme-toggle";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.scss";
@@ -13,6 +13,12 @@ const appMono = Space_Mono({
   variable: "--font-app-mono",
   subsets: ["latin"],
   weight: ["400", "700"],
+});
+
+const appDisplay = Orbitron({
+  variable: "--font-app-display",
+  subsets: ["latin"],
+  weight: ["500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -41,7 +47,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className={`${appSans.variable} ${appMono.variable}`}>
+      <body className={`${appSans.variable} ${appMono.variable} ${appDisplay.variable}`}>
         <ThemeToggle />
         {children}
       </body>

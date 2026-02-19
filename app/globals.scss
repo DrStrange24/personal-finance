@@ -1,6 +1,7 @@
 :root {
   --font-sans: var(--font-app-sans);
   --font-mono: var(--font-app-mono);
+  --font-display: var(--font-app-display);
   --color-bg-page: #020617;
   --color-text-primary: #f1f5f9;
   --color-text-strong: #ffffff;
@@ -125,6 +126,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+.card-title,
+.navbar-brand,
+label.form-label {
+  font-family: var(--font-display), var(--font-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: 0.02em;
 }
 
 a {
