@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import styles from "./page.module.scss";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -46,23 +47,23 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="w-full max-w-md space-y-8 rounded-3xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl shadow-black/30 backdrop-blur">
-            <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-emerald-300/80">
+        <div className={styles.card}>
+            <div className={styles.header}>
+                <p className={styles.kicker}>
                     Personal Finance
                 </p>
-                <h1 className="text-3xl font-semibold text-white">Welcome back</h1>
-                <p className="text-sm text-slate-300">
+                <h1 className={styles.title}>Welcome back</h1>
+                <p className={styles.description}>
                     Sign in to track your spending, budgets, and insights.
                 </p>
             </div>
 
             {isMounted ? (
-                <form className="space-y-5" onSubmit={handleSubmit}>
-                    <label className="block text-sm text-slate-200">
+                <form className={styles.form} onSubmit={handleSubmit}>
+                    <label className={styles.label}>
                         Email
                         <input
-                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                            className={styles.input}
                             type="email"
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
@@ -70,10 +71,10 @@ export default function LoginPage() {
                             autoComplete="email"
                         />
                     </label>
-                    <label className="block text-sm text-slate-200">
+                    <label className={styles.label}>
                         Password
                         <input
-                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                            className={styles.input}
                             type="password"
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
@@ -84,13 +85,13 @@ export default function LoginPage() {
                     </label>
 
                     {error ? (
-                        <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                        <div className={styles.error}>
                             {error}
                         </div>
                     ) : null}
 
                     <button
-                        className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={styles.submitButton}
                         type="submit"
                         disabled={isSubmitting}
                     >
@@ -98,16 +99,16 @@ export default function LoginPage() {
                     </button>
                 </form>
             ) : (
-                <div className="space-y-5" aria-hidden="true">
-                    <div className="h-20 rounded-2xl border border-white/10 bg-slate-950/40" />
-                    <div className="h-20 rounded-2xl border border-white/10 bg-slate-950/40" />
-                    <div className="h-12 rounded-2xl bg-emerald-400/40" />
+                <div className={styles.skeleton} aria-hidden="true">
+                    <div className={styles.skeletonField} />
+                    <div className={styles.skeletonField} />
+                    <div className={styles.skeletonButton} />
                 </div>
             )}
 
-            <p className="text-center text-sm text-slate-300">
+            <p className={styles.footerText}>
                 New here?{" "}
-                <Link className="font-semibold text-emerald-300" href="/signup">
+                <Link className={styles.footerLink} href="/signup">
                     Create an account
                 </Link>
             </p>

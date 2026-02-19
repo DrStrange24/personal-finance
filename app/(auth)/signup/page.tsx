@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import styles from "./page.module.scss";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -42,32 +43,32 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="w-full max-w-md space-y-8 rounded-3xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl shadow-black/30 backdrop-blur">
-            <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">
+        <div className={styles.card}>
+            <div className={styles.header}>
+                <p className={styles.kicker}>
                     Personal Finance
                 </p>
-                <h1 className="text-3xl font-semibold text-white">Create account</h1>
-                <p className="text-sm text-slate-300">
+                <h1 className={styles.title}>Create account</h1>
+                <p className={styles.description}>
                     Set up your profile to start organizing your finances.
                 </p>
             </div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
-                <label className="block text-sm text-slate-200">
+            <form className={styles.form} onSubmit={handleSubmit}>
+                <label className={styles.label}>
                     Name
                     <input
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/60"
+                        className={styles.input}
                         type="text"
                         value={name}
                         onChange={(event) => setName(event.target.value)}
                         autoComplete="name"
                     />
                 </label>
-                <label className="block text-sm text-slate-200">
+                <label className={styles.label}>
                     Email
                     <input
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/60"
+                        className={styles.input}
                         type="email"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
@@ -75,10 +76,10 @@ export default function SignupPage() {
                         autoComplete="email"
                     />
                 </label>
-                <label className="block text-sm text-slate-200">
+                <label className={styles.label}>
                     Password
                     <input
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/60"
+                        className={styles.input}
                         type="password"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
@@ -89,13 +90,13 @@ export default function SignupPage() {
                 </label>
 
                 {error ? (
-                    <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                    <div className={styles.error}>
                         {error}
                     </div>
                 ) : null}
 
                 <button
-                    className="w-full rounded-2xl bg-cyan-300 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    className={styles.submitButton}
                     type="submit"
                     disabled={isSubmitting}
                 >
@@ -103,9 +104,9 @@ export default function SignupPage() {
                 </button>
             </form>
 
-            <p className="text-center text-sm text-slate-300">
+            <p className={styles.footerText}>
                 Already have an account?{" "}
-                <Link className="font-semibold text-cyan-200" href="/login">
+                <Link className={styles.footerLink} href="/login">
                     Sign in
                 </Link>
             </p>

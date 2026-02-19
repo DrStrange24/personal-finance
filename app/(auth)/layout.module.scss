@@ -1,0 +1,50 @@
+.layout {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #020617;
+  color: #f1f5f9;
+}
+
+.background {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.glowLeft {
+  position: absolute;
+  left: -6rem;
+  top: 2.5rem;
+  width: 16rem;
+  height: 16rem;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.25);
+  filter: blur(120px);
+}
+
+.glowRight {
+  position: absolute;
+  right: -6rem;
+  bottom: 2.5rem;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: rgba(34, 211, 238, 0.25);
+  filter: blur(140px);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95));
+}
+
+.content {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+}
