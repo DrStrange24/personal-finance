@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import styles from "./app-sidebar.module.scss";
+import Button from "react-bootstrap/Button";
+import Card from "react-bootstrap/Card";
+import CardBody from "react-bootstrap/CardBody";
+import Nav from "react-bootstrap/Nav";
+import NavLink from "react-bootstrap/NavLink";
 
 const links = [
     { href: "/wallet", label: "Wallet" },
@@ -30,38 +34,51 @@ export default function AppSidebar() {
     };
 
     return (
-        <aside className={styles.sidebar}>
-            <div className={styles.header}>
-                <p className={styles.kicker}>
+        <Card as="aside" className="pf-surface-panel h-100 border-0">
+            <CardBody className="d-flex flex-column p-3 p-sm-4">
+                <div className="mb-3 mb-sm-4">
+                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-emerald)" }}>
                     Personal Finance
-                </p>
-                <h1 className={styles.title}>Dashboard</h1>
-            </div>
+                    </p>
+                    <h1 className="mt-2 mb-0 fs-4 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h1>
+                </div>
 
-            <nav className={styles.nav}>
+                <Nav className="flex-row flex-sm-column gap-2 overflow-x-auto pb-1">
                 {links.map((link) => {
                     const isActive = pathname === link.href;
 
                     return (
-                        <Link
+                        <NavLink
                             key={link.href}
+                            as={Link}
                             href={link.href}
-                            className={`${styles.navLink} ${isActive ? styles.navLinkActive : ""}`}
+                            className="rounded-4 px-3 py-2 text-nowrap border"
+                            style={isActive ? {
+                                background: "var(--color-emerald)",
+                                borderColor: "transparent",
+                                color: "var(--color-emerald-text)",
+                            } : {
+                                borderColor: "var(--color-border-default)",
+                                color: "var(--color-text-subtle)",
+                            }}
                         >
                             {link.label}
-                        </Link>
+                        </NavLink>
                     );
                 })}
-            </nav>
+                </Nav>
 
-            <button
-                type="button"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className={styles.logoutButton}
-            >
-                {isLoggingOut ? "Logging out..." : "Logout"}
-            </button>
-        </aside>
+                <Button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    variant="outline-danger"
+                    className="mt-3 mt-sm-auto text-start rounded-4 py-2 fw-semibold"
+                    style={{ borderColor: "var(--color-logout-border)", color: "var(--color-logout-text)" }}
+                >
+                    {isLoggingOut ? "Logging out..." : "Logout"}
+                </Button>
+            </CardBody>
+        </Card>
     );
 }

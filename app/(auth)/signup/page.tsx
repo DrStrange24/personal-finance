@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import styles from "./page.module.scss";
+import Alert from "react-bootstrap/Alert";
+import Button from "react-bootstrap/Button";
+import Card from "react-bootstrap/Card";
+import CardBody from "react-bootstrap/CardBody";
+import Form from "react-bootstrap/Form";
+import FormControl from "react-bootstrap/FormControl";
+import FormGroup from "react-bootstrap/FormGroup";
+import FormLabel from "react-bootstrap/FormLabel";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -50,43 +57,41 @@ export default function SignupPage() {
     };
 
     return (
-        <div className={styles.card}>
-            <div className={styles.header}>
-                <p className={styles.kicker}>
+        <Card className="pf-surface-card w-100 border-0" style={{ maxWidth: "28rem" }}>
+            <CardBody className="p-4 d-grid gap-4">
+                <div className="d-grid gap-2">
+                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-cyan)" }}>
                     Personal Finance
-                </p>
-                <h1 className={styles.title}>Create account</h1>
-                <p className={styles.description}>
-                    Set up your profile to start organizing your finances.
-                </p>
-            </div>
+                    </p>
+                    <h1 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Create account</h1>
+                    <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
+                        Set up your profile to start organizing your finances.
+                    </p>
+                </div>
 
-            <form className={styles.form} onSubmit={handleSubmit}>
-                <label className={styles.label}>
-                    Name
-                    <input
-                        className={styles.input}
+                <Form className="d-grid gap-3" onSubmit={handleSubmit}>
+                    <FormGroup controlId="signupName">
+                        <FormLabel className="small" style={{ color: "var(--color-text-subtle)" }}>Name</FormLabel>
+                        <FormControl
                         type="text"
                         value={name}
                         onChange={(event) => setName(event.target.value)}
                         autoComplete="name"
                     />
-                </label>
-                <label className={styles.label}>
-                    Email
-                    <input
-                        className={styles.input}
+                    </FormGroup>
+                    <FormGroup controlId="signupEmail">
+                        <FormLabel className="small" style={{ color: "var(--color-text-subtle)" }}>Email</FormLabel>
+                        <FormControl
                         type="email"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
                         required
                         autoComplete="email"
                     />
-                </label>
-                <label className={styles.label}>
-                    Password
-                    <input
-                        className={styles.input}
+                    </FormGroup>
+                    <FormGroup controlId="signupPassword">
+                        <FormLabel className="small" style={{ color: "var(--color-text-subtle)" }}>Password</FormLabel>
+                        <FormControl
                         type="password"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
@@ -94,11 +99,10 @@ export default function SignupPage() {
                         minLength={8}
                         autoComplete="new-password"
                     />
-                </label>
-                <label className={styles.label}>
-                    Confirm password
-                    <input
-                        className={styles.input}
+                    </FormGroup>
+                    <FormGroup controlId="signupConfirmPassword">
+                        <FormLabel className="small" style={{ color: "var(--color-text-subtle)" }}>Confirm password</FormLabel>
+                        <FormControl
                         type="password"
                         value={confirmPassword}
                         onChange={(event) => setConfirmPassword(event.target.value)}
@@ -106,29 +110,26 @@ export default function SignupPage() {
                         minLength={8}
                         autoComplete="new-password"
                     />
-                </label>
+                    </FormGroup>
 
-                {error ? (
-                    <div className={styles.error}>
-                        {error}
-                    </div>
-                ) : null}
+                    {error ? (
+                        <Alert variant="danger" className="py-2 px-3 mb-0">
+                            {error}
+                        </Alert>
+                    ) : null}
 
-                <button
-                    className={styles.submitButton}
-                    type="submit"
-                    disabled={isSubmitting}
-                >
-                    {isSubmitting ? "Creating account..." : "Create account"}
-                </button>
-            </form>
+                    <Button type="submit" variant="info" disabled={isSubmitting} className="w-100 rounded-3 py-2 fw-semibold">
+                        {isSubmitting ? "Creating account..." : "Create account"}
+                    </Button>
+                </Form>
 
-            <p className={styles.footerText}>
-                Already have an account?{" "}
-                <Link className={styles.footerLink} href="/login">
-                    Sign in
-                </Link>
-            </p>
-        </div>
+                <p className="mb-0 text-center small" style={{ color: "var(--color-text-muted)" }}>
+                    Already have an account?{" "}
+                    <Link className="fw-semibold" style={{ color: "var(--color-link-cyan)" }} href="/login">
+                        Sign in
+                    </Link>
+                </p>
+            </CardBody>
+        </Card>
     );
 }

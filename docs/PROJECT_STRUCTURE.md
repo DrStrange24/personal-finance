@@ -4,18 +4,14 @@
   - (app)/
     - layout.tsx (protected app shell with persistent sidebar)
     - layout.module.scss
-    - app-sidebar.module.scss
+    - app-sidebar.tsx
     - wallet/ (main authenticated page)
-      - page.module.scss
     - monthly-overview/ (monthly overview placeholder page)
-      - page.module.scss
   - (auth)/
     - layout.tsx (unauthenticated auth pages layout)
     - layout.module.scss
     - login/ (login page)
-      - page.module.scss
     - signup/ (signup page)
-      - page.module.scss
   - api/
     - auth/
       - login/ (login endpoint)
@@ -24,7 +20,7 @@
   - globals.scss
   - layout.tsx
   - page.tsx
-  - page.module.scss
+  - theme-toggle.module.scss
 - lib/
   - auth.ts (JWT sign + verify helpers)
   - prisma.ts (Prisma client)
@@ -36,5 +32,5 @@ Notes:
 - The App Router is used for pages and API route handlers.
 - Auth endpoints live in `app/api`.
 - Protected pages live in `app/(app)` and redirect to `/login` when `pf_session` is missing/invalid.
-- Styling uses Sass with global styles in `app/globals.scss` and component-scoped styles in `*.module.scss`.
+- Styling uses global Sass tokens/utilities in `app/globals.scss`, with React Bootstrap components for frontend UI.
 - React Bootstrap adoption guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.

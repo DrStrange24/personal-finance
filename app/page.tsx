@@ -1,36 +1,30 @@
-import styles from "./page.module.scss";
+import { Button, Container, Stack } from "react-bootstrap";
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <div className={styles.content}>
-          <p className={styles.kicker}>
+    <Container as="main" className="min-vh-100 d-flex align-items-center py-5">
+      <Stack gap={4} className="col-12 col-lg-10">
+        <div className="d-grid gap-3">
+          <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.35em", color: "var(--color-kicker-emerald)" }}>
             Personal Finance
           </p>
-          <h1 className={styles.title}>
+          <h1 className="m-0 fw-semibold display-5">
             Clear budgets. Confident decisions. Real-time clarity.
           </h1>
-          <p className={styles.description}>
+          <p className="m-0 fs-5" style={{ maxWidth: "42rem", color: "var(--color-text-muted)" }}>
             Sign in to track your spending, plan upcoming bills, and stay on top
             of every financial goal.
           </p>
         </div>
-        <div className={styles.actions}>
-          <a
-            className={styles.primaryAction}
-            href="/login"
-          >
+        <div className="d-flex flex-wrap align-items-center gap-3">
+          <Button href="/login" variant="success" className="rounded-pill px-4 py-2 fw-semibold">
             Sign in
-          </a>
-          <a
-            className={styles.secondaryAction}
-            href="/signup"
-          >
+          </Button>
+          <Button href="/signup" variant="outline-success" className="rounded-pill px-4 py-2 fw-semibold">
             Create account
-          </a>
+          </Button>
         </div>
-      </main>
-    </div>
+      </Stack>
+    </Container>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import ThemeToggle from "@/app/theme-toggle";
+import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.scss";
 
 const appSans = Space_Grotesk({

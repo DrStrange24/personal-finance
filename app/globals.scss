@@ -35,6 +35,23 @@
   --color-glow-right: rgba(34, 211, 238, 0.22);
   --color-overlay: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95));
   --color-shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+  --bs-body-bg: var(--color-bg-page);
+  --bs-body-color: var(--color-text-primary);
+  --bs-border-color: var(--color-border-default);
+  --bs-emphasis-color: var(--color-text-strong);
+  --bs-secondary-color: var(--color-text-muted);
+  --bs-card-bg: var(--color-surface-card);
+  --bs-card-border-color: var(--color-border-default);
+  --bs-primary: var(--color-emerald);
+  --bs-primary-rgb: 52, 211, 153;
+  --bs-link-color: var(--color-link-emerald);
+  --bs-link-hover-color: var(--color-link-hover-emerald);
+  --bs-success: var(--color-emerald);
+  --bs-success-rgb: 52, 211, 153;
+  --bs-info: var(--color-cyan);
+  --bs-info-rgb: 103, 232, 249;
+  --bs-danger: #f43f5e;
+  --bs-danger-rgb: 244, 63, 94;
 }
 
 :root[data-theme="light"] {
@@ -72,6 +89,11 @@
   --color-glow-right: rgba(14, 165, 233, 0.2);
   --color-overlay: radial-gradient(circle at top, rgba(224, 242, 254, 0.95), rgba(248, 250, 252, 0.96));
   --color-shadow-card: 0 25px 50px -12px rgba(15, 23, 42, 0.12);
+  --bs-primary-rgb: 5, 150, 105;
+  --bs-link-color: var(--color-link-cyan);
+  --bs-link-hover-color: var(--color-link-hover-cyan);
+  --bs-success-rgb: 5, 150, 105;
+  --bs-info-rgb: 8, 145, 178;
 }
 
 *,
@@ -108,4 +130,43 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.pf-surface-card {
+  border: 1px solid var(--color-border-default);
+  border-radius: 1.5rem;
+  background: var(--color-surface-card);
+  box-shadow: var(--color-shadow-card);
+  backdrop-filter: blur(8px);
+}
+
+.pf-surface-panel {
+  border: 1px solid var(--color-border-default);
+  border-radius: 1.5rem;
+  background: var(--color-surface-panel);
+  backdrop-filter: blur(8px);
+}
+
+.form-control {
+  border-color: var(--color-border-default);
+  border-radius: 1rem;
+  background: var(--color-surface-input);
+  color: var(--color-text-strong);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-control:focus {
+  border-color: var(--color-border-accent);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.15);
+  background: var(--color-surface-input);
+  color: var(--color-text-strong);
+}
+
+.alert-danger {
+  border-color: var(--color-border-danger);
+  background: var(--color-bg-danger);
+  color: var(--color-text-danger);
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { Col, Container, Row } from "react-bootstrap";
 import AppSidebar from "./app-sidebar";
 import { verifySessionToken } from "@/lib/auth";
 import styles from "./layout.module.scss";
@@ -21,15 +22,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 <div className={styles.overlay} />
             </div>
 
-            <div className={styles.container}>
-                <div className={styles.sidebarWrapper}>
-                    <AppSidebar />
-                </div>
-
-                <main className={styles.main}>
-                    {children}
-                </main>
-            </div>
+            <Container fluid="lg" className={styles.container}>
+                <Row className="g-3 g-sm-4 w-100">
+                    <Col lg={4} xl={3} className={styles.sidebarWrapper}>
+                        <AppSidebar />
+                    </Col>
+                    <Col lg={8} xl={9}>
+                        <main className={`${styles.main} pf-surface-panel`}>
+                            {children}
+                        </main>
+                    </Col>
+                </Row>
+            </Container>
         </div>
     );
 }
