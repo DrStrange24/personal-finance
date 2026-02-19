@@ -18,7 +18,7 @@ model User {
 }
 
 model MonthlyOverviewEntry {
-  id           String   @id @default(cuid())
+  id           String   @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
   userId       String
   entryDate    DateTime
   walletAmount Decimal
