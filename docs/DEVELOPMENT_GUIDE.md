@@ -27,6 +27,11 @@ Apply migrations:
 npx prisma migrate dev
 ```
 
+AI agent safety rule:
+
+- AI agents must not execute `npx prisma migrate dev` or `npx prisma migrate reset`.
+- AI can prepare schema/migration changes, but migration commands must be run by a human developer.
+
 Generate Prisma client:
 
 ```bash
@@ -36,7 +41,6 @@ npx prisma generate
 ## Prisma Migration Safety
 
 - Do not edit `prisma/migrations/*/migration.sql` after that migration has been applied to any database.
-- If schema changes are needed, update `prisma/schema.prisma` and create a new migration:
 - If schema changes are needed, update `prisma/schema.prisma` and create a new migration with an explicit initiative/feature-oriented name:
 
 ```bash

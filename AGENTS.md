@@ -48,3 +48,9 @@ When adding or moving files/folders:
 - Use kebab-case for filenames and folders unless framework conventions require otherwise.
 - Use clear, feature-oriented names (`monthly-overview`, `theme-toggle`, `auth`).
 - Do not use generic folder names like `misc`, `temp`, `new`, or `stuff`.
+
+## Prisma Command Guardrails
+
+- AI agents must not run `npx prisma migrate dev`.
+- AI agents must not run `npx prisma migrate reset`.
+- If a migration is needed, AI should update `prisma/schema.prisma` and/or migration files, then ask the user to run Prisma migration commands manually.
