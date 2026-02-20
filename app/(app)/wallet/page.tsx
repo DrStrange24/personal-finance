@@ -1,9 +1,9 @@
 import { TransactionKind, WalletAccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
-import Table from "react-bootstrap/Table";
+import AddWalletAccountModal from "./add-wallet-account-modal";
+import WalletAccountGrid from "./wallet-account-grid";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { walletAccountTypeLabel } from "@/lib/finance/types";
@@ -183,6 +183,23 @@ export default async function WalletPage() {
         label: walletAccountTypeLabel[type],
         entries: accounts.filter((account) => account.type === type),
     }));
+    const groupedAccountCards = groupedAccounts.map((group) => ({
+        type: group.type,
+        label: group.label,
+        entries: group.entries.map((account) => ({
+            id: account.id,
+            type: account.type,
+            name: account.name,
+            currentBalancePhp: Number(account.currentBalancePhp),
+            creditLimitPhp: account.creditLimitPhp === null ? null : Number(account.creditLimitPhp),
+            statementClosingDay: account.statementClosingDay,
+            statementDueDay: account.statementDueDay,
+        })),
+    }));
+    const accountTypeOptions = Object.values(WalletAccountType).map((type) => ({
+        value: type,
+        label: walletAccountTypeLabel[type],
+    }));
 
     const totalNonCredit = accounts
         .filter((account) => account.type !== WalletAccountType.CREDIT_CARD)
@@ -222,141 +239,17 @@ export default async function WalletPage() {
                 </Card>
             </div>
 
-            <Card className="pf-surface-panel">
-                <CardBody className="d-grid gap-3">
-                    <h3 className="m-0 fs-6 fw-semibold">Add Wallet Account</h3>
-                    <form action={createWalletAccountAction} className="d-grid gap-3">
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-type" className="small fw-semibold">Type</label>
-                            <select id="wallet-type" name="type" className="form-control" defaultValue="CASH">
-                                {Object.values(WalletAccountType).map((type) => (
-                                    <option key={type} value={type}>{walletAccountTypeLabel[type]}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-name" className="small fw-semibold">Name</label>
-                            <input id="wallet-name" type="text" name="name" className="form-control" maxLength={80} required />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-balance" className="small fw-semibold">Current Balance (PHP)</label>
-                            <input id="wallet-balance" type="number" name="currentBalancePhp" className="form-control" min="0" step="0.01" required />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-credit-limit" className="small fw-semibold">Credit Limit (for credit card)</label>
-                            <input id="wallet-credit-limit" type="number" name="creditLimitPhp" className="form-control" min="0" step="0.01" />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-statement-close" className="small fw-semibold">Statement Closing Day (1-31)</label>
-                            <input id="wallet-statement-close" type="number" name="statementClosingDay" className="form-control" min="1" max="31" />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-statement-due" className="small fw-semibold">Statement Due Day (1-31)</label>
-                            <input id="wallet-statement-due" type="number" name="statementDueDay" className="form-control" min="1" max="31" />
-                        </div>
-                        <Button type="submit">Create Account</Button>
-                    </form>
-                </CardBody>
-            </Card>
+            <AddWalletAccountModal
+                accountTypeOptions={accountTypeOptions}
+                createWalletAccountAction={createWalletAccountAction}
+            />
 
-            {groupedAccounts.map((group) => (
-                <Card key={group.type} className="pf-surface-panel">
-                    <CardBody className="d-grid gap-3">
-                        <h3 className="m-0 fs-6 fw-semibold">{group.label}</h3>
-                        <div className="table-responsive">
-                            <Table hover className="align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Balance</th>
-                                        <th>Credit Limit</th>
-                                        <th>Statement</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {group.entries.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
-                                                No accounts in this group.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        group.entries.map((account) => (
-                                            <tr key={account.id}>
-                                                <td>{account.name}</td>
-                                                <td className={account.type === WalletAccountType.CREDIT_CARD ? "text-danger" : ""}>
-                                                    {formatPhp(Number(account.currentBalancePhp))}
-                                                </td>
-                                                <td>{account.creditLimitPhp === null ? "-" : formatPhp(Number(account.creditLimitPhp))}</td>
-                                                <td>
-                                                    {account.statementClosingDay && account.statementDueDay
-                                                        ? `${account.statementClosingDay} -> ${account.statementDueDay}`
-                                                        : "-"}
-                                                </td>
-                                                <td>
-                                                    <details>
-                                                        <summary style={{ cursor: "pointer" }}>Edit</summary>
-                                                        <form action={updateWalletAccountAction} className="d-grid gap-2 mt-2">
-                                                            <input type="hidden" name="id" value={account.id} />
-                                                            <select name="type" className="form-control form-control-sm" defaultValue={account.type}>
-                                                                {Object.values(WalletAccountType).map((type) => (
-                                                                    <option key={type} value={type}>{walletAccountTypeLabel[type]}</option>
-                                                                ))}
-                                                            </select>
-                                                            <input type="text" name="name" className="form-control form-control-sm" defaultValue={account.name} required />
-                                                            <input
-                                                                type="number"
-                                                                name="currentBalancePhp"
-                                                                className="form-control form-control-sm"
-                                                                defaultValue={Number(account.currentBalancePhp).toFixed(2)}
-                                                                min="0"
-                                                                step="0.01"
-                                                                required
-                                                            />
-                                                            <input
-                                                                type="number"
-                                                                name="creditLimitPhp"
-                                                                className="form-control form-control-sm"
-                                                                defaultValue={account.creditLimitPhp === null ? "" : Number(account.creditLimitPhp).toFixed(2)}
-                                                                min="0"
-                                                                step="0.01"
-                                                            />
-                                                            <input
-                                                                type="number"
-                                                                name="statementClosingDay"
-                                                                className="form-control form-control-sm"
-                                                                defaultValue={account.statementClosingDay ?? ""}
-                                                                min="1"
-                                                                max="31"
-                                                            />
-                                                            <input
-                                                                type="number"
-                                                                name="statementDueDay"
-                                                                className="form-control form-control-sm"
-                                                                defaultValue={account.statementDueDay ?? ""}
-                                                                min="1"
-                                                                max="31"
-                                                            />
-                                                            <div className="d-flex gap-2">
-                                                                <Button size="sm" type="submit" variant="outline-primary">Save</Button>
-                                                            </div>
-                                                        </form>
-                                                        <form action={archiveWalletAccountAction} className="mt-2">
-                                                            <input type="hidden" name="id" value={account.id} />
-                                                            <Button size="sm" variant="outline-danger" type="submit">Archive</Button>
-                                                        </form>
-                                                    </details>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </Table>
-                        </div>
-                    </CardBody>
-                </Card>
-            ))}
+            <WalletAccountGrid
+                groups={groupedAccountCards}
+                accountTypeOptions={accountTypeOptions}
+                updateWalletAccountAction={updateWalletAccountAction}
+                archiveWalletAccountAction={archiveWalletAccountAction}
+            />
         </section>
     );
 }

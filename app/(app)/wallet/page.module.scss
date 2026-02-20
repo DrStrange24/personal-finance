@@ -28,3 +28,9 @@
   gap: 0.75rem;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
 }
+
+.accountGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
