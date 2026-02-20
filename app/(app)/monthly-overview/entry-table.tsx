@@ -30,6 +30,12 @@ type EditState = {
     remarks: string;
 } | null;
 
+type DeleteState = {
+    id: string;
+    entryDateLabel: string;
+    walletAmountLabel: string;
+} | null;
+
 export default function MonthlyOverviewEntryTable({
     entries,
     createEntryAction,
@@ -38,6 +44,7 @@ export default function MonthlyOverviewEntryTable({
 }: MonthlyOverviewEntryTableProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editState, setEditState] = useState<EditState>(null);
+    const [deleteState, setDeleteState] = useState<DeleteState>(null);
     const submitCreateEntry = async (formData: FormData) => {
         await createEntryAction(formData);
         setIsAddModalOpen(false);
@@ -45,6 +52,10 @@ export default function MonthlyOverviewEntryTable({
     const submitUpdateEntry = async (formData: FormData) => {
         await updateEntryAction(formData);
         setEditState(null);
+    };
+    const submitDeleteEntry = async (formData: FormData) => {
+        await deleteEntryAction(formData);
+        setDeleteState(null);
     };
 
     return (
@@ -96,12 +107,20 @@ export default function MonthlyOverviewEntryTable({
                                         >
                                             Edit
                                         </Button>
-                                        <form action={deleteEntryAction}>
-                                            <input type="hidden" name="id" value={entry.id} />
-                                            <button type="submit" className="btn btn-sm btn-outline-danger">
-                                                Delete
-                                            </button>
-                                        </form>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline-danger"
+                                            onClick={() =>
+                                                setDeleteState({
+                                                    id: entry.id,
+                                                    entryDateLabel: entry.entryDateLabel,
+                                                    walletAmountLabel: entry.walletAmountLabel,
+                                                })
+                                            }
+                                        >
+                                            Delete
+                                        </Button>
                                     </div>
                                 </td>
                             </tr>
@@ -203,6 +222,29 @@ export default function MonthlyOverviewEntryTable({
                             Cancel
                         </Button>
                         <Button type="submit">Update</Button>
+                    </Modal.Footer>
+                </form>
+            </Modal>
+
+            <Modal show={deleteState !== null} onHide={() => setDeleteState(null)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirm Delete</Modal.Title>
+                </Modal.Header>
+                <form action={submitDeleteEntry}>
+                    <Modal.Body className="d-grid gap-2">
+                        <input type="hidden" name="id" value={deleteState?.id ?? ""} />
+                        <p className="m-0">Delete this monthly overview entry?</p>
+                        <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
+                            {deleteState ? `${deleteState.entryDateLabel} • ${deleteState.walletAmountLabel}` : ""}
+                        </p>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="outline-secondary" onClick={() => setDeleteState(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="danger">
+                            Delete
+                        </Button>
                     </Modal.Footer>
                 </form>
             </Modal>
