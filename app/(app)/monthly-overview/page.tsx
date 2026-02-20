@@ -1,12 +1,13 @@
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
-import Table from "react-bootstrap/Table";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { verifySessionToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import MonthlyOverviewChartModal from "./chart-modal";
+import MonthlyOverviewEntryTable from "./entry-table";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
     month: "long",
@@ -25,7 +26,7 @@ type MonthlyOverviewRow = {
     remarks: string | null;
 };
 
-export default async function MonthlyOverviewPage() {
+const getAuthenticatedSession = async () => {
     const cookieStore = await cookies();
     const token = cookieStore.get("pf_session")?.value;
     const session = token ? verifySessionToken(token) : null;
@@ -33,6 +34,141 @@ export default async function MonthlyOverviewPage() {
     if (!session) {
         redirect("/login");
     }
+
+    return session;
+};
+
+const parseEntryDate = (value: FormDataEntryValue | null) => {
+    if (typeof value !== "string" || value.trim().length === 0) {
+        return null;
+    }
+
+    const parsedDate = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsedDate.valueOf())) {
+        return null;
+    }
+
+    return parsedDate;
+};
+
+const parseWalletAmount = (value: FormDataEntryValue | null) => {
+    if (typeof value !== "string" || value.trim().length === 0) {
+        return null;
+    }
+
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) {
+        return null;
+    }
+
+    return Math.round(amount * 100) / 100;
+};
+
+const parseRemarks = (value: FormDataEntryValue | null) => {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const nextRemarks = value.trim();
+    return nextRemarks.length === 0 ? null : nextRemarks;
+};
+
+export default async function MonthlyOverviewPage() {
+    const session = await getAuthenticatedSession();
+
+    const createEntryAction = async (formData: FormData) => {
+        "use server";
+
+        const actionSession = await getAuthenticatedSession();
+        const entryDate = parseEntryDate(formData.get("entryDate"));
+        const walletAmount = parseWalletAmount(formData.get("walletAmount"));
+        const remarks = parseRemarks(formData.get("remarks"));
+
+        if (!entryDate || walletAmount === null) {
+            return;
+        }
+
+        if (prisma.monthlyOverviewEntry) {
+            await prisma.monthlyOverviewEntry.create({
+                data: {
+                    userId: actionSession.userId,
+                    entryDate,
+                    walletAmount,
+                    remarks,
+                },
+            });
+        } else {
+            await prisma.$executeRaw`
+                INSERT INTO "MonthlyOverviewEntry" ("userId", "entryDate", "walletAmount", "remarks")
+                VALUES (${actionSession.userId}, ${entryDate}, ${walletAmount}, ${remarks})
+            `;
+        }
+
+        revalidatePath("/monthly-overview");
+    };
+
+    const updateEntryAction = async (formData: FormData) => {
+        "use server";
+
+        const actionSession = await getAuthenticatedSession();
+        const entryId = formData.get("id");
+        const entryDate = parseEntryDate(formData.get("entryDate"));
+        const walletAmount = parseWalletAmount(formData.get("walletAmount"));
+        const remarks = parseRemarks(formData.get("remarks"));
+
+        if (typeof entryId !== "string" || entryId.trim().length === 0 || !entryDate || walletAmount === null) {
+            return;
+        }
+
+        if (prisma.monthlyOverviewEntry) {
+            await prisma.monthlyOverviewEntry.updateMany({
+                where: {
+                    id: entryId,
+                    userId: actionSession.userId,
+                },
+                data: {
+                    entryDate,
+                    walletAmount,
+                    remarks,
+                },
+            });
+        } else {
+            await prisma.$executeRaw`
+                UPDATE "MonthlyOverviewEntry"
+                SET "entryDate" = ${entryDate}, "walletAmount" = ${walletAmount}, "remarks" = ${remarks}
+                WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
+            `;
+        }
+
+        revalidatePath("/monthly-overview");
+    };
+
+    const deleteEntryAction = async (formData: FormData) => {
+        "use server";
+
+        const actionSession = await getAuthenticatedSession();
+        const entryId = formData.get("id");
+
+        if (typeof entryId !== "string" || entryId.trim().length === 0) {
+            return;
+        }
+
+        if (prisma.monthlyOverviewEntry) {
+            await prisma.monthlyOverviewEntry.deleteMany({
+                where: {
+                    id: entryId,
+                    userId: actionSession.userId,
+                },
+            });
+        } else {
+            await prisma.$executeRaw`
+                DELETE FROM "MonthlyOverviewEntry"
+                WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
+            `;
+        }
+
+        revalidatePath("/monthly-overview");
+    };
 
     const entries: MonthlyOverviewRow[] = prisma.monthlyOverviewEntry
         ? await prisma.monthlyOverviewEntry.findMany({
@@ -51,6 +187,14 @@ export default async function MonthlyOverviewPage() {
         id: entry.id,
         dateLabel: dateFormatter.format(entry.entryDate),
         walletValue: Number(entry.walletAmount),
+    }));
+    const tableEntries = entries.map((entry) => ({
+        id: entry.id,
+        entryDateIso: entry.entryDate.toISOString().slice(0, 10),
+        entryDateLabel: dateFormatter.format(entry.entryDate),
+        walletAmount: Number(entry.walletAmount),
+        walletAmountLabel: currencyFormatter.format(Number(entry.walletAmount)),
+        remarks: entry.remarks ?? "",
     }));
 
     return (
@@ -78,34 +222,12 @@ export default async function MonthlyOverviewPage() {
                         )}
                     </div>
                     <div className="table-responsive">
-                        <Table hover className="align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th scope="col">#</th>
-                                    <th scope="col">Date</th>
-                                    <th scope="col">Wallet</th>
-                                    <th scope="col">Remarks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {entries.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={4} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
-                                            No monthly overview entries yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    entries.map((entry, index) => (
-                                        <tr key={entry.id}>
-                                            <td>{index + 1}</td>
-                                            <td>{dateFormatter.format(entry.entryDate)}</td>
-                                            <td>{currencyFormatter.format(Number(entry.walletAmount))}</td>
-                                            <td>{entry.remarks?.trim() || "-"}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </Table>
+                        <MonthlyOverviewEntryTable
+                            entries={tableEntries}
+                            createEntryAction={createEntryAction}
+                            updateEntryAction={updateEntryAction}
+                            deleteEntryAction={deleteEntryAction}
+                        />
                     </div>
                 </CardBody>
             </Card>

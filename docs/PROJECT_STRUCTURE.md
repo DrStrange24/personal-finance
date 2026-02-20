@@ -9,6 +9,7 @@
     - monthly-overview/ (monthly overview table page)
       - page.tsx (monthly overview page with table + chart trigger)
       - chart-modal.tsx (client modal chart with zoom/pan controls)
+      - entry-table.tsx (client table with add/edit modals and delete action)
   - (auth)/
     - layout.tsx (unauthenticated auth pages layout)
     - layout.module.scss
