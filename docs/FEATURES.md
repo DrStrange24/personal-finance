@@ -55,8 +55,7 @@
 
 - Legacy Compatibility:
   - `/monthly-overview` remains active.
-  - Existing `WalletEntry` and `MonthlyOverviewEntry` models retained.
-  - Bootstrap migration maps legacy wallet entries to new wallet accounts when needed.
+  - Existing `MonthlyOverviewEntry` model retained.
 
 ## API
 

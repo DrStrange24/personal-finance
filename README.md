@@ -78,7 +78,7 @@ Supported workbook sheets:
 - Credit cards are modeled as `CREDIT_CARD` wallet accounts and tracked through:
   - `CREDIT_CARD_CHARGE`
   - `CREDIT_CARD_PAYMENT`
-- Legacy `WalletEntry` and `MonthlyOverviewEntry` remain for migration compatibility.
+- Legacy `MonthlyOverviewEntry` remains for migration compatibility.
 
 ## Styling
 

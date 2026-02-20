@@ -29,7 +29,6 @@ Primary models:
 
 Legacy compatibility models:
 
-- `WalletEntry`
 - `MonthlyOverviewEntry`
 
 Enums:
@@ -70,7 +69,6 @@ System envelopes are auto-created in bootstrap:
 - system envelopes
 - default budget envelope (if none)
 - default income streams (if none)
-- migrated wallet accounts from legacy `WalletEntry` when no `WalletAccount` exists
 
 Legacy monthly overview is preserved and still served by `/monthly-overview`.
 

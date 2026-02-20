@@ -19,7 +19,6 @@
       - page.tsx (wallet account management page shell + server actions)
       - add-wallet-account-modal.tsx (wallet account create modal trigger/form)
       - wallet-account-grid.tsx (wallet account grouped card UI + edit modal + icon actions)
-      - entry-grid.tsx (legacy wallet UI component retained for compatibility)
       - page.module.scss (wallet route style module shared by wallet components)
     - monthly-overview/
       - page.tsx (historical wallet overview table/chart)
@@ -89,5 +88,5 @@ Notes:
 
 - Protected pages are under `app/(app)`.
 - New finance domain models are in Prisma (`WalletAccount`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
-- Legacy models (`WalletEntry`, `MonthlyOverviewEntry`) remain for migration compatibility.
+- Legacy model (`MonthlyOverviewEntry`) remains for migration compatibility.
 - Workbook import currently uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) workflow.
