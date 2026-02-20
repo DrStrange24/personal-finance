@@ -91,7 +91,8 @@ Supported workbook sheets:
 
 ## UX Safety Rule
 
-- Destructive actions (delete/archive/removal) must always show a confirmation modal before submit across all modules.
+- Destructive actions (delete/archive/removal) must always use a confirmation modal before submit across all modules.
+- Prefer `app/components/confirmation-modal.tsx` (or wrappers based on it) for consistency.
 
 ## Learn More
 

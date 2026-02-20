@@ -50,11 +50,11 @@ docs/
   - `app/components/navigation/`
   - `app/components/forms/`
   - `app/components/finance/`
-- Reusable confirmation controls for destructive actions should live in `app/components/`.
+- Reusable confirmation controls for destructive actions should live in `app/components/` and use `confirmation-modal.tsx`.
 
 ## UX Safety Convention
 
-- Any delete/archive/removal action must require an explicit confirmation modal before the mutation is submitted.
+- Always require an explicit confirmation modal for any delete/archive/removal action before the mutation is submitted.
 - Apply this consistently in every module/route.
 
 ## Styles (SCSS)

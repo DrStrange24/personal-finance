@@ -73,9 +73,9 @@ npm run build
 
 ## Destructive Action Rule
 
-- Every delete/archive/removal action must show a confirmation modal before submitting.
+- Always use a confirmation modal for every delete/archive/removal action before submitting.
 - This rule applies to all modules and routes.
-- Prefer shared confirmation UI helpers in `app/components/` to keep behavior consistent.
+- Reuse `app/components/confirmation-modal.tsx` (directly or via wrapper components) to keep behavior consistent.
 
 ## Theming Rules
 

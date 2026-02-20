@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Button from "react-bootstrap/Button";
-import Modal from "react-bootstrap/Modal";
 import type { ComponentProps } from "react";
+import ConfirmationModal from "@/app/components/confirmation-modal";
 
 type ConfirmSubmitButtonProps = Omit<ComponentProps<typeof Button>, "onClick"> & {
     confirmTitle?: string;
@@ -29,26 +29,16 @@ export default function ConfirmSubmitButton({
                 }}
             />
 
-            <Modal show={isOpen} onHide={() => setIsOpen(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>{confirmTitle}</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>{confirmMessage}</Modal.Body>
-                <Modal.Footer>
-                    <Button variant="outline-secondary" onClick={() => setIsOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="danger"
-                        onClick={() => {
-                            setIsOpen(false);
-                            formElement?.requestSubmit();
-                        }}
-                    >
-                        Confirm
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+            <ConfirmationModal
+                isOpen={isOpen}
+                title={confirmTitle}
+                message={confirmMessage}
+                onCancel={() => setIsOpen(false)}
+                onConfirm={() => {
+                    setIsOpen(false);
+                    formElement?.requestSubmit();
+                }}
+            />
         </>
     );
 }
