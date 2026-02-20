@@ -38,6 +38,14 @@ export default function MonthlyOverviewEntryTable({
 }: MonthlyOverviewEntryTableProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editState, setEditState] = useState<EditState>(null);
+    const submitCreateEntry = async (formData: FormData) => {
+        await createEntryAction(formData);
+        setIsAddModalOpen(false);
+    };
+    const submitUpdateEntry = async (formData: FormData) => {
+        await updateEntryAction(formData);
+        setEditState(null);
+    };
 
     return (
         <>
@@ -106,7 +114,7 @@ export default function MonthlyOverviewEntryTable({
                 <Modal.Header closeButton>
                     <Modal.Title>Add Monthly Overview Entry</Modal.Title>
                 </Modal.Header>
-                <form action={createEntryAction}>
+                <form action={submitCreateEntry}>
                     <Modal.Body className="d-grid gap-3">
                         <div className="d-grid gap-1">
                             <label htmlFor="create-entry-date" className="small fw-semibold">Date</label>
@@ -148,7 +156,7 @@ export default function MonthlyOverviewEntryTable({
                 <Modal.Header closeButton>
                     <Modal.Title>Edit Monthly Overview Entry</Modal.Title>
                 </Modal.Header>
-                <form action={updateEntryAction}>
+                <form action={submitUpdateEntry}>
                     <Modal.Body className="d-grid gap-3">
                         <input type="hidden" name="id" value={editState?.id ?? ""} />
                         <div className="d-grid gap-1">

@@ -99,8 +99,8 @@ export default async function MonthlyOverviewPage() {
             });
         } else {
             await prisma.$executeRaw`
-                INSERT INTO "MonthlyOverviewEntry" ("userId", "entryDate", "walletAmount", "remarks")
-                VALUES (${actionSession.userId}, ${entryDate}, ${walletAmount}, ${remarks})
+                INSERT INTO "MonthlyOverviewEntry" ("userId", "entryDate", "walletAmount", "remarks", "updatedAt")
+                VALUES (${actionSession.userId}, ${entryDate}, ${walletAmount}, ${remarks}, NOW())
             `;
         }
 
@@ -135,7 +135,7 @@ export default async function MonthlyOverviewPage() {
         } else {
             await prisma.$executeRaw`
                 UPDATE "MonthlyOverviewEntry"
-                SET "entryDate" = ${entryDate}, "walletAmount" = ${walletAmount}, "remarks" = ${remarks}
+                SET "entryDate" = ${entryDate}, "walletAmount" = ${walletAmount}, "remarks" = ${remarks}, "updatedAt" = NOW()
                 WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
             `;
         }
