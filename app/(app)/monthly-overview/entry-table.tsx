@@ -70,10 +70,16 @@ export default function MonthlyOverviewEntryTable({
     updateEntryAction,
     deleteEntryAction,
 }: MonthlyOverviewEntryTableProps) {
+    const pageSize = 10;
     const { showSuccess, showError } = useAppToast();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editState, setEditState] = useState<EditState>(null);
     const [deleteState, setDeleteState] = useState<DeleteState>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    const paginatedEntries = entries.slice(startIndex, startIndex + pageSize);
 
     const submitCreateEntry = async (formData: FormData) => {
         try {
@@ -145,8 +151,9 @@ export default function MonthlyOverviewEntryTable({
                             </td>
                         </tr>
                     ) : (
-                        entries.map((entry, index) => {
-                            const previousEntry = entries[index + 1];
+                        paginatedEntries.map((entry, index) => {
+                            const overallIndex = startIndex + index;
+                            const previousEntry = entries[overallIndex + 1];
                             const increasedAmount = previousEntry ? entry.walletAmount - previousEntry.walletAmount : null;
                             const increasedPercent = previousEntry && previousEntry.walletAmount !== 0
                                 ? (increasedAmount! / previousEntry.walletAmount) * 100
@@ -159,7 +166,7 @@ export default function MonthlyOverviewEntryTable({
 
                             return (
                                 <tr key={entry.id}>
-                                    <td>{index + 1}</td>
+                                    <td>{overallIndex + 1}</td>
                                     <td>{entry.entryDateLabel}</td>
                                     <td>{entry.walletAmountLabel}</td>
                                     <td className={increaseTextClass}>
@@ -208,6 +215,34 @@ export default function MonthlyOverviewEntryTable({
                     )}
                 </tbody>
             </Table>
+
+            {entries.length > 0 && (
+                <div className="d-flex justify-content-between align-items-center mt-3">
+                    <small style={{ color: "var(--color-text-muted)" }}>
+                        Page {safeCurrentPage} of {totalPages}
+                    </small>
+                    <div className="d-flex gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline-secondary"
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            disabled={safeCurrentPage === 1}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline-secondary"
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            disabled={safeCurrentPage === totalPages}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <Modal show={isAddModalOpen} onHide={() => setIsAddModalOpen(false)} centered>
                 <Modal.Header closeButton>
