@@ -26,6 +26,11 @@ type MonthlyOverviewRow = {
     remarks: string | null;
 };
 
+type EntryActionResult = {
+    ok: boolean;
+    message: string;
+};
+
 const getAuthenticatedSession = async () => {
     const cookieStore = await cookies();
     const token = cookieStore.get("pf_session")?.value;
@@ -85,26 +90,31 @@ export default async function MonthlyOverviewPage() {
         const remarks = parseRemarks(formData.get("remarks"));
 
         if (!entryDate || walletAmount === null) {
-            return;
+            return { ok: false, message: "Please provide a valid date and wallet amount." } satisfies EntryActionResult;
         }
 
-        if (prisma.monthlyOverviewEntry) {
-            await prisma.monthlyOverviewEntry.create({
-                data: {
-                    userId: actionSession.userId,
-                    entryDate,
-                    walletAmount,
-                    remarks,
-                },
-            });
-        } else {
-            await prisma.$executeRaw`
-                INSERT INTO "MonthlyOverviewEntry" ("userId", "entryDate", "walletAmount", "remarks", "updatedAt")
-                VALUES (${actionSession.userId}, ${entryDate}, ${walletAmount}, ${remarks}, NOW())
-            `;
+        try {
+            if (prisma.monthlyOverviewEntry) {
+                await prisma.monthlyOverviewEntry.create({
+                    data: {
+                        userId: actionSession.userId,
+                        entryDate,
+                        walletAmount,
+                        remarks,
+                    },
+                });
+            } else {
+                await prisma.$executeRaw`
+                    INSERT INTO "MonthlyOverviewEntry" ("userId", "entryDate", "walletAmount", "remarks", "updatedAt")
+                    VALUES (${actionSession.userId}, ${entryDate}, ${walletAmount}, ${remarks}, NOW())
+                `;
+            }
+        } catch {
+            return { ok: false, message: "Could not create entry. Please try again." } satisfies EntryActionResult;
         }
 
         revalidatePath("/monthly-overview");
+        return { ok: true, message: "Entry created successfully." } satisfies EntryActionResult;
     };
 
     const updateEntryAction = async (formData: FormData) => {
@@ -117,30 +127,42 @@ export default async function MonthlyOverviewPage() {
         const remarks = parseRemarks(formData.get("remarks"));
 
         if (typeof entryId !== "string" || entryId.trim().length === 0 || !entryDate || walletAmount === null) {
-            return;
+            return { ok: false, message: "Please provide valid entry details." } satisfies EntryActionResult;
         }
 
-        if (prisma.monthlyOverviewEntry) {
-            await prisma.monthlyOverviewEntry.updateMany({
-                where: {
-                    id: entryId,
-                    userId: actionSession.userId,
-                },
-                data: {
-                    entryDate,
-                    walletAmount,
-                    remarks,
-                },
-            });
-        } else {
-            await prisma.$executeRaw`
-                UPDATE "MonthlyOverviewEntry"
-                SET "entryDate" = ${entryDate}, "walletAmount" = ${walletAmount}, "remarks" = ${remarks}, "updatedAt" = NOW()
-                WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
-            `;
+        let affectedRows = 0;
+        try {
+            if (prisma.monthlyOverviewEntry) {
+                const result = await prisma.monthlyOverviewEntry.updateMany({
+                    where: {
+                        id: entryId,
+                        userId: actionSession.userId,
+                    },
+                    data: {
+                        entryDate,
+                        walletAmount,
+                        remarks,
+                    },
+                });
+                affectedRows = result.count;
+            } else {
+                const result = await prisma.$executeRaw`
+                    UPDATE "MonthlyOverviewEntry"
+                    SET "entryDate" = ${entryDate}, "walletAmount" = ${walletAmount}, "remarks" = ${remarks}, "updatedAt" = NOW()
+                    WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
+                `;
+                affectedRows = Number(result);
+            }
+        } catch {
+            return { ok: false, message: "Could not update entry. Please try again." } satisfies EntryActionResult;
+        }
+
+        if (affectedRows < 1) {
+            return { ok: false, message: "Entry not found or access denied." } satisfies EntryActionResult;
         }
 
         revalidatePath("/monthly-overview");
+        return { ok: true, message: "Entry updated successfully." } satisfies EntryActionResult;
     };
 
     const deleteEntryAction = async (formData: FormData) => {
@@ -150,24 +172,36 @@ export default async function MonthlyOverviewPage() {
         const entryId = formData.get("id");
 
         if (typeof entryId !== "string" || entryId.trim().length === 0) {
-            return;
+            return { ok: false, message: "Invalid entry id." } satisfies EntryActionResult;
         }
 
-        if (prisma.monthlyOverviewEntry) {
-            await prisma.monthlyOverviewEntry.deleteMany({
-                where: {
-                    id: entryId,
-                    userId: actionSession.userId,
-                },
-            });
-        } else {
-            await prisma.$executeRaw`
-                DELETE FROM "MonthlyOverviewEntry"
-                WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
-            `;
+        let affectedRows = 0;
+        try {
+            if (prisma.monthlyOverviewEntry) {
+                const result = await prisma.monthlyOverviewEntry.deleteMany({
+                    where: {
+                        id: entryId,
+                        userId: actionSession.userId,
+                    },
+                });
+                affectedRows = result.count;
+            } else {
+                const result = await prisma.$executeRaw`
+                    DELETE FROM "MonthlyOverviewEntry"
+                    WHERE "id" = ${entryId} AND "userId" = ${actionSession.userId}
+                `;
+                affectedRows = Number(result);
+            }
+        } catch {
+            return { ok: false, message: "Could not delete entry. Please try again." } satisfies EntryActionResult;
+        }
+
+        if (affectedRows < 1) {
+            return { ok: false, message: "Entry not found or access denied." } satisfies EntryActionResult;
         }
 
         revalidatePath("/monthly-overview");
+        return { ok: true, message: "Entry deleted successfully." } satisfies EntryActionResult;
     };
 
     const entries: MonthlyOverviewRow[] = prisma.monthlyOverviewEntry

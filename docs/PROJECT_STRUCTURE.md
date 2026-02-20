@@ -20,6 +20,8 @@
       - login/ (login endpoint)
       - logout/ (logout endpoint)
       - signup/ (signup endpoint)
+  - components/
+    - toast-provider.tsx (global toast provider + hook for reusable app notifications)
   - styles/
     - _theme-tokens.scss (global theme tokens + Bootstrap variable mapping)
     - _base.scss (global reset/typography/base elements)

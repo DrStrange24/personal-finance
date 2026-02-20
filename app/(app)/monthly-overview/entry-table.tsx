@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
+import { useAppToast } from "@/app/components/toast-provider";
 
 type EntryRow = {
     id: string;
@@ -14,7 +15,12 @@ type EntryRow = {
     remarks: string;
 };
 
-type EntryAction = (formData: FormData) => void | Promise<void>;
+type EntryActionResult = {
+    ok: boolean;
+    message: string;
+};
+
+type EntryAction = (formData: FormData) => Promise<EntryActionResult>;
 
 type MonthlyOverviewEntryTableProps = {
     entries: EntryRow[];
@@ -42,20 +48,51 @@ export default function MonthlyOverviewEntryTable({
     updateEntryAction,
     deleteEntryAction,
 }: MonthlyOverviewEntryTableProps) {
+    const { showSuccess, showError } = useAppToast();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editState, setEditState] = useState<EditState>(null);
     const [deleteState, setDeleteState] = useState<DeleteState>(null);
+
     const submitCreateEntry = async (formData: FormData) => {
-        await createEntryAction(formData);
-        setIsAddModalOpen(false);
+        try {
+            const result = await createEntryAction(formData);
+            if (result.ok) {
+                setIsAddModalOpen(false);
+                showSuccess("Entry Created", result.message);
+                return;
+            }
+            showError("Create Failed", result.message);
+        } catch {
+            showError("Create Failed", "Could not create entry. Please try again.");
+        }
     };
+
     const submitUpdateEntry = async (formData: FormData) => {
-        await updateEntryAction(formData);
-        setEditState(null);
+        try {
+            const result = await updateEntryAction(formData);
+            if (result.ok) {
+                setEditState(null);
+                showSuccess("Entry Updated", result.message);
+                return;
+            }
+            showError("Update Failed", result.message);
+        } catch {
+            showError("Update Failed", "Could not update entry. Please try again.");
+        }
     };
+
     const submitDeleteEntry = async (formData: FormData) => {
-        await deleteEntryAction(formData);
-        setDeleteState(null);
+        try {
+            const result = await deleteEntryAction(formData);
+            if (result.ok) {
+                setDeleteState(null);
+                showSuccess("Entry Deleted", result.message);
+                return;
+            }
+            showError("Delete Failed", result.message);
+        } catch {
+            showError("Delete Failed", "Could not delete entry. Please try again.");
+        }
     };
 
     return (
@@ -235,7 +272,7 @@ export default function MonthlyOverviewEntryTable({
                         <input type="hidden" name="id" value={deleteState?.id ?? ""} />
                         <p className="m-0">Delete this monthly overview entry?</p>
                         <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                            {deleteState ? `${deleteState.entryDateLabel} • ${deleteState.walletAmountLabel}` : ""}
+                            {deleteState ? `${deleteState.entryDateLabel} - ${deleteState.walletAmountLabel}` : ""}
                         </p>
                     </Modal.Body>
                     <Modal.Footer>

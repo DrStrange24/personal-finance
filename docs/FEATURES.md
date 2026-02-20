@@ -13,6 +13,7 @@
 - Wallet page (`/wallet`) as the default post-auth landing page.
 - Monthly overview table page (`/monthly-overview`) with Date, Wallet (PHP), and Remarks columns.
 - Monthly overview add/edit entry flows via modal forms, plus per-row delete action.
+- Global reusable toast notifications for success/failure events (currently used in monthly overview create/update/delete flows).
 - Monthly overview chart modal with zoom in/out and pan controls.
 
 ## API

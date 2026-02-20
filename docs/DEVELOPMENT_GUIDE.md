@@ -46,6 +46,11 @@ npm run dev -- -p 3002
 - Use `/api/*` from Client Components for user-triggered actions or live browser-side updates.
 - Keep Prisma access server-side only (Server Components, API handlers, or server utilities), never in browser code.
 
+## Reusable UI
+
+- Place reusable UI in `app/components/`.
+- Global toast notifications are provided by `app/components/toast-provider.tsx` and mounted in `app/layout.tsx`.
+
 ## Theming Rules
 
 - The app supports both dark and light themes globally.

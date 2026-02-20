@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Orbitron, Space_Grotesk, Space_Mono } from "next/font/google";
 import ThemeToggle from "@/app/theme-toggle";
+import { AppToastProvider } from "@/app/components/toast-provider";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.scss";
 
@@ -48,8 +49,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className={`${appSans.variable} ${appMono.variable} ${appDisplay.variable}`}>
-        <ThemeToggle />
-        {children}
+        <AppToastProvider>
+          <ThemeToggle />
+          {children}
+        </AppToastProvider>
       </body>
     </html>
   );
