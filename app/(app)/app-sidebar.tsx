@@ -19,6 +19,51 @@ const WalletIcon = (props: IconProps) => (
     </svg>
 );
 
+const DashboardIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <rect x="3" y="3" width="8" height="8" rx="1.5" />
+        <rect x="13" y="3" width="8" height="5" rx="1.5" />
+        <rect x="13" y="10" width="8" height="11" rx="1.5" />
+        <rect x="3" y="13" width="8" height="8" rx="1.5" />
+    </svg>
+);
+
+const TransactionsIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <path d="M3 7h18" />
+        <path d="M3 12h18" />
+        <path d="M3 17h18" />
+        <circle cx="8" cy="7" r="1" fill="currentColor" stroke="none" />
+        <circle cx="16" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="10" cy="17" r="1" fill="currentColor" stroke="none" />
+    </svg>
+);
+
+const IncomeIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <path d="M12 20V4" />
+        <path d="M7 9l5-5 5 5" />
+        <path d="M4 20h16" />
+    </svg>
+);
+
+const BudgetIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <rect x="3" y="4" width="18" height="16" rx="2.5" />
+        <path d="M7 9h10" />
+        <path d="M7 13h7" />
+        <path d="M7 17h5" />
+    </svg>
+);
+
+const LoanIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <path d="M4 8h12a4 4 0 1 1 0 8H4" />
+        <path d="m8 4-4 4 4 4" />
+        <path d="m16 20 4-4-4-4" />
+    </svg>
+);
+
 const CalendarIcon = (props: IconProps) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
         <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
@@ -46,6 +91,11 @@ const ChevronLeftIcon = (props: IconProps) => (
 );
 
 const links = [
+    { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
+    { href: "/transactions", label: "Transactions", Icon: TransactionsIcon },
+    { href: "/income", label: "Income", Icon: IncomeIcon },
+    { href: "/budget", label: "Budget", Icon: BudgetIcon },
+    { href: "/loan", label: "Loan", Icon: LoanIcon },
     { href: "/wallet", label: "Wallet", Icon: WalletIcon },
     { href: "/monthly-overview", label: "Monthly Overview", Icon: CalendarIcon },
 ];
@@ -101,7 +151,7 @@ export default function AppSidebar() {
 
                 <Nav className="flex-column gap-2 pb-1">
                 {links.map((link) => {
-                    const isActive = pathname === link.href;
+                    const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
 
                     return (
                         <NavLink

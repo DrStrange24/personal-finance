@@ -8,19 +8,55 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  passwordHash String
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
+  name                   String?
+  passwordHash           String
   monthlyOverviewEntries MonthlyOverviewEntry[]
-  walletEntries WalletEntry[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  walletEntries          WalletEntry[]
+  walletAccounts         WalletAccount[]
+  incomeStreams          IncomeStream[]
+  budgetEnvelopes        BudgetEnvelope[]
+  loanRecords            LoanRecord[]
+  financeTransactions    FinanceTransaction[]
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
 }
 
 enum WalletEntryType {
   CASH_WALLET
   ASSET_HOLDING
+}
+
+enum WalletAccountType {
+  CASH
+  BANK
+  E_WALLET
+  ASSET
+  CREDIT_CARD
+}
+
+enum TransactionKind {
+  INCOME
+  EXPENSE
+  BUDGET_ALLOCATION
+  TRANSFER
+  CREDIT_CARD_CHARGE
+  CREDIT_CARD_PAYMENT
+  LOAN_BORROW
+  LOAN_REPAY
+  ADJUSTMENT
+}
+
+enum LoanDirection {
+  YOU_OWE
+  YOU_ARE_OWED
+}
+
+enum LoanStatus {
+  ACTIVE
+  PAID
+  WRITTEN_OFF
 }
 
 model MonthlyOverviewEntry {
@@ -53,4 +89,110 @@ model WalletEntry {
 
   @@index([userId, type, sortOrder])
   @@index([userId, isArchived])
+}
+
+model WalletAccount {
+  id                  String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  userId              String
+  name                String
+  type                WalletAccountType
+  currentBalancePhp   Decimal              @default(0)
+  creditLimitPhp      Decimal?
+  statementClosingDay Int?
+  statementDueDay     Int?
+  isArchived          Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceTransactions  FinanceTransaction[] @relation("TransactionSourceWallet")
+  targetTransactions  FinanceTransaction[] @relation("TransactionTargetWallet")
+
+  @@index([userId, type, isArchived])
+  @@index([userId, isArchived, name])
+}
+
+model IncomeStream {
+  id               String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  userId           String
+  name             String
+  defaultAmountPhp Decimal              @default(0)
+  isActive         Boolean              @default(true)
+  remarks          String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     FinanceTransaction[]
+
+  @@index([userId, isActive])
+}
+
+model BudgetEnvelope {
+  id               String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  userId           String
+  name             String
+  monthlyTargetPhp Decimal              @default(0)
+  availablePhp     Decimal              @default(0)
+  rolloverEnabled  Boolean              @default(true)
+  payTo            String?
+  remarks          String?
+  isSystem         Boolean              @default(false)
+  isArchived       Boolean              @default(false)
+  sortOrder        Int                  @default(0)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     FinanceTransaction[]
+
+  @@index([userId, isArchived, isSystem, sortOrder])
+  @@index([userId, name])
+}
+
+model LoanRecord {
+  id            String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  userId        String
+  direction     LoanDirection
+  itemName      String
+  counterparty  String?
+  principalPhp  Decimal
+  monthlyDuePhp Decimal?
+  paidToDatePhp Decimal              @default(0)
+  remainingPhp  Decimal
+  status        LoanStatus           @default(ACTIVE)
+  startDate     DateTime?
+  remarks       String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  FinanceTransaction[]
+
+  @@index([userId, direction, status])
+  @@index([userId, status])
+}
+
+model FinanceTransaction {
+  id                    String          @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  userId                String
+  postedAt              DateTime        @default(now())
+  kind                  TransactionKind
+  amountPhp             Decimal
+  walletAccountId       String
+  targetWalletAccountId String?
+  budgetEnvelopeId      String?
+  incomeStreamId        String?
+  loanRecordId          String?
+  countsTowardBudget    Boolean         @default(true)
+  remarks               String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAccount         WalletAccount   @relation("TransactionSourceWallet", fields: [walletAccountId], references: [id], onDelete: Restrict)
+  targetWalletAccount   WalletAccount?  @relation("TransactionTargetWallet", fields: [targetWalletAccountId], references: [id], onDelete: SetNull)
+  budgetEnvelope        BudgetEnvelope? @relation(fields: [budgetEnvelopeId], references: [id], onDelete: SetNull)
+  incomeStream          IncomeStream?   @relation(fields: [incomeStreamId], references: [id], onDelete: SetNull)
+  loanRecord            LoanRecord?     @relation(fields: [loanRecordId], references: [id], onDelete: SetNull)
+
+  @@index([userId, postedAt])
+  @@index([userId, kind, postedAt])
+  @@index([userId, budgetEnvelopeId, postedAt])
+  @@index([userId, walletAccountId, postedAt])
 }

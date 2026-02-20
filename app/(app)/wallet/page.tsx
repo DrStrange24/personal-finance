@@ -1,354 +1,362 @@
-import type { Decimal } from "@prisma/client/runtime/library";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { TransactionKind, WalletAccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { verifySessionToken } from "@/lib/auth";
+import Button from "react-bootstrap/Button";
+import Card from "react-bootstrap/Card";
+import CardBody from "react-bootstrap/CardBody";
+import Table from "react-bootstrap/Table";
+import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
+import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
+import { walletAccountTypeLabel } from "@/lib/finance/types";
+import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
-import WalletEntryGrid from "./entry-grid";
-
-type WalletEntryType = "CASH_WALLET" | "ASSET_HOLDING";
-
-type WalletEntryRow = {
-    id: string;
-    type: WalletEntryType;
-    groupName: string | null;
-    name: string;
-    currentValuePhp: Decimal | string | number;
-    initialInvestmentPhp: Decimal | string | number | null;
-    remarks: string | null;
-    sortOrder: number;
-    createdAt: Date;
-};
-
-type WalletActionResult = {
-    ok: boolean;
-    message: string;
-};
-
-const walletTypeValues = new Set<WalletEntryType>(["CASH_WALLET", "ASSET_HOLDING"]);
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "PHP",
-});
-const signedCurrencyFormatter = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-});
-const percentFormatter = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-});
-
-const getAuthenticatedSession = async () => {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("pf_session")?.value;
-    const session = token ? verifySessionToken(token) : null;
-
-    if (!session) {
-        redirect("/login");
-    }
-
-    return session;
-};
-
-const parseWalletEntryType = (value: FormDataEntryValue | null): WalletEntryType | null => {
-    if (typeof value !== "string" || !walletTypeValues.has(value as WalletEntryType)) {
-        return null;
-    }
-
-    return value as WalletEntryType;
-};
 
 const parseRequiredName = (value: FormDataEntryValue | null) => {
     if (typeof value !== "string") {
         return null;
     }
-
-    const nextValue = value.trim();
-    if (nextValue.length === 0 || nextValue.length > 80) {
+    const normalized = value.trim();
+    if (normalized.length === 0 || normalized.length > 80) {
         return null;
     }
-
-    return nextValue;
+    return normalized;
 };
 
-const parseOptionalText = (value: FormDataEntryValue | null, maxLength: number) => {
+const parseAccountType = (value: FormDataEntryValue | null): WalletAccountType | null => {
     if (typeof value !== "string") {
-        return { ok: true, value: null as string | null };
+        return null;
     }
-
-    const nextValue = value.trim();
-    if (nextValue.length === 0) {
-        return { ok: true, value: null as string | null };
-    }
-
-    if (nextValue.length > maxLength) {
-        return { ok: false, value: null as string | null };
-    }
-
-    return { ok: true, value: nextValue };
+    const normalized = value.trim() as WalletAccountType;
+    return Object.values(WalletAccountType).includes(normalized) ? normalized : null;
 };
 
-const parseMoney = (value: FormDataEntryValue | null, required: boolean) => {
-    if (typeof value !== "string") {
-        return required
-            ? { ok: false, value: null as number | null }
-            : { ok: true, value: null as number | null };
-    }
-
-    const nextValue = value.trim();
-    if (nextValue.length === 0) {
-        return required
-            ? { ok: false, value: null as number | null }
-            : { ok: true, value: null as number | null };
-    }
-
-    const parsedValue = Number(nextValue);
-    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-        return { ok: false, value: null as number | null };
-    }
-
-    return { ok: true, value: Math.round(parsedValue * 100) / 100 };
-};
-
-const parseSortOrder = (value: FormDataEntryValue | null) => {
+const parseOptionalDay = (value: FormDataEntryValue | null) => {
     if (typeof value !== "string" || value.trim().length === 0) {
-        return 0;
-    }
-
-    const parsedValue = Number(value.trim());
-    if (!Number.isInteger(parsedValue) || parsedValue < 0) {
         return null;
     }
-
-    return parsedValue;
-};
-
-const formatSignedCurrencyDelta = (value: number) => {
-    if (value < 0) {
-        return `(${signedCurrencyFormatter.format(Math.abs(value))})`;
+    const parsed = Number(value.trim());
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 31) {
+        return null;
     }
-
-    return signedCurrencyFormatter.format(value);
+    return parsed;
 };
 
 export default async function WalletPage() {
     const session = await getAuthenticatedSession();
+    await ensureFinanceBootstrap(session.userId);
 
-    const createWalletEntryAction = async (formData: FormData) => {
+    const createWalletAccountAction = async (formData: FormData) => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
-        const type = parseWalletEntryType(formData.get("type"));
+        const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
-        const currentValuePhpResult = parseMoney(formData.get("currentValuePhp"), true);
-        const initialInvestmentPhpResult = parseMoney(formData.get("initialInvestmentPhp"), false);
-        const groupNameResult = parseOptionalText(formData.get("groupName"), 80);
-        const remarksResult = parseOptionalText(formData.get("remarks"), 300);
-        const sortOrder = parseSortOrder(formData.get("sortOrder"));
+        const balanceResult = parseMoneyInput(formData.get("currentBalancePhp"), true);
+        const creditLimitResult = parseMoneyInput(formData.get("creditLimitPhp"), false);
+        const statementClosingDay = parseOptionalDay(formData.get("statementClosingDay"));
+        const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
 
-        if (
-            !type
-            || !name
-            || !currentValuePhpResult.ok
-            || !groupNameResult.ok
-            || !remarksResult.ok
-            || !initialInvestmentPhpResult.ok
-            || sortOrder === null
-        ) {
-            return { ok: false, message: "Please provide valid wallet entry details." } satisfies WalletActionResult;
+        if (!type || !name || !balanceResult.ok || balanceResult.value === null || !creditLimitResult.ok) {
+            return;
         }
 
-        const initialInvestmentPhp = type === "ASSET_HOLDING" ? initialInvestmentPhpResult.value : null;
+        const account = await prisma.walletAccount.create({
+            data: {
+                userId: actionSession.userId,
+                type,
+                name,
+                currentBalancePhp: balanceResult.value,
+                creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
+                statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
+                statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
+            },
+        });
 
-        try {
-            await prisma.$executeRaw`
-                INSERT INTO "WalletEntry" (
-                    "userId",
-                    "type",
-                    "groupName",
-                    "name",
-                    "currentValuePhp",
-                    "initialInvestmentPhp",
-                    "remarks",
-                    "sortOrder",
-                    "updatedAt"
-                )
-                VALUES (
-                    ${actionSession.userId},
-                    ${type}::"WalletEntryType",
-                    ${groupNameResult.value},
-                    ${name},
-                    ${currentValuePhpResult.value!},
-                    ${initialInvestmentPhp},
-                    ${remarksResult.value},
-                    ${sortOrder},
-                    NOW()
-                )
-            `;
-        } catch {
-            return { ok: false, message: "Could not create wallet entry. Please try again." } satisfies WalletActionResult;
+        if (balanceResult.value > 0) {
+            await prisma.financeTransaction.create({
+                data: {
+                    userId: actionSession.userId,
+                    kind: TransactionKind.ADJUSTMENT,
+                    amountPhp: balanceResult.value,
+                    walletAccountId: account.id,
+                    countsTowardBudget: false,
+                    remarks: "Opening balance for new wallet account.",
+                },
+            });
         }
 
         revalidatePath("/wallet");
-        return { ok: true, message: "Wallet entry created successfully." } satisfies WalletActionResult;
+        revalidatePath("/dashboard");
     };
 
-    const updateWalletEntryAction = async (formData: FormData) => {
+    const updateWalletAccountAction = async (formData: FormData) => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
-        const id = formData.get("id");
-        const type = parseWalletEntryType(formData.get("type"));
+        const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
+        const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
-        const currentValuePhpResult = parseMoney(formData.get("currentValuePhp"), true);
-        const initialInvestmentPhpResult = parseMoney(formData.get("initialInvestmentPhp"), false);
-        const groupNameResult = parseOptionalText(formData.get("groupName"), 80);
-        const remarksResult = parseOptionalText(formData.get("remarks"), 300);
-        const sortOrder = parseSortOrder(formData.get("sortOrder"));
+        const balanceResult = parseMoneyInput(formData.get("currentBalancePhp"), true);
+        const creditLimitResult = parseMoneyInput(formData.get("creditLimitPhp"), false);
+        const statementClosingDay = parseOptionalDay(formData.get("statementClosingDay"));
+        const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
 
-        if (
-            typeof id !== "string"
-            || id.trim().length === 0
-            || !type
-            || !name
-            || !currentValuePhpResult.ok
-            || !groupNameResult.ok
-            || !remarksResult.ok
-            || !initialInvestmentPhpResult.ok
-            || sortOrder === null
-        ) {
-            return { ok: false, message: "Please provide valid wallet entry details." } satisfies WalletActionResult;
+        if (!id || !type || !name || !balanceResult.ok || balanceResult.value === null || !creditLimitResult.ok) {
+            return;
         }
 
-        const initialInvestmentPhp = type === "ASSET_HOLDING" ? initialInvestmentPhpResult.value : null;
+        const existing = await prisma.walletAccount.findFirst({
+            where: {
+                id,
+                userId: actionSession.userId,
+                isArchived: false,
+            },
+        });
 
-        let affectedRows = 0;
-        try {
-            const result = await prisma.$executeRaw`
-                UPDATE "WalletEntry"
-                SET
-                    "type" = ${type}::"WalletEntryType",
-                    "groupName" = ${groupNameResult.value},
-                    "name" = ${name},
-                    "currentValuePhp" = ${currentValuePhpResult.value!},
-                    "initialInvestmentPhp" = ${initialInvestmentPhp},
-                    "remarks" = ${remarksResult.value},
-                    "sortOrder" = ${sortOrder},
-                    "updatedAt" = NOW()
-                WHERE "id" = ${id} AND "userId" = ${actionSession.userId} AND "isArchived" = false
-            `;
-            affectedRows = Number(result);
-        } catch {
-            return { ok: false, message: "Could not update wallet entry. Please try again." } satisfies WalletActionResult;
+        if (!existing) {
+            return;
         }
 
-        if (affectedRows < 1) {
-            return { ok: false, message: "Wallet entry not found or access denied." } satisfies WalletActionResult;
+        await prisma.walletAccount.update({
+            where: { id: existing.id },
+            data: {
+                type,
+                name,
+                currentBalancePhp: balanceResult.value,
+                creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
+                statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
+                statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
+            },
+        });
+
+        const delta = balanceResult.value - Number(existing.currentBalancePhp);
+        if (Math.abs(delta) > 0.0001) {
+            await prisma.financeTransaction.create({
+                data: {
+                    userId: actionSession.userId,
+                    kind: TransactionKind.ADJUSTMENT,
+                    amountPhp: Math.abs(delta),
+                    walletAccountId: existing.id,
+                    countsTowardBudget: false,
+                    remarks: `Balance override (${delta >= 0 ? "increase" : "decrease"}).`,
+                },
+            });
         }
 
         revalidatePath("/wallet");
-        return { ok: true, message: "Wallet entry updated successfully." } satisfies WalletActionResult;
+        revalidatePath("/dashboard");
     };
 
-    const deleteWalletEntryAction = async (formData: FormData) => {
+    const archiveWalletAccountAction = async (formData: FormData) => {
         "use server";
-
         const actionSession = await getAuthenticatedSession();
-        const id = formData.get("id");
+        const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
 
-        if (typeof id !== "string" || id.trim().length === 0) {
-            return { ok: false, message: "Invalid wallet entry id." } satisfies WalletActionResult;
+        if (!id) {
+            return;
         }
 
-        let affectedRows = 0;
-        try {
-            const result = await prisma.$executeRaw`
-                UPDATE "WalletEntry"
-                SET "isArchived" = true, "updatedAt" = NOW()
-                WHERE "id" = ${id} AND "userId" = ${actionSession.userId} AND "isArchived" = false
-            `;
-            affectedRows = Number(result);
-        } catch {
-            return { ok: false, message: "Could not delete wallet entry. Please try again." } satisfies WalletActionResult;
-        }
-
-        if (affectedRows < 1) {
-            return { ok: false, message: "Wallet entry not found or access denied." } satisfies WalletActionResult;
-        }
+        await prisma.walletAccount.updateMany({
+            where: {
+                id,
+                userId: actionSession.userId,
+                isArchived: false,
+            },
+            data: {
+                isArchived: true,
+            },
+        });
 
         revalidatePath("/wallet");
-        return { ok: true, message: "Wallet entry deleted successfully." } satisfies WalletActionResult;
+        revalidatePath("/dashboard");
     };
 
-    const walletEntries: WalletEntryRow[] = await prisma.$queryRaw<WalletEntryRow[]>`
-        SELECT
-            "id",
-            "type",
-            "groupName",
-            "name",
-            "currentValuePhp",
-            "initialInvestmentPhp",
-            "remarks",
-            "sortOrder",
-            "createdAt"
-        FROM "WalletEntry"
-        WHERE "userId" = ${session.userId} AND "isArchived" = false
-        ORDER BY "type" ASC, "sortOrder" ASC, "createdAt" ASC
-    `;
-
-    const walletEntryView = walletEntries.map((entry) => {
-        const currentValuePhp = Number(entry.currentValuePhp);
-        const initialInvestmentPhp = entry.initialInvestmentPhp === null ? null : Number(entry.initialInvestmentPhp);
-        const hasPnl = entry.type === "ASSET_HOLDING" && initialInvestmentPhp !== null && initialInvestmentPhp > 0;
-        const pnlPhp = hasPnl ? currentValuePhp - initialInvestmentPhp : null;
-        const pnlPercent = hasPnl ? (pnlPhp! / initialInvestmentPhp!) * 100 : null;
-
-        return {
-            id: entry.id,
-            type: entry.type,
-            groupName: entry.groupName ?? "",
-            name: entry.name,
-            currentValuePhp,
-            currentValuePhpLabel: currencyFormatter.format(currentValuePhp),
-            initialInvestmentPhp,
-            initialInvestmentPhpLabel: initialInvestmentPhp === null ? null : currencyFormatter.format(initialInvestmentPhp),
-            remarks: entry.remarks ?? "",
-            sortOrder: entry.sortOrder,
-            pnlPhp,
-            pnlPhpLabel: pnlPhp === null ? null : formatSignedCurrencyDelta(pnlPhp),
-            pnlPercent,
-            pnlPercentLabel: pnlPercent === null ? null : `${percentFormatter.format(pnlPercent)}%`,
-        };
+    const accounts = await prisma.walletAccount.findMany({
+        where: {
+            userId: session.userId,
+            isArchived: false,
+        },
+        orderBy: [{ type: "asc" }, { createdAt: "asc" }],
     });
 
-    const cashEntries = walletEntryView.filter((entry) => entry.type === "CASH_WALLET");
-    const assetEntries = walletEntryView.filter((entry) => entry.type === "ASSET_HOLDING");
-    const cashTotalPhp = cashEntries.reduce((total, entry) => total + entry.currentValuePhp, 0);
-    const assetTotalPhp = assetEntries.reduce((total, entry) => total + entry.currentValuePhp, 0);
-    const grandTotalPhp = cashTotalPhp + assetTotalPhp;
+    const groupedAccounts = Object.values(WalletAccountType).map((type) => ({
+        type,
+        label: walletAccountTypeLabel[type],
+        entries: accounts.filter((account) => account.type === type),
+    }));
+
+    const totalNonCredit = accounts
+        .filter((account) => account.type !== WalletAccountType.CREDIT_CARD)
+        .reduce((sum, account) => sum + Number(account.currentBalancePhp), 0);
+    const totalCreditDebt = accounts
+        .filter((account) => account.type === WalletAccountType.CREDIT_CARD)
+        .reduce((sum, account) => sum + Number(account.currentBalancePhp), 0);
 
     return (
         <section className="d-grid gap-4">
             <header className="d-grid gap-2">
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Main Page</p>
-                <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Wallet</h2>
+                <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Wallet Accounts</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Track your current cash wallets and asset holdings in PHP equivalent.
+                    Ledger-compatible accounts with wallet, bank, e-wallet, asset, and credit card support.
                 </p>
             </header>
 
-            <WalletEntryGrid
-                entries={walletEntryView}
-                cashEntries={cashEntries}
-                assetEntries={assetEntries}
-                grandTotalPhpLabel={currencyFormatter.format(grandTotalPhp)}
-                cashTotalPhpLabel={currencyFormatter.format(cashTotalPhp)}
-                assetTotalPhpLabel={currencyFormatter.format(assetTotalPhp)}
-                createWalletEntryAction={createWalletEntryAction}
-                updateWalletEntryAction={updateWalletEntryAction}
-                deleteWalletEntryAction={deleteWalletEntryAction}
-            />
+            <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                <Card className="pf-surface-card">
+                    <CardBody className="d-grid gap-1">
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Cash / Assets Total</small>
+                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit)}</p>
+                    </CardBody>
+                </Card>
+                <Card className="pf-surface-card">
+                    <CardBody className="d-grid gap-1">
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Credit Card Debt</small>
+                        <p className="m-0 fs-5 fw-semibold text-danger">{formatPhp(totalCreditDebt)}</p>
+                    </CardBody>
+                </Card>
+                <Card className="pf-surface-card">
+                    <CardBody className="d-grid gap-1">
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Net Position</small>
+                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit - totalCreditDebt)}</p>
+                    </CardBody>
+                </Card>
+            </div>
+
+            <Card className="pf-surface-panel">
+                <CardBody className="d-grid gap-3">
+                    <h3 className="m-0 fs-6 fw-semibold">Add Wallet Account</h3>
+                    <form action={createWalletAccountAction} className="d-grid gap-3">
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-type" className="small fw-semibold">Type</label>
+                            <select id="wallet-type" name="type" className="form-control" defaultValue="CASH">
+                                {Object.values(WalletAccountType).map((type) => (
+                                    <option key={type} value={type}>{walletAccountTypeLabel[type]}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-name" className="small fw-semibold">Name</label>
+                            <input id="wallet-name" type="text" name="name" className="form-control" maxLength={80} required />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-balance" className="small fw-semibold">Current Balance (PHP)</label>
+                            <input id="wallet-balance" type="number" name="currentBalancePhp" className="form-control" min="0" step="0.01" required />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-credit-limit" className="small fw-semibold">Credit Limit (for credit card)</label>
+                            <input id="wallet-credit-limit" type="number" name="creditLimitPhp" className="form-control" min="0" step="0.01" />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-statement-close" className="small fw-semibold">Statement Closing Day (1-31)</label>
+                            <input id="wallet-statement-close" type="number" name="statementClosingDay" className="form-control" min="1" max="31" />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-statement-due" className="small fw-semibold">Statement Due Day (1-31)</label>
+                            <input id="wallet-statement-due" type="number" name="statementDueDay" className="form-control" min="1" max="31" />
+                        </div>
+                        <Button type="submit">Create Account</Button>
+                    </form>
+                </CardBody>
+            </Card>
+
+            {groupedAccounts.map((group) => (
+                <Card key={group.type} className="pf-surface-panel">
+                    <CardBody className="d-grid gap-3">
+                        <h3 className="m-0 fs-6 fw-semibold">{group.label}</h3>
+                        <div className="table-responsive">
+                            <Table hover className="align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Balance</th>
+                                        <th>Credit Limit</th>
+                                        <th>Statement</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {group.entries.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                                No accounts in this group.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        group.entries.map((account) => (
+                                            <tr key={account.id}>
+                                                <td>{account.name}</td>
+                                                <td className={account.type === WalletAccountType.CREDIT_CARD ? "text-danger" : ""}>
+                                                    {formatPhp(Number(account.currentBalancePhp))}
+                                                </td>
+                                                <td>{account.creditLimitPhp === null ? "-" : formatPhp(Number(account.creditLimitPhp))}</td>
+                                                <td>
+                                                    {account.statementClosingDay && account.statementDueDay
+                                                        ? `${account.statementClosingDay} -> ${account.statementDueDay}`
+                                                        : "-"}
+                                                </td>
+                                                <td>
+                                                    <details>
+                                                        <summary style={{ cursor: "pointer" }}>Edit</summary>
+                                                        <form action={updateWalletAccountAction} className="d-grid gap-2 mt-2">
+                                                            <input type="hidden" name="id" value={account.id} />
+                                                            <select name="type" className="form-control form-control-sm" defaultValue={account.type}>
+                                                                {Object.values(WalletAccountType).map((type) => (
+                                                                    <option key={type} value={type}>{walletAccountTypeLabel[type]}</option>
+                                                                ))}
+                                                            </select>
+                                                            <input type="text" name="name" className="form-control form-control-sm" defaultValue={account.name} required />
+                                                            <input
+                                                                type="number"
+                                                                name="currentBalancePhp"
+                                                                className="form-control form-control-sm"
+                                                                defaultValue={Number(account.currentBalancePhp).toFixed(2)}
+                                                                min="0"
+                                                                step="0.01"
+                                                                required
+                                                            />
+                                                            <input
+                                                                type="number"
+                                                                name="creditLimitPhp"
+                                                                className="form-control form-control-sm"
+                                                                defaultValue={account.creditLimitPhp === null ? "" : Number(account.creditLimitPhp).toFixed(2)}
+                                                                min="0"
+                                                                step="0.01"
+                                                            />
+                                                            <input
+                                                                type="number"
+                                                                name="statementClosingDay"
+                                                                className="form-control form-control-sm"
+                                                                defaultValue={account.statementClosingDay ?? ""}
+                                                                min="1"
+                                                                max="31"
+                                                            />
+                                                            <input
+                                                                type="number"
+                                                                name="statementDueDay"
+                                                                className="form-control form-control-sm"
+                                                                defaultValue={account.statementDueDay ?? ""}
+                                                                min="1"
+                                                                max="31"
+                                                            />
+                                                            <div className="d-flex gap-2">
+                                                                <Button size="sm" type="submit" variant="outline-primary">Save</Button>
+                                                            </div>
+                                                        </form>
+                                                        <form action={archiveWalletAccountAction} className="mt-2">
+                                                            <input type="hidden" name="id" value={account.id} />
+                                                            <Button size="sm" variant="outline-danger" type="submit">Archive</Button>
+                                                        </form>
+                                                    </details>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Table>
+                        </div>
+                    </CardBody>
+                </Card>
+            ))}
         </section>
     );
 }

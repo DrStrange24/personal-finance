@@ -48,7 +48,7 @@ export default function SignupPage() {
                 return;
             }
 
-            router.push("/wallet");
+            router.push("/dashboard");
         } catch {
             setError("Unable to connect. Please try again.");
         } finally {

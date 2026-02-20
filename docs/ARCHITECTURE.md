@@ -2,42 +2,95 @@
 
 ## App Router
 
-- Pages live under app/ and use server or client components as needed.
-- API route handlers live under app/api.
-- Server Components are the default for page-level data loading.
-- Client Components should call `/api/*` for browser-driven reads/writes.
+- App routes are in `app/`.
+- Protected routes are grouped under `app/(app)` and require a valid `pf_session`.
+- Public auth routes are under `app/(auth)`.
+- API handlers are in `app/api`.
 
 ## Auth Flow
 
-1. User submits login or signup form.
-2. The client sends a POST request to /api/auth/login or /api/auth/signup.
-3. The API validates input, hashes or verifies the password, and creates a JWT.
-4. The JWT is stored in the `pf_session` HTTP-only cookie for subsequent requests.
-5. On success, the client navigates to `/wallet`.
-6. Protected routes in `app/(app)` verify `pf_session` on the server and redirect to `/login` if invalid.
-7. Logout calls `POST /api/auth/logout`, clears `pf_session`, and redirects the client to `/login`.
+1. User submits login/signup form.
+2. Client calls `/api/auth/login` or `/api/auth/signup`.
+3. Server validates credentials and issues JWT.
+4. JWT is stored as `pf_session` HTTP-only cookie.
+5. Client redirects to `/dashboard`.
+6. Protected routes verify cookie server-side and redirect to `/login` if invalid.
+7. Logout calls `POST /api/auth/logout`.
 
-## UI Shell
+## Finance Domain Model
 
-- Authenticated pages share `app/(app)/layout.tsx`.
-- The layout renders a persistent sidebar and page content area.
-- Sidebar links: `/wallet`, `/monthly-overview`, and a logout action.
+Primary models:
+
+- `WalletAccount` (cash, bank, e-wallet, asset, credit card)
+- `IncomeStream`
+- `BudgetEnvelope` (including hidden system envelopes)
+- `LoanRecord`
+- `FinanceTransaction` (ledger)
+
+Legacy compatibility models:
+
+- `WalletEntry`
+- `MonthlyOverviewEntry`
+
+Enums:
+
+- `WalletAccountType`
+- `TransactionKind`
+- `LoanDirection`
+- `LoanStatus`
+
+## Transaction Posting Engine
+
+Central posting logic lives in `lib/finance/posting-engine.ts`.
+The same module also handles transaction delete with balance reversal.
+
+Implemented behavior:
+
+- `INCOME`: wallet +, budget envelope +
+- `EXPENSE`: wallet -, budget envelope -
+- `BUDGET_ALLOCATION`: wallet -, budget envelope +
+- `TRANSFER`: source wallet -, target wallet +, uses system envelope
+- `CREDIT_CARD_CHARGE`: credit-card wallet debt +, budget envelope -
+- `CREDIT_CARD_PAYMENT`: cash wallet -, credit-card wallet debt -, uses system envelope
+- `LOAN_BORROW`: wallet +, loan remaining +, uses system envelope
+- `LOAN_REPAY`: wallet -, loan paid + and remaining -, uses system envelope
+- `ADJUSTMENT`: wallet +
+
+System envelopes are auto-created in bootstrap:
+
+- `System: Transfer`
+- `System: Credit Payment`
+- `System: Loan Inflow`
+- `System: Loan Payment`
+
+## Bootstrap and Migration Compatibility
+
+`lib/finance/bootstrap.ts` ensures a user has:
+
+- system envelopes
+- default budget envelope (if none)
+- default income streams (if none)
+- migrated wallet accounts from legacy `WalletEntry` when no `WalletAccount` exists
+
+Legacy monthly overview is preserved and still served by `/monthly-overview`.
+
+## Workbook Import
+
+Two-step import flow:
+
+1. `POST /api/imports/workbook`
+   - accepts `.xlsx`
+   - parses workbook with `xlsx` package (`lib/import/workbook.ts`)
+   - stages parsed content in in-memory staging store
+2. `POST /api/imports/commit`
+   - reads staged import by `importId`
+   - commits into wallet accounts, income streams, budgets, loans, and monthly overview compatibility rows
 
 ## Styling
 
-- Global stylesheet entrypoint is `app/globals.scss`.
-- Global style source files are organized in `app/styles/`:
-  - `_theme-tokens.scss` for CSS variables and Bootstrap mapping.
-  - `_base.scss` for reset/base element styles.
-  - `_components.scss` for shared global utility/component classes.
-- Route and component styles are defined with Sass modules (`*.module.scss`).
-- Theme tokens are defined as CSS variables in `app/styles/_theme-tokens.scss`.
-- Color mode is set on `<html data-theme="light|dark">` and persisted in `localStorage` using the `pf-theme` key.
-- `app/theme-toggle.tsx` provides the global theme switcher and is mounted from `app/layout.tsx`.
-
-## Data Layer
-
-- Prisma connects the app to PostgreSQL.
-- User records are stored in the database with hashed passwords.
-- Server Components may read data directly from Prisma/server utilities.
-- API handlers are required for client-triggered mutations and external consumers.
+- Global style entrypoint: `app/globals.scss`
+- Global sources:
+  - `app/styles/_theme-tokens.scss`
+  - `app/styles/_base.scss`
+  - `app/styles/_components.scss`
+- Route-level styles remain in co-located `*.module.scss`.

@@ -8,54 +8,71 @@
 
 ## Environment Variables
 
-Create a .env.local file in the project root:
+Create `.env.local` in project root:
 
-- DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB
-- JWT_SECRET=your-long-random-string
-
-The JWT secret must be set for login and signup to work.
+- `DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB`
+- `JWT_SECRET=your-long-random-string`
 
 ## Install
 
+```bash
 npm install
-
-Frontend styling stack in this project includes:
-- Sass (`sass`) for global tokens/overrides.
-- React Bootstrap (`react-bootstrap`) + Bootstrap CSS for UI components.
-
-All required packages are installed via `npm install`.
+```
 
 ## Database Setup
 
-1. Initialize Prisma and apply migrations:
-   - npx prisma migrate dev --name init
-2. Generate Prisma client (if needed):
-   - npx prisma generate
+Apply migrations:
+
+```bash
+npx prisma migrate dev
+```
+
+Generate Prisma client:
+
+```bash
+npx prisma generate --no-engine
+```
 
 ## Run
 
+```bash
 npm run dev
+```
 
-If port 3000 is already in use:
+If port 3000 is busy:
 
+```bash
 npm run dev -- -p 3002
+```
 
-## Data Access Rule
+## Build and Quality Checks
 
-- Default: load page data in Server Components.
-- Use `/api/*` from Client Components for user-triggered actions or live browser-side updates.
-- Keep Prisma access server-side only (Server Components, API handlers, or server utilities), never in browser code.
+```bash
+npm run lint
+npm run build
+```
 
-## Reusable UI
+## Workbook Import Development Workflow
 
-- Place reusable UI in `app/components/`.
-- Global toast notifications are provided by `app/components/toast-provider.tsx` and mounted in `app/layout.tsx`.
+1. Start app and log in.
+2. Open `/dashboard`.
+3. Use **Workbook Import (.xlsx)** card.
+4. Parse workbook (`/api/imports/workbook`).
+5. Commit staged import (`/api/imports/commit`).
+
+## Data Access Rules
+
+- Prefer Server Components for page data.
+- Use `app/api/*` endpoints for browser file upload/import flows.
+- Keep Prisma access server-side only.
+
+## Reusable UI Placement
+
+- Shared components go under `app/components/`.
+- Finance shared components are under `app/components/finance/`.
 
 ## Theming Rules
 
-- The app supports both dark and light themes globally.
-- All new UI code must use semantic CSS variables from `app/styles/_theme-tokens.scss` (for example `var(--color-text-primary)`), not hardcoded hex/rgb values.
-- Theme selection is stored in `localStorage` under `pf-theme` and applied on the root html element as `data-theme`.
-- Keep React Bootstrap colors/theme aligned by overriding Bootstrap CSS variables in `app/styles/_theme-tokens.scss`.
-- Keep `app/globals.scss` as the import entrypoint only; global style organization belongs in `app/styles/`.
-- Follow folder placement policy in `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
+- Use semantic tokens from `app/styles/_theme-tokens.scss`.
+- Do not hardcode colors in new UI when a token exists.
+- Keep `app/globals.scss` as import entrypoint only.

@@ -26,6 +26,7 @@ This document lists the technologies currently used in this project.
 - JWT-based sessions via `jsonwebtoken` `9.0.2`
 - Password hashing via `bcryptjs` `3.0.2`
 - HTTP-only auth cookie: `pf_session`
+- Workbook parsing: `xlsx` `0.18.5`
 
 ## Database and ORM
 

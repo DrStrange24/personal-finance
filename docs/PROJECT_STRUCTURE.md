@@ -2,41 +2,74 @@
 
 - app/
   - (app)/
-    - layout.tsx (protected app shell with persistent sidebar)
+    - layout.tsx (protected app shell)
     - layout.module.scss
     - app-sidebar.tsx
-    - wallet/ (wallet balances + holdings dashboard page)
-      - page.tsx (server data loading, totals, and wallet CRUD server actions)
-      - entry-grid.tsx (client card grid with add/edit/delete modals + toast flows)
-      - page.module.scss (wallet page-local card/grid styles)
-    - monthly-overview/ (monthly overview table page)
-      - page.tsx (monthly overview page with table + chart trigger)
-      - chart-modal.tsx (client modal chart with zoom/pan controls)
-      - entry-table.tsx (client table with add/edit modals and delete action)
+    - dashboard/
+      - page.tsx (main transaction-first dashboard + import card + quick posting)
+    - transactions/
+      - page.tsx (ledger page with filters + posting form)
+    - income/
+      - page.tsx (income stream management + income posting)
+    - budget/
+      - page.tsx (envelope management + budget allocation posting)
+    - loan/
+      - page.tsx (loan registry + borrow/repay posting)
+    - wallet/
+      - page.tsx (wallet account management for cash/bank/e-wallet/asset/credit card)
+      - entry-grid.tsx (legacy wallet UI component retained for compatibility)
+      - page.module.scss (legacy wallet style module)
+    - monthly-overview/
+      - page.tsx (historical wallet overview table/chart)
+      - chart-modal.tsx
+      - entry-table.tsx
   - (auth)/
-    - layout.tsx (unauthenticated auth pages layout)
+    - layout.tsx
     - layout.module.scss
-    - login/ (login page)
-    - signup/ (signup page)
+    - login/page.tsx
+    - signup/page.tsx
   - api/
     - auth/
-      - login/ (login endpoint)
-      - logout/ (logout endpoint)
-      - signup/ (signup endpoint)
+      - login/route.ts
+      - logout/route.ts
+      - signup/route.ts
+    - imports/
+      - workbook/route.ts (parse workbook upload into staging store)
+      - commit/route.ts (commit staged workbook into DB models)
   - components/
-    - action-icon-button.tsx (reusable icon-only action button for add/edit/delete controls)
-    - toast-provider.tsx (global toast provider + hook for reusable app notifications)
+    - action-icon-button.tsx
+    - toast-provider.tsx
+    - finance/
+      - metric-card.tsx
+      - transaction-kind-badge.tsx
+      - transaction-form.tsx
+      - import-workbook-card.tsx
   - styles/
-    - _theme-tokens.scss (global theme tokens + Bootstrap variable mapping)
-    - _base.scss (global reset/typography/base elements)
-    - _components.scss (global shared utility/component classes)
+    - _theme-tokens.scss
+    - _base.scss
+    - _components.scss
   - globals.scss
   - layout.tsx
   - page.tsx
   - theme-toggle.module.scss
+  - theme-toggle.tsx
 - lib/
-  - auth.ts (JWT sign + verify helpers)
-  - prisma.ts (Prisma client)
+  - auth.ts
+  - prisma.ts
+  - server-session.ts
+  - finance/
+    - bootstrap.ts
+    - constants.ts
+    - context.ts
+    - form-parsers.ts
+    - money.ts
+    - posting-engine.ts
+    - queries.ts
+    - types.ts
+  - import/
+    - workbook.ts
+    - staging-store.ts
+    - commit.ts
 - prisma/
   - schema.prisma
   - migrations/
@@ -44,14 +77,12 @@
     - 20260219113000_add_monthly_overview_entry/
     - 20260219133652_monthly_overview_id_db_default/
     - 20260220163000_add_wallet_entry/
+    - 20260220190000_add_finance_core/
 - public/
 
 Notes:
-- The App Router is used for pages and API route handlers.
-- Auth endpoints live in `app/api`.
-- Protected pages live in `app/(app)` and redirect to `/login` when `pf_session` is missing/invalid.
-- Monthly overview data is persisted in Prisma model `MonthlyOverviewEntry` and scoped by `userId`.
-- Styling uses `app/globals.scss` as the global entrypoint and `app/styles/` partials for source organization.
-- Theme colors follow semantic tokens (`--color-primary`, `--color-secondary`, `--color-tertiary`) defined in `app/globals.scss`.
-- React Bootstrap adoption guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.
-- Folder placement conventions: `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
+
+- Protected pages are under `app/(app)`.
+- New finance domain models are in Prisma (`WalletAccount`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
+- Legacy models (`WalletEntry`, `MonthlyOverviewEntry`) remain for migration compatibility.
+- Workbook import currently uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) workflow.

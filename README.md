@@ -1,14 +1,14 @@
-Personal Finance is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Personal Finance is a [Next.js](https://nextjs.org) app for transaction-first personal money management.
 
 ## Documentation Workflow
 
 Read relevant docs before making code changes. If docs are missing or outdated, update docs first or alongside code changes.
 
-Project documentation lives in the docs/ folder.
-Folder placement policy for AI/human contributions is defined in `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`.
-Current technology inventory is documented in `docs/TECH_STACK.md`.
-When adding, changing, or removing technologies, update `docs/TECH_STACK.md` in the same change.
-Data access convention: prefer Server Components for page data; use `app/api/*` from Client Components for browser-driven actions.
+Project documentation lives in `docs/`.
+
+- Folder placement policy: `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`
+- Technology inventory: `docs/TECH_STACK.md`
+- Data access convention: prefer Server Components for page data; use `app/api/*` from Client Components for browser-driven operations
 
 ## Current App Routes
 
@@ -17,8 +17,13 @@ Data access convention: prefer Server Components for page data; use `app/api/*` 
   - `/login`
   - `/signup`
 - Authenticated (requires `pf_session` cookie):
-  - `/wallet` (DB-backed wallet dashboard with cash/asset card grids, totals, modal CRUD, and simple asset P/L)
-  - `/monthly-overview` (DB-backed table: Date, Wallet, Remarks with modal add/edit and row delete)
+  - `/dashboard` quick actions + key finance metrics + workbook import
+  - `/transactions` unified ledger with filters and posting form
+  - `/income` income stream setup and income posting
+  - `/budget` envelope budgeting and allocation
+  - `/loan` loan register (`you owe` and `you are owed`) + repayment/borrow posting
+  - `/wallet` wallet account management (cash/bank/e-wallet/asset/credit card)
+  - `/monthly-overview` historical wallet snapshot table/chart (legacy-compatible page)
 
 ## Getting Started
 
@@ -28,54 +33,63 @@ Install dependencies:
 npm install
 ```
 
-Apply Prisma migrations before running authenticated pages:
+Apply Prisma migrations:
 
 ```bash
 npx prisma migrate dev
 ```
 
-Run the development server:
+Generate Prisma client (if needed):
+
+```bash
+npx prisma generate --no-engine
+```
+
+Run development server:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-If port 3000 is busy, choose another port:
+## Workbook Import Flow
 
-```bash
-npm run dev -- -p 3002
-```
+1. Go to `/dashboard`.
+2. In **Workbook Import (.xlsx)**, upload your `Finance - Personal.xlsx`.
+3. Click **Parse Workbook**.
+4. Review row counts.
+5. Click **Commit Import**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Supported workbook sheets:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk) and [Space Mono](https://fonts.google.com/specimen/Space+Mono).
+- `Wallet`
+- `Statistics`
+- `Income`
+- `Budget`
+- `Loan`
+- `Net Worth` (currently parsed but not used for active module pages)
+
+## Finance Model (Phase)
+
+- PHP-only currency model.
+- Every manual add/deduct flow records a ledger transaction.
+- Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.
+- Credit cards are modeled as `CREDIT_CARD` wallet accounts and tracked through:
+  - `CREDIT_CARD_CHARGE`
+  - `CREDIT_CARD_PAYMENT`
+- Legacy `WalletEntry` and `MonthlyOverviewEntry` remain for migration compatibility.
 
 ## Styling
 
-- Frontend UI uses React Bootstrap (`react-bootstrap`) and Bootstrap CSS.
+- Frontend UI uses React Bootstrap and Bootstrap CSS.
 - Global stylesheet entrypoint is `app/globals.scss`.
-- Global style source files live under `app/styles/` (`_theme-tokens.scss`, `_base.scss`, `_components.scss`).
-- Theme colors are standardized as:
-  - `--color-primary` (brand/action)
-  - `--color-secondary` (positive/success)
-  - `--color-tertiary` (planning/highlight)
-- Component/page code should use the semantic `primary/secondary/tertiary` tokens (or Bootstrap `primary/success/info` variants mapped to those tokens), not legacy color names.
-- Layout/theme-specific modules still exist where needed (for example `app/(app)/layout.module.scss` and `app/theme-toggle.module.scss`).
-- Migration/setup guide: `docs/FRONTEND_REACT_BOOTSTRAP.md`.
+- Global style sources are in `app/styles/`:
+  - `_theme-tokens.scss`
+  - `_base.scss`
+  - `_components.scss`
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Learn Next.js](https://nextjs.org/learn)
