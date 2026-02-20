@@ -4,6 +4,7 @@ import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Table from "react-bootstrap/Table";
+import ConfirmSubmitButton from "@/app/components/confirm-submit-button";
 import TransactionForm from "@/app/components/finance/transaction-form";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
@@ -260,9 +261,15 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                                                 <td>
                                                     <form action={deleteTransactionAction}>
                                                         <input type="hidden" name="id" value={tx.id} />
-                                                        <Button type="submit" size="sm" variant="outline-danger">
+                                                        <ConfirmSubmitButton
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="outline-danger"
+                                                            confirmTitle="Delete Transaction"
+                                                            confirmMessage="Delete this transaction? This will create reversal effects in linked balances."
+                                                        >
                                                             Delete
-                                                        </Button>
+                                                        </ConfirmSubmitButton>
                                                     </form>
                                                 </td>
                                             </tr>

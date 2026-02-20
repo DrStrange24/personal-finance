@@ -89,6 +89,10 @@ Supported workbook sheets:
   - `_base.scss`
   - `_components.scss`
 
+## UX Safety Rule
+
+- Destructive actions (delete/archive/removal) must always show a confirmation modal before submit across all modules.
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)

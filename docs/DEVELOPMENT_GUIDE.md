@@ -71,6 +71,12 @@ npm run build
 - Shared components go under `app/components/`.
 - Finance shared components are under `app/components/finance/`.
 
+## Destructive Action Rule
+
+- Every delete/archive/removal action must show a confirmation modal before submitting.
+- This rule applies to all modules and routes.
+- Prefer shared confirmation UI helpers in `app/components/` to keep behavior consistent.
+
 ## Theming Rules
 
 - Use semantic tokens from `app/styles/_theme-tokens.scss`.

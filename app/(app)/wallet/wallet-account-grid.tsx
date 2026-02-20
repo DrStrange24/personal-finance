@@ -6,6 +6,7 @@ import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Modal from "react-bootstrap/Modal";
 import ActionIconButton from "@/app/components/action-icon-button";
+import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
 import { formatPhp } from "@/lib/finance/money";
 import styles from "./page.module.scss";
 
@@ -106,10 +107,12 @@ export default function WalletAccountGrid({
                                                 />
                                                 <form action={archiveWalletAccountAction}>
                                                     <input type="hidden" name="id" value={account.id} />
-                                                    <ActionIconButton
+                                                    <ConfirmSubmitIconButton
                                                         action="delete"
                                                         label={`Archive wallet account ${account.name}`}
                                                         type="submit"
+                                                        confirmTitle="Archive Wallet Account"
+                                                        confirmMessage={`Archive wallet account \"${account.name}\"?`}
                                                     />
                                                 </form>
                                             </div>
