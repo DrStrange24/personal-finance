@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Col, Container, Row } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import AppSidebar from "./app-sidebar";
 import { verifySessionToken } from "@/lib/auth";
 import styles from "./layout.module.scss";
@@ -23,16 +23,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </div>
 
             <Container fluid className={styles.container}>
-                <Row className={`g-3 g-sm-4 ${styles.shellRow}`}>
-                    <Col lg={4} xl={3} className={styles.sidebarWrapper}>
+                <div className={styles.shellRow}>
+                    <div className={styles.sidebarWrapper}>
                         <AppSidebar />
-                    </Col>
-                    <Col lg={8} xl={9} className={styles.mainColumn}>
+                    </div>
+                    <div className={styles.mainColumn}>
                         <main className={`${styles.main} pf-surface-panel`}>
                             {children}
                         </main>
-                    </Col>
-                </Row>
+                    </div>
+                </div>
             </Container>
         </div>
     );
