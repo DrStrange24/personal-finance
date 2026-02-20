@@ -50,6 +50,7 @@ docs/
 - Add follow-up changes by creating a new migration, not by modifying old applied migrations.
 - Always create migrations with an explicit descriptive name via `npx prisma migrate dev --name <initiative-name>`.
 - Prefer kebab-case initiative/feature names (example: `remove-legacy-wallet-entry`, `add-budget-envelope-index`).
+- AI agents must not execute `npx prisma migrate dev` or `npx prisma migrate reset`; they should only prepare migration changes and instruct a human to run commands.
 
 ## Components
 

@@ -12,7 +12,7 @@ CREATE TYPE "LoanStatus" AS ENUM ('ACTIVE', 'PAID', 'WRITTEN_OFF');
 
 -- CreateTable
 CREATE TABLE "MonthlyOverviewEntry" (
-    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "entryDate" TIMESTAMP(3) NOT NULL,
     "walletAmount" DECIMAL(65,30) NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE "MonthlyOverviewEntry" (
 
 -- CreateTable
 CREATE TABLE "WalletAccount" (
-    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "type" "WalletAccountType" NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE "WalletAccount" (
 
 -- CreateTable
 CREATE TABLE "IncomeStream" (
-    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "defaultAmountPhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
@@ -56,7 +56,7 @@ CREATE TABLE "IncomeStream" (
 
 -- CreateTable
 CREATE TABLE "BudgetEnvelope" (
-    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "monthlyTargetPhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
@@ -75,7 +75,7 @@ CREATE TABLE "BudgetEnvelope" (
 
 -- CreateTable
 CREATE TABLE "LoanRecord" (
-    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "direction" "LoanDirection" NOT NULL,
     "itemName" TEXT NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE "LoanRecord" (
 
 -- CreateTable
 CREATE TABLE "FinanceTransaction" (
-    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "postedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "kind" "TransactionKind" NOT NULL,

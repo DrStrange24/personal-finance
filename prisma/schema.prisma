@@ -54,7 +54,7 @@ enum LoanStatus {
 }
 
 model MonthlyOverviewEntry {
-  id           String   @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  id           String   @id @default(cuid())
   userId       String
   entryDate    DateTime
   walletAmount Decimal
@@ -67,7 +67,7 @@ model MonthlyOverviewEntry {
 }
 
 model WalletAccount {
-  id                  String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  id                  String               @id @default(cuid())
   userId              String
   name                String
   type                WalletAccountType
@@ -87,7 +87,7 @@ model WalletAccount {
 }
 
 model IncomeStream {
-  id               String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  id               String               @id @default(cuid())
   userId           String
   name             String
   defaultAmountPhp Decimal              @default(0)
@@ -102,7 +102,7 @@ model IncomeStream {
 }
 
 model BudgetEnvelope {
-  id               String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  id               String               @id @default(cuid())
   userId           String
   name             String
   monthlyTargetPhp Decimal              @default(0)
@@ -123,7 +123,7 @@ model BudgetEnvelope {
 }
 
 model LoanRecord {
-  id            String               @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  id            String               @id @default(cuid())
   userId        String
   direction     LoanDirection
   itemName      String
@@ -145,7 +145,7 @@ model LoanRecord {
 }
 
 model FinanceTransaction {
-  id                    String          @id @default(dbgenerated("md5((random())::text || (clock_timestamp())::text)"))
+  id                    String          @id @default(cuid())
   userId                String
   postedAt              DateTime        @default(now())
   kind                  TransactionKind
