@@ -10,10 +10,14 @@
   - Wallet
   - Monthly Overview
   - Logout
-- Wallet page (`/wallet`) as the default post-auth landing page.
+- Wallet page (`/wallet`) as the default post-auth landing page, with DB-backed current balances and holdings.
+- Wallet add/edit/delete flows via modal forms for cash wallets and asset holdings.
+- Wallet summary cards: grand total, cash total, and assets total (PHP equivalent).
+- Wallet asset cards support optional initial investment and show simple unrealized P/L and P/L%.
+- SmartCrowd static "coming soon" section on the wallet page.
 - Monthly overview table page (`/monthly-overview`) with Date, Wallet (PHP), and Remarks columns.
 - Monthly overview add/edit entry flows via modal forms, plus per-row delete action.
-- Global reusable toast notifications for success/failure events (currently used in monthly overview create/update/delete flows).
+- Global reusable toast notifications for success/failure events (used in wallet and monthly overview CRUD flows).
 - Monthly overview chart modal with zoom in/out and pan controls.
 
 ## API

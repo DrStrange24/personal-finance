@@ -5,7 +5,10 @@
     - layout.tsx (protected app shell with persistent sidebar)
     - layout.module.scss
     - app-sidebar.tsx
-    - wallet/ (main authenticated page)
+    - wallet/ (wallet balances + holdings dashboard page)
+      - page.tsx (server data loading, totals, and wallet CRUD server actions)
+      - entry-grid.tsx (client card grid with add/edit/delete modals + toast flows)
+      - page.module.scss (wallet page-local card/grid styles)
     - monthly-overview/ (monthly overview table page)
       - page.tsx (monthly overview page with table + chart trigger)
       - chart-modal.tsx (client modal chart with zoom/pan controls)
@@ -38,6 +41,8 @@
   - migrations/
     - 20260219095824_init/
     - 20260219113000_add_monthly_overview_entry/
+    - 20260219133652_monthly_overview_id_db_default/
+    - 20260220163000_add_wallet_entry/
 - public/
 
 Notes:

@@ -17,7 +17,7 @@ Data access convention: prefer Server Components for page data; use `app/api/*` 
   - `/login`
   - `/signup`
 - Authenticated (requires `pf_session` cookie):
-  - `/wallet` (default post-login/post-signup landing page)
+  - `/wallet` (DB-backed wallet dashboard with cash/asset card grids, totals, modal CRUD, and simple asset P/L)
   - `/monthly-overview` (DB-backed table: Date, Wallet, Remarks with modal add/edit and row delete)
 
 ## Getting Started
