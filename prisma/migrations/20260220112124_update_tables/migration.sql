@@ -11,13 +11,26 @@ CREATE TYPE "LoanDirection" AS ENUM ('YOU_OWE', 'YOU_ARE_OWED');
 CREATE TYPE "LoanStatus" AS ENUM ('ACTIVE', 'PAID', 'WRITTEN_OFF');
 
 -- CreateTable
+CREATE TABLE "MonthlyOverviewEntry" (
+    "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
+    "userId" TEXT NOT NULL,
+    "entryDate" TIMESTAMP(3) NOT NULL,
+    "walletAmount" DECIMAL(65,30) NOT NULL,
+    "remarks" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MonthlyOverviewEntry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "WalletAccount" (
     "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "type" "WalletAccountType" NOT NULL,
-    "currentBalancePhp" DECIMAL NOT NULL DEFAULT 0,
-    "creditLimitPhp" DECIMAL,
+    "currentBalancePhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "creditLimitPhp" DECIMAL(65,30),
     "statementClosingDay" INTEGER,
     "statementDueDay" INTEGER,
     "isArchived" BOOLEAN NOT NULL DEFAULT false,
@@ -32,7 +45,7 @@ CREATE TABLE "IncomeStream" (
     "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "defaultAmountPhp" DECIMAL NOT NULL DEFAULT 0,
+    "defaultAmountPhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "remarks" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -46,8 +59,8 @@ CREATE TABLE "BudgetEnvelope" (
     "id" TEXT NOT NULL DEFAULT md5((random())::text || (clock_timestamp())::text),
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "monthlyTargetPhp" DECIMAL NOT NULL DEFAULT 0,
-    "availablePhp" DECIMAL NOT NULL DEFAULT 0,
+    "monthlyTargetPhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "availablePhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "rolloverEnabled" BOOLEAN NOT NULL DEFAULT true,
     "payTo" TEXT,
     "remarks" TEXT,
@@ -67,10 +80,10 @@ CREATE TABLE "LoanRecord" (
     "direction" "LoanDirection" NOT NULL,
     "itemName" TEXT NOT NULL,
     "counterparty" TEXT,
-    "principalPhp" DECIMAL NOT NULL,
-    "monthlyDuePhp" DECIMAL,
-    "paidToDatePhp" DECIMAL NOT NULL DEFAULT 0,
-    "remainingPhp" DECIMAL NOT NULL,
+    "principalPhp" DECIMAL(65,30) NOT NULL,
+    "monthlyDuePhp" DECIMAL(65,30),
+    "paidToDatePhp" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "remainingPhp" DECIMAL(65,30) NOT NULL,
     "status" "LoanStatus" NOT NULL DEFAULT 'ACTIVE',
     "startDate" TIMESTAMP(3),
     "remarks" TEXT,
@@ -86,7 +99,7 @@ CREATE TABLE "FinanceTransaction" (
     "userId" TEXT NOT NULL,
     "postedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "kind" "TransactionKind" NOT NULL,
-    "amountPhp" DECIMAL NOT NULL,
+    "amountPhp" DECIMAL(65,30) NOT NULL,
     "walletAccountId" TEXT NOT NULL,
     "targetWalletAccountId" TEXT,
     "budgetEnvelopeId" TEXT,
@@ -99,6 +112,9 @@ CREATE TABLE "FinanceTransaction" (
 
     CONSTRAINT "FinanceTransaction_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE INDEX "MonthlyOverviewEntry_userId_entryDate_idx" ON "MonthlyOverviewEntry"("userId", "entryDate");
 
 -- CreateIndex
 CREATE INDEX "WalletAccount_userId_type_isArchived_idx" ON "WalletAccount"("userId", "type", "isArchived");
@@ -132,6 +148,9 @@ CREATE INDEX "FinanceTransaction_userId_budgetEnvelopeId_postedAt_idx" ON "Finan
 
 -- CreateIndex
 CREATE INDEX "FinanceTransaction_userId_walletAccountId_postedAt_idx" ON "FinanceTransaction"("userId", "walletAccountId", "postedAt");
+
+-- AddForeignKey
+ALTER TABLE "MonthlyOverviewEntry" ADD CONSTRAINT "MonthlyOverviewEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WalletAccount" ADD CONSTRAINT "WalletAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

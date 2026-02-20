@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "MonthlyOverviewEntry" ALTER COLUMN "id" SET DEFAULT md5((random())::text || (clock_timestamp())::text);
