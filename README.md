@@ -42,7 +42,7 @@ npx prisma migrate dev
 Generate Prisma client (if needed):
 
 ```bash
-npx prisma generate --no-engine
+npx prisma generate
 ```
 
 Run development server:

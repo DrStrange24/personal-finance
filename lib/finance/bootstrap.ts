@@ -2,6 +2,25 @@ import { Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SYSTEM_ENVELOPE_NAMES } from "@/lib/finance/constants";
 
+const assertFinancePrismaDelegates = () => {
+    const client = prisma as unknown as Record<string, unknown>;
+    const requiredDelegates = [
+        "walletAccount",
+        "incomeStream",
+        "budgetEnvelope",
+        "loanRecord",
+        "financeTransaction",
+    ];
+    const missing = requiredDelegates.filter((delegate) => typeof client[delegate] === "undefined");
+
+    if (missing.length > 0) {
+        throw new Error(
+            `Prisma client is out of date (missing delegates: ${missing.join(", ")}). `
+            + "Run `npx prisma generate --no-engine` and restart the Next.js dev server.",
+        );
+    }
+};
+
 const inferWalletAccountType = (name: string, legacyType: "CASH_WALLET" | "ASSET_HOLDING") => {
     if (legacyType === "ASSET_HOLDING") {
         return WalletAccountType.ASSET;
@@ -19,6 +38,8 @@ const inferWalletAccountType = (name: string, legacyType: "CASH_WALLET" | "ASSET
 };
 
 export const ensureSystemEnvelopesForUser = async (userId: string) => {
+    assertFinancePrismaDelegates();
+
     for (const name of SYSTEM_ENVELOPE_NAMES) {
         const existing = await prisma.budgetEnvelope.findFirst({
             where: {
@@ -47,6 +68,7 @@ export const ensureSystemEnvelopesForUser = async (userId: string) => {
 };
 
 export const ensureFinanceBootstrap = async (userId: string) => {
+    assertFinancePrismaDelegates();
     await ensureSystemEnvelopesForUser(userId);
 
     const walletAccountCount = await prisma.walletAccount.count({
