@@ -24,6 +24,7 @@
       - logout/ (logout endpoint)
       - signup/ (signup endpoint)
   - components/
+    - action-icon-button.tsx (reusable icon-only action button for add/edit/delete controls)
     - toast-provider.tsx (global toast provider + hook for reusable app notifications)
   - styles/
     - _theme-tokens.scss (global theme tokens + Bootstrap variable mapping)

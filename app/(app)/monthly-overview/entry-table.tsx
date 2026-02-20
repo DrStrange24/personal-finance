@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
+import ActionIconButton from "@/app/components/action-icon-button";
 import { useAppToast } from "@/app/components/toast-provider";
 
 type EntryRow = {
@@ -126,9 +127,11 @@ export default function MonthlyOverviewEntryTable({
     return (
         <>
             <div className="d-flex justify-content-end mb-3">
-                <Button size="sm" onClick={() => setIsAddModalOpen(true)}>
-                    Add Entry
-                </Button>
+                <ActionIconButton
+                    action="add"
+                    label="Add monthly overview entry"
+                    onClick={() => setIsAddModalOpen(true)}
+                />
             </div>
 
             <Table hover className="align-middle mb-0">
@@ -178,10 +181,9 @@ export default function MonthlyOverviewEntryTable({
                                     <td>{entry.remarks.trim() || "-"}</td>
                                     <td>
                                         <div className="d-flex align-items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline-primary"
+                                            <ActionIconButton
+                                                action="edit"
+                                                label={`Edit entry for ${entry.entryDateLabel}`}
                                                 onClick={() =>
                                                     setEditState({
                                                         id: entry.id,
@@ -190,13 +192,10 @@ export default function MonthlyOverviewEntryTable({
                                                         remarks: entry.remarks,
                                                     })
                                                 }
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline-danger"
+                                            />
+                                            <ActionIconButton
+                                                action="delete"
+                                                label={`Delete entry for ${entry.entryDateLabel}`}
                                                 onClick={() =>
                                                     setDeleteState({
                                                         id: entry.id,
@@ -204,9 +203,7 @@ export default function MonthlyOverviewEntryTable({
                                                         walletAmountLabel: entry.walletAmountLabel,
                                                     })
                                                 }
-                                            >
-                                                Delete
-                                            </Button>
+                                            />
                                         </div>
                                     </td>
                                 </tr>

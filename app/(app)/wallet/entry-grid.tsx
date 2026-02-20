@@ -6,6 +6,7 @@ import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Modal from "react-bootstrap/Modal";
+import ActionIconButton from "@/app/components/action-icon-button";
 import { useAppToast } from "@/app/components/toast-provider";
 import styles from "./page.module.scss";
 
@@ -157,9 +158,11 @@ export default function WalletEntryGrid({
     return (
         <>
             <div className="d-flex justify-content-end">
-                <Button size="sm" onClick={() => setIsAddModalOpen(true)}>
-                    Add Wallet Entry
-                </Button>
+                <ActionIconButton
+                    action="add"
+                    label="Add wallet entry"
+                    onClick={() => setIsAddModalOpen(true)}
+                />
             </div>
 
             <div className={styles.summaryGrid}>
@@ -213,10 +216,9 @@ export default function WalletEntryGrid({
                                             <p className="small m-0" style={{ color: "var(--color-text-muted)" }}>{entry.remarks}</p>
                                         )}
                                         <div className="d-flex gap-2 pt-1">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline-primary"
+                                            <ActionIconButton
+                                                action="edit"
+                                                label={`Edit wallet entry ${entry.name}`}
                                                 onClick={() =>
                                                     setEditState({
                                                         id: entry.id,
@@ -229,17 +231,12 @@ export default function WalletEntryGrid({
                                                         sortOrder: entry.sortOrder,
                                                     })
                                                 }
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline-danger"
+                                            />
+                                            <ActionIconButton
+                                                action="delete"
+                                                label={`Delete wallet entry ${entry.name}`}
                                                 onClick={() => setDeleteState({ id: entry.id, name: entry.name, valueLabel: entry.currentValuePhpLabel })}
-                                            >
-                                                Delete
-                                            </Button>
+                                            />
                                         </div>
                                     </CardBody>
                                 </Card>
@@ -295,10 +292,9 @@ export default function WalletEntryGrid({
                                                     )}
 
                                                     <div className="d-flex gap-2 pt-1">
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline-primary"
+                                                        <ActionIconButton
+                                                            action="edit"
+                                                            label={`Edit wallet entry ${entry.name}`}
                                                             onClick={() =>
                                                                 setEditState({
                                                                     id: entry.id,
@@ -311,17 +307,12 @@ export default function WalletEntryGrid({
                                                                     sortOrder: entry.sortOrder,
                                                                 })
                                                             }
-                                                        >
-                                                            Edit
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline-danger"
+                                                        />
+                                                        <ActionIconButton
+                                                            action="delete"
+                                                            label={`Delete wallet entry ${entry.name}`}
                                                             onClick={() => setDeleteState({ id: entry.id, name: entry.name, valueLabel: entry.currentValuePhpLabel })}
-                                                        >
-                                                            Delete
-                                                        </Button>
+                                                        />
                                                     </div>
                                                 </CardBody>
                                             </Card>
