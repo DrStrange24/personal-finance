@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 
@@ -29,13 +29,33 @@ export default function MonthlyOverviewChartModal({ points }: MonthlyOverviewCha
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartX, setDragStartX] = useState(0);
     const [dragStartY, setDragStartY] = useState(0);
+    const chartViewportRef = useRef<HTMLDivElement | null>(null);
+    const [viewportHeight, setViewportHeight] = useState(0);
+
+    useEffect(() => {
+        if (!isOpen || !chartViewportRef.current) {
+            return;
+        }
+
+        const updateSize = () => {
+            const nextHeight = chartViewportRef.current?.clientHeight ?? 0;
+            setViewportHeight(nextHeight);
+        };
+
+        updateSize();
+
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(chartViewportRef.current);
+
+        return () => observer.disconnect();
+    }, [isOpen]);
 
     const chart = useMemo(() => {
         const chartPaddingLeft = 96;
         const chartPaddingRight = 24;
         const chartPaddingTop = 16;
         const chartPaddingBottom = 110;
-        const chartHeight = 420;
+        const chartHeight = Math.max(420, viewportHeight || 0);
         const chartAxisY = chartHeight - chartPaddingBottom;
         const barWidth = 18;
         const barGap = 10;
@@ -70,7 +90,7 @@ export default function MonthlyOverviewChartModal({ points }: MonthlyOverviewCha
             roundedMaxWallet,
             chartInnerHeight,
         };
-    }, [points]);
+    }, [points, viewportHeight]);
 
     const resetView = () => {
         setZoom(1);
@@ -116,7 +136,7 @@ export default function MonthlyOverviewChartModal({ points }: MonthlyOverviewCha
                     setIsOpen(false);
                     setIsDragging(false);
                 }}
-                size="xl"
+                fullscreen
                 centered
             >
                 <Modal.Header closeButton>
@@ -132,12 +152,14 @@ export default function MonthlyOverviewChartModal({ points }: MonthlyOverviewCha
                     </div>
 
                     <div
+                        ref={chartViewportRef}
                         className="border rounded"
                         style={{
                             overflow: "hidden",
                             background: "var(--color-surface-elevated)",
                             cursor: isDragging ? "grabbing" : "grab",
                             touchAction: "none",
+                            height: "calc(100vh - 220px)",
                         }}
                         onMouseDown={(event) => onDragStart(event.clientX, event.clientY)}
                         onMouseMove={(event) => onDragMove(event.clientX, event.clientY)}
@@ -158,8 +180,8 @@ export default function MonthlyOverviewChartModal({ points }: MonthlyOverviewCha
                         >
                             <svg
                                 viewBox={`0 0 ${chart.chartWidth} ${chart.chartHeight}`}
-                                width="100%"
-                                height="auto"
+                                width={chart.chartWidth}
+                                height={chart.chartHeight}
                                 role="img"
                                 aria-label="Wallet trend chart by date"
                             >
