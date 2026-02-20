@@ -94,6 +94,7 @@ Supported workbook sheets:
 - Destructive actions (delete/archive/removal) must always use a confirmation modal before submit across all modules.
 - Prefer `app/components/confirmation-modal.tsx` (or wrappers based on it) for consistency.
 - Create/edit/save actions submitted from modals should close the modal when submit completes.
+- For add/edit/delete actions, always show toast feedback for both success and failure.
 
 ## Learn More
 

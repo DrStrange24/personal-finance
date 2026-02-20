@@ -82,6 +82,11 @@ npm run build
 - For create/edit/save modal forms, close the modal after submit completes.
 - Apply this consistently so modal workflows behave the same across modules.
 
+## Action Feedback Rule
+
+- For add/edit/delete (and archive/removal) actions, always show a toast message for both success and failure outcomes.
+- Prefer shared toast context via `app/components/toast-provider.tsx` for consistent behavior.
+
 ## Theming Rules
 
 - Use semantic tokens from `app/styles/_theme-tokens.scss`.

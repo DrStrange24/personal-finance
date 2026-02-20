@@ -57,6 +57,7 @@ docs/
 - Always require an explicit confirmation modal for any delete/archive/removal action before the mutation is submitted.
 - Apply this consistently in every module/route.
 - For create/edit/save forms inside modals, close the modal when submit completes.
+- For add/edit/delete (including archive/removal), always show toast feedback for both success and failure.
 
 ## Styles (SCSS)
 

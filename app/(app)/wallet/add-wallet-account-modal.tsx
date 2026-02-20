@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import ActionIconButton from "@/app/components/action-icon-button";
+import { useAppToast } from "@/app/components/toast-provider";
 
 type AccountTypeOption = {
     value: string;
@@ -12,7 +13,7 @@ type AccountTypeOption = {
 
 type AddWalletAccountModalProps = {
     accountTypeOptions: AccountTypeOption[];
-    createWalletAccountAction: (formData: FormData) => Promise<void>;
+    createWalletAccountAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
 };
 
 export default function AddWalletAccountModal({
@@ -20,10 +21,18 @@ export default function AddWalletAccountModal({
     createWalletAccountAction,
 }: AddWalletAccountModalProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const { showSuccess, showError } = useAppToast();
 
     const submitCreateWalletAccount = async (formData: FormData) => {
         try {
-            await createWalletAccountAction(formData);
+            const result = await createWalletAccountAction(formData);
+            if (result.ok) {
+                showSuccess("Wallet Account Created", result.message);
+            } else {
+                showError("Create Failed", result.message);
+            }
+        } catch {
+            showError("Create Failed", "Could not create wallet account. Please try again.");
         } finally {
             setIsOpen(false);
         }

@@ -11,6 +11,11 @@ import { walletAccountTypeLabel } from "@/lib/finance/types";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
+type WalletAccountActionResult = {
+    ok: boolean;
+    message: string;
+};
+
 const parseRequiredName = (value: FormDataEntryValue | null) => {
     if (typeof value !== "string") {
         return null;
@@ -45,7 +50,7 @@ export default async function WalletPage() {
     const session = await getAuthenticatedSession();
     await ensureFinanceBootstrap(session.userId);
 
-    const createWalletAccountAction = async (formData: FormData) => {
+    const createWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
@@ -57,39 +62,44 @@ export default async function WalletPage() {
         const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
 
         if (!type || !name || !balanceResult.ok || balanceResult.value === null || !creditLimitResult.ok) {
-            return;
+            return { ok: false, message: "Please provide valid wallet account details." };
         }
 
-        const account = await prisma.walletAccount.create({
-            data: {
-                userId: actionSession.userId,
-                type,
-                name,
-                currentBalancePhp: balanceResult.value,
-                creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
-                statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
-                statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
-            },
-        });
-
-        if (balanceResult.value > 0) {
-            await prisma.financeTransaction.create({
+        try {
+            const account = await prisma.walletAccount.create({
                 data: {
                     userId: actionSession.userId,
-                    kind: TransactionKind.ADJUSTMENT,
-                    amountPhp: balanceResult.value,
-                    walletAccountId: account.id,
-                    countsTowardBudget: false,
-                    remarks: "Opening balance for new wallet account.",
+                    type,
+                    name,
+                    currentBalancePhp: balanceResult.value,
+                    creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
+                    statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
+                    statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
                 },
             });
-        }
 
-        revalidatePath("/wallet");
-        revalidatePath("/dashboard");
+            if (balanceResult.value > 0) {
+                await prisma.financeTransaction.create({
+                    data: {
+                        userId: actionSession.userId,
+                        kind: TransactionKind.ADJUSTMENT,
+                        amountPhp: balanceResult.value,
+                        walletAccountId: account.id,
+                        countsTowardBudget: false,
+                        remarks: "Opening balance for new wallet account.",
+                    },
+                });
+            }
+
+            revalidatePath("/wallet");
+            revalidatePath("/dashboard");
+            return { ok: true, message: "Wallet account created successfully." };
+        } catch {
+            return { ok: false, message: "Could not create wallet account. Please try again." };
+        }
     };
 
-    const updateWalletAccountAction = async (formData: FormData) => {
+    const updateWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
@@ -102,7 +112,7 @@ export default async function WalletPage() {
         const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
 
         if (!id || !type || !name || !balanceResult.ok || balanceResult.value === null || !creditLimitResult.ok) {
-            return;
+            return { ok: false, message: "Please provide valid wallet account details." };
         }
 
         const existing = await prisma.walletAccount.findFirst({
@@ -114,61 +124,75 @@ export default async function WalletPage() {
         });
 
         if (!existing) {
-            return;
+            return { ok: false, message: "Wallet account not found." };
         }
 
-        await prisma.walletAccount.update({
-            where: { id: existing.id },
-            data: {
-                type,
-                name,
-                currentBalancePhp: balanceResult.value,
-                creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
-                statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
-                statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
-            },
-        });
-
-        const delta = balanceResult.value - Number(existing.currentBalancePhp);
-        if (Math.abs(delta) > 0.0001) {
-            await prisma.financeTransaction.create({
+        try {
+            await prisma.walletAccount.update({
+                where: { id: existing.id },
                 data: {
-                    userId: actionSession.userId,
-                    kind: TransactionKind.ADJUSTMENT,
-                    amountPhp: Math.abs(delta),
-                    walletAccountId: existing.id,
-                    countsTowardBudget: false,
-                    remarks: `Balance override (${delta >= 0 ? "increase" : "decrease"}).`,
+                    type,
+                    name,
+                    currentBalancePhp: balanceResult.value,
+                    creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
+                    statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
+                    statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
                 },
             });
-        }
 
-        revalidatePath("/wallet");
-        revalidatePath("/dashboard");
+            const delta = balanceResult.value - Number(existing.currentBalancePhp);
+            if (Math.abs(delta) > 0.0001) {
+                await prisma.financeTransaction.create({
+                    data: {
+                        userId: actionSession.userId,
+                        kind: TransactionKind.ADJUSTMENT,
+                        amountPhp: Math.abs(delta),
+                        walletAccountId: existing.id,
+                        countsTowardBudget: false,
+                        remarks: `Balance override (${delta >= 0 ? "increase" : "decrease"}).`,
+                    },
+                });
+            }
+
+            revalidatePath("/wallet");
+            revalidatePath("/dashboard");
+            return { ok: true, message: "Wallet account updated successfully." };
+        } catch {
+            return { ok: false, message: "Could not update wallet account. Please try again." };
+        }
     };
 
-    const archiveWalletAccountAction = async (formData: FormData) => {
+    const archiveWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
         const actionSession = await getAuthenticatedSession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
 
         if (!id) {
-            return;
+            return { ok: false, message: "Missing wallet account id." };
         }
 
-        await prisma.walletAccount.updateMany({
-            where: {
-                id,
-                userId: actionSession.userId,
-                isArchived: false,
-            },
-            data: {
-                isArchived: true,
-            },
-        });
+        try {
+            const archived = await prisma.walletAccount.updateMany({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isArchived: false,
+                },
+                data: {
+                    isArchived: true,
+                },
+            });
 
-        revalidatePath("/wallet");
-        revalidatePath("/dashboard");
+            if (archived.count === 0) {
+                return { ok: false, message: "Wallet account not found or already archived." };
+            }
+
+            revalidatePath("/wallet");
+            revalidatePath("/dashboard");
+            return { ok: true, message: "Wallet account archived successfully." };
+        } catch {
+            return { ok: false, message: "Could not archive wallet account. Please try again." };
+        }
     };
 
     const accounts = await prisma.walletAccount.findMany({

@@ -7,6 +7,7 @@ import CardBody from "react-bootstrap/CardBody";
 import Modal from "react-bootstrap/Modal";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAppToast } from "@/app/components/toast-provider";
 import { formatPhp } from "@/lib/finance/money";
 import styles from "./page.module.scss";
 
@@ -34,8 +35,8 @@ type WalletAccountGroup = {
 type WalletAccountGridProps = {
     groups: WalletAccountGroup[];
     accountTypeOptions: AccountTypeOption[];
-    updateWalletAccountAction: (formData: FormData) => Promise<void>;
-    archiveWalletAccountAction: (formData: FormData) => Promise<void>;
+    updateWalletAccountAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
+    archiveWalletAccountAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
 };
 
 type EditState = WalletAccountViewModel | null;
@@ -47,14 +48,35 @@ export default function WalletAccountGrid({
     archiveWalletAccountAction,
 }: WalletAccountGridProps) {
     const [editState, setEditState] = useState<EditState>(null);
+    const { showSuccess, showError } = useAppToast();
 
     const editType = editState?.type ?? "";
 
     const submitUpdateWalletAccount = async (formData: FormData) => {
         try {
-            await updateWalletAccountAction(formData);
+            const result = await updateWalletAccountAction(formData);
+            if (result.ok) {
+                showSuccess("Wallet Account Updated", result.message);
+            } else {
+                showError("Update Failed", result.message);
+            }
+        } catch {
+            showError("Update Failed", "Could not update wallet account. Please try again.");
         } finally {
             setEditState(null);
+        }
+    };
+
+    const submitArchiveWalletAccount = async (formData: FormData) => {
+        try {
+            const result = await archiveWalletAccountAction(formData);
+            if (result.ok) {
+                showSuccess("Wallet Account Archived", result.message);
+            } else {
+                showError("Archive Failed", result.message);
+            }
+        } catch {
+            showError("Archive Failed", "Could not archive wallet account. Please try again.");
         }
     };
 
@@ -108,7 +130,7 @@ export default function WalletAccountGrid({
                                                     label={`Edit wallet account ${account.name}`}
                                                     onClick={() => setEditState(account)}
                                                 />
-                                                <form action={archiveWalletAccountAction}>
+                                                <form action={submitArchiveWalletAccount}>
                                                     <input type="hidden" name="id" value={account.id} />
                                                     <ConfirmSubmitIconButton
                                                         action="delete"
