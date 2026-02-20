@@ -22,12 +22,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 <div className={styles.overlay} />
             </div>
 
-            <Container fluid="lg" className={styles.container}>
-                <Row className="g-3 g-sm-4 w-100">
+            <Container fluid className={styles.container}>
+                <Row className={`g-3 g-sm-4 ${styles.shellRow}`}>
                     <Col lg={4} xl={3} className={styles.sidebarWrapper}>
                         <AppSidebar />
                     </Col>
-                    <Col lg={8} xl={9}>
+                    <Col lg={8} xl={9} className={styles.mainColumn}>
                         <main className={`${styles.main} pf-surface-panel`}>
                             {children}
                         </main>
