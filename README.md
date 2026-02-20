@@ -22,7 +22,7 @@ Project documentation lives in `docs/`.
   - `/income` income stream setup and income posting
   - `/budget` envelope budgeting and allocation
   - `/loan` loan register (`you owe` and `you are owed`) + repayment/borrow posting
-  - `/wallet` wallet account management (cash/bank/e-wallet/asset/credit card)
+  - `/wallet` wallet account management (cash/bank/e-wallet/asset/credit card) with grouped cards and modal add/edit flows
   - `/monthly-overview` historical wallet snapshot table/chart (legacy-compatible page)
 
 ## Getting Started

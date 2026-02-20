@@ -29,8 +29,16 @@
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
 }
 
+.walletSummaryGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 240px));
+  justify-content: start;
+}
+
 .accountGrid {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 260px));
+  justify-content: start;
 }

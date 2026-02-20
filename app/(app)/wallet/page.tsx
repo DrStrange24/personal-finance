@@ -4,6 +4,7 @@ import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import AddWalletAccountModal from "./add-wallet-account-modal";
 import WalletAccountGrid from "./wallet-account-grid";
+import styles from "./page.module.scss";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { walletAccountTypeLabel } from "@/lib/finance/types";
@@ -218,7 +219,7 @@ export default async function WalletPage() {
                 </p>
             </header>
 
-            <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+            <div className={styles.walletSummaryGrid}>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Cash / Assets Total</small>

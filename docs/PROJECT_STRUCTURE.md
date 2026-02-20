@@ -16,9 +16,11 @@
     - loan/
       - page.tsx (loan registry + borrow/repay posting)
     - wallet/
-      - page.tsx (wallet account management for cash/bank/e-wallet/asset/credit card)
+      - page.tsx (wallet account management page shell + server actions)
+      - add-wallet-account-modal.tsx (wallet account create modal trigger/form)
+      - wallet-account-grid.tsx (wallet account grouped card UI + edit modal + icon actions)
       - entry-grid.tsx (legacy wallet UI component retained for compatibility)
-      - page.module.scss (legacy wallet style module)
+      - page.module.scss (wallet route style module shared by wallet components)
     - monthly-overview/
       - page.tsx (historical wallet overview table/chart)
       - chart-modal.tsx
