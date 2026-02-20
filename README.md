@@ -39,6 +39,13 @@ Apply Prisma migrations:
 npx prisma migrate dev
 ```
 
+Migration rule:
+
+- Do not edit `prisma/migrations/*/migration.sql` after it has been applied.
+- Make further DB changes by creating a new migration.
+- When creating migrations, always provide a clear initiative/feature name:
+  - `npx prisma migrate dev --name <initiative-name>`
+
 Generate Prisma client (if needed):
 
 ```bash

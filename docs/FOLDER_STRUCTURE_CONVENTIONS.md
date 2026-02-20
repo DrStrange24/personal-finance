@@ -43,6 +43,14 @@ docs/
 - `lib/`: shared utilities; database access helpers should be server-only.
 - Prisma access must stay server-side (Server Components, API handlers, server-only modules).
 
+## Prisma Migrations
+
+- Migration files live in `prisma/migrations/<timestamp_name>/migration.sql`.
+- Never edit a migration SQL file after it has already been applied to a database.
+- Add follow-up changes by creating a new migration, not by modifying old applied migrations.
+- Always create migrations with an explicit descriptive name via `npx prisma migrate dev --name <initiative-name>`.
+- Prefer kebab-case initiative/feature names (example: `remove-legacy-wallet-entry`, `add-budget-envelope-index`).
+
 ## Components
 
 - Use `app/components/` for reusable UI used by multiple routes.

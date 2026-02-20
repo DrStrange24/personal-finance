@@ -33,6 +33,20 @@ Generate Prisma client:
 npx prisma generate
 ```
 
+## Prisma Migration Safety
+
+- Do not edit `prisma/migrations/*/migration.sql` after that migration has been applied to any database.
+- If schema changes are needed, update `prisma/schema.prisma` and create a new migration:
+- If schema changes are needed, update `prisma/schema.prisma` and create a new migration with an explicit initiative/feature-oriented name:
+
+```bash
+npx prisma migrate dev --name your-change-name
+```
+
+- Use kebab-case and clear intent for migration names (example: `wallet-balance-precision-fix`, `add-income-stream-indexes`).
+
+- If a previously applied migration file was accidentally edited, restore that file content to the original version instead of rewriting migration history.
+
 ## Run
 
 ```bash
