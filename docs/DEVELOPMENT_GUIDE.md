@@ -77,6 +77,11 @@ npm run build
 - This rule applies to all modules and routes.
 - Reuse `app/components/confirmation-modal.tsx` (directly or via wrapper components) to keep behavior consistent.
 
+## Modal Submit Behavior
+
+- For create/edit/save modal forms, close the modal after submit completes.
+- Apply this consistently so modal workflows behave the same across modules.
+
 ## Theming Rules
 
 - Use semantic tokens from `app/styles/_theme-tokens.scss`.

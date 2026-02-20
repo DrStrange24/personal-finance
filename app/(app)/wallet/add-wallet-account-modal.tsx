@@ -21,6 +21,14 @@ export default function AddWalletAccountModal({
 }: AddWalletAccountModalProps) {
     const [isOpen, setIsOpen] = useState(false);
 
+    const submitCreateWalletAccount = async (formData: FormData) => {
+        try {
+            await createWalletAccountAction(formData);
+        } finally {
+            setIsOpen(false);
+        }
+    };
+
     return (
         <>
             <div className="d-flex justify-content-end">
@@ -35,7 +43,7 @@ export default function AddWalletAccountModal({
                 <Modal.Header closeButton>
                     <Modal.Title>Add Wallet Account</Modal.Title>
                 </Modal.Header>
-                <form action={createWalletAccountAction}>
+                <form action={submitCreateWalletAccount}>
                     <Modal.Body className="d-grid gap-3">
                         <div className="d-grid gap-1">
                             <label htmlFor="wallet-type" className="small fw-semibold">Type</label>
@@ -67,7 +75,7 @@ export default function AddWalletAccountModal({
                         </div>
                     </Modal.Body>
                     <Modal.Footer>
-                        <Button variant="outline-secondary" onClick={() => setIsOpen(false)}>
+                        <Button type="button" variant="outline-secondary" onClick={() => setIsOpen(false)}>
                             Cancel
                         </Button>
                         <Button type="submit">Create Account</Button>

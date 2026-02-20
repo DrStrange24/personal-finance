@@ -51,8 +51,11 @@ export default function WalletAccountGrid({
     const editType = editState?.type ?? "";
 
     const submitUpdateWalletAccount = async (formData: FormData) => {
-        await updateWalletAccountAction(formData);
-        setEditState(null);
+        try {
+            await updateWalletAccountAction(formData);
+        } finally {
+            setEditState(null);
+        }
     };
 
     return (
@@ -222,7 +225,7 @@ export default function WalletAccountGrid({
                         )}
                     </Modal.Body>
                     <Modal.Footer>
-                        <Button variant="outline-secondary" onClick={() => setEditState(null)}>
+                        <Button type="button" variant="outline-secondary" onClick={() => setEditState(null)}>
                             Cancel
                         </Button>
                         <Button type="submit">Update</Button>
