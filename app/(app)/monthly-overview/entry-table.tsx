@@ -42,6 +42,28 @@ type DeleteState = {
     walletAmountLabel: string;
 } | null;
 
+const currencyDeltaFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+const percentFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+const formatSignedCurrencyDelta = (value: number) => {
+    if (value < 0) {
+        return `(${currencyDeltaFormatter.format(Math.abs(value))})`;
+    }
+
+    return currencyDeltaFormatter.format(value);
+};
+
+const formatSignedPercent = (value: number) => {
+    return percentFormatter.format(value);
+};
+
 export default function MonthlyOverviewEntryTable({
     entries,
     createEntryAction,
@@ -109,6 +131,8 @@ export default function MonthlyOverviewEntryTable({
                         <th scope="col">#</th>
                         <th scope="col">Date</th>
                         <th scope="col">Wallet</th>
+                        <th scope="col">Increased (₱)</th>
+                        <th scope="col">Increased (%)</th>
                         <th scope="col">Remarks</th>
                         <th scope="col">Actions</th>
                     </tr>
@@ -116,52 +140,71 @@ export default function MonthlyOverviewEntryTable({
                 <tbody>
                     {entries.length === 0 ? (
                         <tr>
-                            <td colSpan={5} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                            <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                 No monthly overview entries yet.
                             </td>
                         </tr>
                     ) : (
-                        entries.map((entry, index) => (
-                            <tr key={entry.id}>
-                                <td>{index + 1}</td>
-                                <td>{entry.entryDateLabel}</td>
-                                <td>{entry.walletAmountLabel}</td>
-                                <td>{entry.remarks.trim() || "-"}</td>
-                                <td>
-                                    <div className="d-flex align-items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline-primary"
-                                            onClick={() =>
-                                                setEditState({
-                                                    id: entry.id,
-                                                    entryDateIso: entry.entryDateIso,
-                                                    walletAmount: entry.walletAmount,
-                                                    remarks: entry.remarks,
-                                                })
-                                            }
-                                        >
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline-danger"
-                                            onClick={() =>
-                                                setDeleteState({
-                                                    id: entry.id,
-                                                    entryDateLabel: entry.entryDateLabel,
-                                                    walletAmountLabel: entry.walletAmountLabel,
-                                                })
-                                            }
-                                        >
-                                            Delete
-                                        </Button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))
+                        entries.map((entry, index) => {
+                            const previousEntry = entries[index + 1];
+                            const increasedAmount = previousEntry ? entry.walletAmount - previousEntry.walletAmount : null;
+                            const increasedPercent = previousEntry && previousEntry.walletAmount !== 0
+                                ? (increasedAmount! / previousEntry.walletAmount) * 100
+                                : null;
+                            const increaseTextClass = increasedAmount === null
+                                ? "text-body-secondary"
+                                : increasedAmount < 0
+                                    ? "text-danger"
+                                    : "text-success";
+
+                            return (
+                                <tr key={entry.id}>
+                                    <td>{index + 1}</td>
+                                    <td>{entry.entryDateLabel}</td>
+                                    <td>{entry.walletAmountLabel}</td>
+                                    <td className={increaseTextClass}>
+                                        {increasedAmount === null ? "-" : formatSignedCurrencyDelta(increasedAmount)}
+                                    </td>
+                                    <td className={increaseTextClass}>
+                                        {increasedPercent === null ? "-" : `${formatSignedPercent(increasedPercent)}%`}
+                                    </td>
+                                    <td>{entry.remarks.trim() || "-"}</td>
+                                    <td>
+                                        <div className="d-flex align-items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline-primary"
+                                                onClick={() =>
+                                                    setEditState({
+                                                        id: entry.id,
+                                                        entryDateIso: entry.entryDateIso,
+                                                        walletAmount: entry.walletAmount,
+                                                        remarks: entry.remarks,
+                                                    })
+                                                }
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline-danger"
+                                                onClick={() =>
+                                                    setDeleteState({
+                                                        id: entry.id,
+                                                        entryDateLabel: entry.entryDateLabel,
+                                                        walletAmountLabel: entry.walletAmountLabel,
+                                                    })
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })
                     )}
                 </tbody>
             </Table>
