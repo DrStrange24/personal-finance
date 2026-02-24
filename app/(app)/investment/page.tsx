@@ -34,10 +34,10 @@ export default async function InvestmentPage() {
 
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
-        const currentResult = parseMoneyInput(formData.get("currentValuePhp"), true);
+        const valueResult = parseMoneyInput(formData.get("value"), true);
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
-        if (!name || !initialResult.ok || initialResult.value === null || !currentResult.ok || currentResult.value === null || !remarksResult.ok) {
+        if (!name || !initialResult.ok || initialResult.value === null || !valueResult.ok || valueResult.value === null || !remarksResult.ok) {
             return { ok: false, message: "Please provide valid investment details." };
         }
 
@@ -47,7 +47,7 @@ export default async function InvestmentPage() {
                     userId: actionSession.userId,
                     name,
                     initialInvestmentPhp: initialResult.value,
-                    currentValuePhp: currentResult.value,
+                    value: valueResult.value,
                     remarks: remarksResult.value,
                 },
             });
@@ -66,10 +66,10 @@ export default async function InvestmentPage() {
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
-        const currentResult = parseMoneyInput(formData.get("currentValuePhp"), true);
+        const valueResult = parseMoneyInput(formData.get("value"), true);
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
-        if (!id || !name || !initialResult.ok || initialResult.value === null || !currentResult.ok || currentResult.value === null || !remarksResult.ok) {
+        if (!id || !name || !initialResult.ok || initialResult.value === null || !valueResult.ok || valueResult.value === null || !remarksResult.ok) {
             return { ok: false, message: "Please provide valid investment details." };
         }
 
@@ -83,7 +83,7 @@ export default async function InvestmentPage() {
                 data: {
                     name,
                     initialInvestmentPhp: initialResult.value,
-                    currentValuePhp: currentResult.value,
+                    value: valueResult.value,
                     remarks: remarksResult.value,
                 },
             });
@@ -141,21 +141,21 @@ export default async function InvestmentPage() {
 
     const investmentRows = investments.map((investment) => {
         const initialInvestmentPhp = Number(investment.initialInvestmentPhp);
-        const currentValuePhp = Number(investment.currentValuePhp);
+        const value = Number(investment.value);
 
         return {
             id: investment.id,
             name: investment.name,
             initialInvestmentPhp,
-            currentValuePhp,
-            gainLossPhp: currentValuePhp - initialInvestmentPhp,
+            value,
+            gainLossPhp: value - initialInvestmentPhp,
             remarks: investment.remarks,
         };
     });
 
     const totals = investmentRows.reduce((acc, row) => ({
         totalInitialPhp: acc.totalInitialPhp + row.initialInvestmentPhp,
-        totalCurrentPhp: acc.totalCurrentPhp + row.currentValuePhp,
+        totalCurrentPhp: acc.totalCurrentPhp + row.value,
     }), {
         totalInitialPhp: 0,
         totalCurrentPhp: 0,

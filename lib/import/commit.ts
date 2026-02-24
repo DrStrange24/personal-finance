@@ -54,14 +54,14 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
                 },
             });
             const initialInvestmentPhp = new Prisma.Decimal(entry.initialInvestmentPhp ?? entry.amountPhp);
-            const currentValuePhp = new Prisma.Decimal(entry.amountPhp);
+            const value = new Prisma.Decimal(entry.amountPhp);
 
             if (existingInvestment) {
                 await prisma.investment.update({
                     where: { id: existingInvestment.id },
                     data: {
                         initialInvestmentPhp,
-                        currentValuePhp,
+                        value,
                         remarks: entry.remarks,
                     },
                 });
@@ -71,7 +71,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
                         userId,
                         name: entry.name,
                         initialInvestmentPhp,
-                        currentValuePhp,
+                        value,
                         remarks: entry.remarks,
                     },
                 });

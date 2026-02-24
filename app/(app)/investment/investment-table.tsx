@@ -15,7 +15,7 @@ type InvestmentRow = {
     id: string;
     name: string;
     initialInvestmentPhp: number;
-    currentValuePhp: number;
+    value: number;
     gainLossPhp: number;
     remarks: string | null;
 };
@@ -73,7 +73,7 @@ export default function InvestmentTable({
                                 <tr>
                                     <th>Name</th>
                                     <th>Initial</th>
-                                    <th>Current Value</th>
+                                    <th>Value</th>
                                     <th>Gain/Loss</th>
                                     <th>Remarks</th>
                                     <th>Actions</th>
@@ -91,7 +91,7 @@ export default function InvestmentTable({
                                         <tr key={investment.id}>
                                             <td>{investment.name}</td>
                                             <td>{formatPhp(investment.initialInvestmentPhp)}</td>
-                                            <td>{formatPhp(investment.currentValuePhp)}</td>
+                                            <td>{formatPhp(investment.value)}</td>
                                             <td className={investment.gainLossPhp >= 0 ? "text-success" : "text-danger"}>
                                                 {formatPhp(investment.gainLossPhp)}
                                             </td>
@@ -159,14 +159,14 @@ export default function InvestmentTable({
                             />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="edit-investment-current" className="small fw-semibold">Current Value (PHP)</label>
+                            <label htmlFor="edit-investment-value" className="small fw-semibold">Value (PHP)</label>
                             <input
-                                id="edit-investment-current"
+                                id="edit-investment-value"
                                 type="number"
-                                name="currentValuePhp"
+                                name="value"
                                 className="form-control"
-                                defaultValue={editState ? editState.currentValuePhp.toFixed(2) : ""}
-                                key={editState?.id ? `${editState.id}-current` : "edit-investment-current-empty"}
+                                defaultValue={editState ? editState.value.toFixed(2) : ""}
+                                key={editState?.id ? `${editState.id}-value` : "edit-investment-value-empty"}
                                 min="0"
                                 step="0.01"
                                 required

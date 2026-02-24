@@ -53,4 +53,4 @@ When adding or moving files/folders:
 
 - AI agents must not run `npx prisma migrate dev`.
 - AI agents must not run `npx prisma migrate reset`.
-- If a migration is needed, AI should update `prisma/schema.prisma` and/or migration files, then ask the user to run Prisma migration commands manually.
+- If a migration is needed, AI should update `prisma/schema.prisma`, then ask the user to run Prisma migration commands manually.

@@ -105,7 +105,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
                         userId,
                         name: legacyEntry.name,
                         initialInvestmentPhp: currentBalance,
-                        currentValuePhp: currentBalance,
+                        value: currentBalance,
                         remarks: legacyEntry.groupName ? `Migrated from legacy wallet group: ${legacyEntry.groupName}` : null,
                     },
                 });

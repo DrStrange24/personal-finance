@@ -89,7 +89,7 @@ model Investment {
   userId               String
   name                 String
   initialInvestmentPhp Decimal  @default(0)
-  currentValuePhp      Decimal  @default(0)
+  value                Decimal  @default(0)
   remarks              String?
   isArchived           Boolean  @default(false)
   createdAt            DateTime @default(now())
