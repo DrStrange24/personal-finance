@@ -21,6 +21,7 @@ type WalletAccountViewModel = {
     type: string;
     name: string;
     currentBalanceAmount: number;
+    estimatedPhpValue: number | null;
     creditLimitPhp: number | null;
     statementClosingDay: number | null;
     statementDueDay: number | null;
@@ -128,6 +129,11 @@ export default function WalletAccountGrid({
                                             </div>
 
                                             <div className="d-grid gap-1">
+                                                {account.type === "ASSET" && (
+                                                    <small style={{ color: "var(--color-text-muted)" }}>
+                                                        Est. PHP: {account.estimatedPhpValue === null ? "-" : formatPhp(account.estimatedPhpValue)}
+                                                    </small>
+                                                )}
                                                 <small style={{ color: "var(--color-text-muted)" }}>
                                                     Credit Limit: {account.creditLimitPhp === null ? "-" : formatPhp(account.creditLimitPhp)}
                                                 </small>

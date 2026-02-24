@@ -6,6 +6,7 @@ import AddWalletAccountModal from "./add-wallet-account-modal";
 import WalletAccountGrid from "./wallet-account-grid";
 import styles from "./page.module.scss";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
+import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { walletAccountTypeLabel } from "@/lib/finance/types";
 import { getAuthenticatedSession } from "@/lib/server-session";
@@ -244,6 +245,13 @@ export default async function WalletPage() {
         label: walletAccountTypeLabel[type],
         entries: accounts.filter((account) => account.type === type),
     }));
+    const assetAccounts = accounts.filter((account) => account.type === WalletAccountType.ASSET);
+    const assetEstimatedPhpPairs = await Promise.all(assetAccounts.map(async (account) => {
+        const symbol = inferAssetSymbol(account.name);
+        const estimatePhp = await getCoinsPhEstimatedValuePhp(symbol, Number(account.currentBalanceAmount));
+        return [account.id, estimatePhp] as const;
+    }));
+    const assetEstimatedPhpByAccountId = new Map(assetEstimatedPhpPairs);
     const groupedAccountCards = groupedAccounts.map((group) => ({
         type: group.type,
         label: group.label,
@@ -252,6 +260,9 @@ export default async function WalletPage() {
             type: account.type,
             name: account.name,
             currentBalanceAmount: Number(account.currentBalanceAmount),
+            estimatedPhpValue: account.type === WalletAccountType.ASSET
+                ? (assetEstimatedPhpByAccountId.get(account.id) ?? null)
+                : null,
             creditLimitPhp: account.creditLimitPhp === null ? null : Number(account.creditLimitPhp),
             statementClosingDay: account.statementClosingDay,
             statementDueDay: account.statementDueDay,
@@ -272,6 +283,7 @@ export default async function WalletPage() {
         .filter((account) => account.type === WalletAccountType.ASSET)
         .map((account) => `${assetAmountFormatter.format(Number(account.currentBalanceAmount))} ${inferAssetSymbol(account.name)}`);
     const assetHoldingsLabel = assetHoldings.length === 0 ? "-" : assetHoldings.join(", ");
+    const totalAssetEstimatePhp = assetEstimatedPhpPairs.reduce((sum, [, estimatePhp]) => sum + (estimatePhp ?? 0), 0);
 
     return (
         <section className="d-grid gap-4">
@@ -306,6 +318,7 @@ export default async function WalletPage() {
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Asset Holdings (Units)</small>
                         <p className="m-0 fs-6 fw-semibold" title={assetHoldingsLabel}>{assetHoldingsLabel}</p>
+                        <small style={{ color: "var(--color-text-muted)" }}>Estimated Value: {formatPhp(totalAssetEstimatePhp)}</small>
                     </CardBody>
                 </Card>
             </div>

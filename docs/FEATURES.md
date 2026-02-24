@@ -29,6 +29,7 @@
     - asset
     - credit card
   - Balance updates and account archival.
+  - Asset holdings shown in native units plus estimated PHP value from Coins.ph depth bid price.
   - Credit card fields: credit limit, statement closing day, statement due day.
 
 - Income:

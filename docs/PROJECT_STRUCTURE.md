@@ -70,6 +70,7 @@
   - server-session.ts
   - finance/
     - bootstrap.ts
+    - coins-ph.ts
     - constants.ts
     - context.ts
     - form-parsers.ts
@@ -86,7 +87,7 @@
   - migrations/
     - 20260219095824_init/
     - 20260220112918_update_table/
-    - 20260224120000_rename-wallet-balance-column/
+    - 20260224082315_rename_wallet_balance_column/
 - public/
 
 Notes:
