@@ -18,7 +18,7 @@
 - Ledger:
   - `/transactions` unified transaction list.
   - Filters by kind, wallet, and remarks search.
-  - Posting form supporting income/expense/all key transaction kinds.
+  - Add/edit/delete transaction actions via icon buttons with modal flows.
   - Transaction delete with automatic balance reversal.
 
 - Wallet Accounts:

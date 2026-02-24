@@ -18,7 +18,7 @@ Project documentation lives in `docs/`.
   - `/signup`
 - Authenticated (requires `pf_session` cookie):
   - `/dashboard` quick actions + key finance metrics + workbook import
-  - `/transactions` unified ledger with filters and posting form
+  - `/transactions` unified ledger with filters and modal add/edit/delete actions
   - `/income` income stream setup and management
   - `/budget` envelope budgeting and allocation
   - `/loan` loan register (`you owe` and `you are owed`) + repayment/borrow posting

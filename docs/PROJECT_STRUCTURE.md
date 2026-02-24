@@ -8,7 +8,9 @@
     - dashboard/
       - page.tsx (main transaction-first dashboard + import card + quick posting)
     - transactions/
-      - page.tsx (ledger page with filters + posting form)
+      - page.tsx (transactions page shell + server actions for add/edit/delete)
+      - add-transaction-modal.tsx (transaction create modal trigger/form with icon action)
+      - transactions-table.tsx (transaction table + edit modal + icon edit/delete actions)
     - income/
       - page.tsx (income stream management page shell + server actions)
       - add-income-stream-modal.tsx (income stream create modal trigger/form with icon action)
