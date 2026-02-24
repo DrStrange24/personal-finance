@@ -74,35 +74,17 @@ export default function AddWalletAccountModal({
                             <input id="wallet-name" type="text" name="name" className="form-control" maxLength={80} required />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="wallet-balance" className="small fw-semibold">
-                                {selectedType === "ASSET" ? "Current Amount (Units)" : "Current Balance (PHP)"}
-                            </label>
+                            <label htmlFor="wallet-balance" className="small fw-semibold">Current Balance (PHP)</label>
                             <input
                                 id="wallet-balance"
                                 type="number"
                                 name="currentBalanceAmount"
                                 className="form-control"
                                 min="0"
-                                step={selectedType === "ASSET" ? "0.000001" : "0.01"}
+                                step="0.01"
                                 required
                             />
                         </div>
-                        {selectedType === "CREDIT_CARD" && (
-                            <>
-                                <div className="d-grid gap-1">
-                                    <label htmlFor="wallet-credit-limit" className="small fw-semibold">Credit Limit (for credit card)</label>
-                                    <input id="wallet-credit-limit" type="number" name="creditLimitPhp" className="form-control" min="0" step="0.01" />
-                                </div>
-                                <div className="d-grid gap-1">
-                                    <label htmlFor="wallet-statement-close" className="small fw-semibold">Statement Closing Day (1-31)</label>
-                                    <input id="wallet-statement-close" type="number" name="statementClosingDay" className="form-control" min="1" max="31" />
-                                </div>
-                                <div className="d-grid gap-1">
-                                    <label htmlFor="wallet-statement-due" className="small fw-semibold">Statement Due Day (1-31)</label>
-                                    <input id="wallet-statement-due" type="number" name="statementDueDay" className="form-control" min="1" max="31" />
-                                </div>
-                            </>
-                        )}
                     </Modal.Body>
                     <Modal.Footer>
                         <Button type="button" variant="outline-secondary" onClick={() => setIsOpen(false)}>

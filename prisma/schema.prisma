@@ -14,6 +14,7 @@ model User {
   passwordHash           String
   monthlyOverviewEntries MonthlyOverviewEntry[]
   walletAccounts         WalletAccount[]
+  investments            Investment[]
   incomeStreams          IncomeStream[]
   budgetEnvelopes        BudgetEnvelope[]
   loanRecords            LoanRecord[]
@@ -71,10 +72,7 @@ model WalletAccount {
   userId              String
   name                String
   type                WalletAccountType
-  currentBalanceAmount   Decimal              @default(0)
-  creditLimitPhp      Decimal?
-  statementClosingDay Int?
-  statementDueDay     Int?
+  currentBalanceAmount Decimal              @default(0)
   isArchived          Boolean              @default(false)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -84,6 +82,22 @@ model WalletAccount {
 
   @@index([userId, type, isArchived])
   @@index([userId, isArchived, name])
+}
+
+model Investment {
+  id                   String   @id @default(cuid())
+  userId               String
+  name                 String
+  initialInvestmentPhp Decimal  @default(0)
+  currentValuePhp      Decimal  @default(0)
+  remarks              String?
+  isArchived           Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isArchived, name])
+  @@index([userId, createdAt])
 }
 
 model IncomeStream {

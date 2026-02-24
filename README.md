@@ -20,9 +20,10 @@ Project documentation lives in `docs/`.
   - `/dashboard` quick actions + key finance metrics + workbook import
   - `/transactions` unified ledger with filters and modal add/edit/delete actions
   - `/income` income stream setup and management
+  - `/investment` investment register with initial investment and current value CRUD
   - `/budget` envelope budgeting and allocation
   - `/loan` loan register (`you owe` and `you are owed`) + repayment/borrow posting
-  - `/wallet` wallet account management (cash/bank/e-wallet/asset/credit card) with grouped cards and modal add/edit flows
+  - `/wallet` wallet account management (cash/bank/e-wallet/credit card) with grouped cards and modal add/edit flows
   - `/monthly-overview` historical wallet snapshot table/chart (legacy-compatible page)
 
 ## Getting Started
@@ -88,6 +89,7 @@ Supported workbook sheets:
 
 - PHP-only currency model.
 - Every manual add/deduct flow records a ledger transaction.
+- Investments are managed in `Investment` records with initial and current value tracking.
 - Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.
 - Credit cards are modeled as `CREDIT_CARD` wallet accounts and tracked through:
   - `CREDIT_CARD_CHARGE`

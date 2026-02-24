@@ -47,6 +47,14 @@ const IncomeIcon = (props: IconProps) => (
     </svg>
 );
 
+const InvestmentIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <path d="M4 19.5h16" />
+        <path d="m6.5 15 4-4 3 3 4.5-6" />
+        <path d="M18 8h2v2" />
+    </svg>
+);
+
 const BudgetIcon = (props: IconProps) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
         <rect x="3" y="4" width="18" height="16" rx="2.5" />
@@ -94,6 +102,7 @@ const links = [
     { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
     { href: "/transactions", label: "Transactions", Icon: TransactionsIcon },
     { href: "/income", label: "Income", Icon: IncomeIcon },
+    { href: "/investment", label: "Investment", Icon: InvestmentIcon },
     { href: "/budget", label: "Budget", Icon: BudgetIcon },
     { href: "/loan", label: "Loan", Icon: LoanIcon },
     { href: "/wallet", label: "Wallet", Icon: WalletIcon },

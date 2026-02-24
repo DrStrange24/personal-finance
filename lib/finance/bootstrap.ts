@@ -6,6 +6,7 @@ const assertFinancePrismaDelegates = () => {
     const client = prisma as unknown as Record<string, unknown>;
     const requiredDelegates = [
         "walletAccount",
+        "investment",
         "incomeStream",
         "budgetEnvelope",
         "loanRecord",
@@ -21,11 +22,7 @@ const assertFinancePrismaDelegates = () => {
     }
 };
 
-const inferWalletAccountType = (name: string, legacyType: "CASH_WALLET" | "ASSET_HOLDING") => {
-    if (legacyType === "ASSET_HOLDING") {
-        return WalletAccountType.ASSET;
-    }
-
+const inferWalletAccountType = (name: string) => {
     const lowered = name.toLowerCase();
     if (lowered.includes("gcash") || lowered.includes("coins") || lowered.includes("maya")) {
         return WalletAccountType.E_WALLET;
@@ -70,27 +67,56 @@ export const ensureSystemEnvelopesForUser = async (userId: string) => {
 export const ensureFinanceBootstrap = async (userId: string) => {
     assertFinancePrismaDelegates();
     await ensureSystemEnvelopesForUser(userId);
+    const prismaClient = prisma as Prisma.TransactionClient & {
+        walletEntry?: {
+            findMany: (args: {
+                where: { userId: string; isArchived: boolean };
+                orderBy: Array<{ type: "asc" | "desc" } | { sortOrder: "asc" | "desc" } | { createdAt: "asc" | "desc" }>;
+            }) => Promise<Array<{
+                type: "CASH_WALLET" | "ASSET_HOLDING";
+                currentValuePhp: Prisma.Decimal | number | string;
+                name: string;
+                groupName: string | null;
+            }>>;
+        };
+    };
 
     const walletAccountCount = await prisma.walletAccount.count({
         where: { userId },
     });
 
     if (walletAccountCount === 0) {
-        const legacyWalletEntries = await prisma.walletEntry.findMany({
-            where: {
-                userId,
-                isArchived: false,
-            },
-            orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-        });
+        const legacyWalletEntries = prismaClient.walletEntry
+            ? await prismaClient.walletEntry.findMany({
+                where: {
+                    userId,
+                    isArchived: false,
+                },
+                orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+            })
+            : [];
 
         for (const legacyEntry of legacyWalletEntries) {
             const currentBalance = new Prisma.Decimal(legacyEntry.currentValuePhp);
+
+            if (legacyEntry.type === "ASSET_HOLDING") {
+                await prisma.investment.create({
+                    data: {
+                        userId,
+                        name: legacyEntry.name,
+                        initialInvestmentPhp: currentBalance,
+                        currentValuePhp: currentBalance,
+                        remarks: legacyEntry.groupName ? `Migrated from legacy wallet group: ${legacyEntry.groupName}` : null,
+                    },
+                });
+                continue;
+            }
+
             const walletAccount = await prisma.walletAccount.create({
                 data: {
                     userId,
                     name: legacyEntry.name,
-                    type: inferWalletAccountType(legacyEntry.name, legacyEntry.type),
+                    type: inferWalletAccountType(legacyEntry.name),
                     currentBalanceAmount: currentBalance,
                 },
             });

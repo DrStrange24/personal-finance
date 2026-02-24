@@ -64,6 +64,8 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         const amount = Number(wallet.currentBalanceAmount);
         if (wallet.type === WalletAccountType.CREDIT_CARD) {
             totalCreditCardDebtPhp += amount;
+        } else if (wallet.type === WalletAccountType.ASSET) {
+            continue;
         } else {
             totalWalletBalancePhp += amount;
         }

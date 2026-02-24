@@ -212,9 +212,6 @@ export default async function DashboardPage() {
                                 <div key={card.id} className="d-flex justify-content-between align-items-center border rounded px-3 py-2">
                                     <div>
                                         <p className="m-0 fw-semibold">{card.name}</p>
-                                        <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                                            Statement day: {card.statementClosingDay ?? "-"} | Due day: {card.statementDueDay ?? "-"}
-                                        </p>
                                     </div>
                                     <p className="m-0 fw-semibold text-danger">{formatPhp(Number(card.currentBalanceAmount))}</p>
                                 </div>

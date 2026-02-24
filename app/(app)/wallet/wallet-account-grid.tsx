@@ -21,10 +21,6 @@ type WalletAccountViewModel = {
     type: string;
     name: string;
     currentBalanceAmount: number;
-    estimatedPhpValue: number | null;
-    creditLimitPhp: number | null;
-    statementClosingDay: number | null;
-    statementDueDay: number | null;
 };
 
 type WalletAccountGroup = {
@@ -42,18 +38,6 @@ type WalletAccountGridProps = {
 
 type EditState = WalletAccountViewModel | null;
 
-const assetAmountFormatter = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 8,
-});
-
-const inferAssetSymbol = (name: string) => {
-    const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
-    return match?.[0] ?? "UNITS";
-};
-
-const formatAssetBalance = (name: string, amount: number) => `${assetAmountFormatter.format(amount)} ${inferAssetSymbol(name)}`;
-
 export default function WalletAccountGrid({
     groups,
     accountTypeOptions,
@@ -62,8 +46,6 @@ export default function WalletAccountGrid({
 }: WalletAccountGridProps) {
     const [editState, setEditState] = useState<EditState>(null);
     const { showSuccess, showError } = useAppToast();
-
-    const editType = editState?.type ?? "";
 
     const submitUpdateWalletAccount = async (formData: FormData) => {
         try {
@@ -118,30 +100,10 @@ export default function WalletAccountGrid({
                                                         {account.name}
                                                     </h4>
                                                     <small style={{ color: "var(--color-text-muted)" }}>
-                                                        {account.type === "ASSET" ? "Holdings" : "Balance"}
+                                                        Balance
                                                     </small>
                                                 </div>
-                                                <p className={`m-0 fw-semibold ${account.type === "CREDIT_CARD" ? "text-danger" : ""}`}>
-                                                    {account.type === "ASSET"
-                                                        ? formatAssetBalance(account.name, account.currentBalanceAmount)
-                                                        : formatPhp(account.currentBalanceAmount)}
-                                                </p>
-                                            </div>
-
-                                            <div className="d-grid gap-1">
-                                                {account.type === "ASSET" && (
-                                                    <small style={{ color: "var(--color-text-muted)" }}>
-                                                        Est. PHP: {account.estimatedPhpValue === null ? "-" : formatPhp(account.estimatedPhpValue)}
-                                                    </small>
-                                                )}
-                                                <small style={{ color: "var(--color-text-muted)" }}>
-                                                    Credit Limit: {account.creditLimitPhp === null ? "-" : formatPhp(account.creditLimitPhp)}
-                                                </small>
-                                                <small style={{ color: "var(--color-text-muted)" }}>
-                                                    Statement: {account.statementClosingDay && account.statementDueDay
-                                                        ? `${account.statementClosingDay} -> ${account.statementDueDay}`
-                                                        : "-"}
-                                                </small>
+                                                <p className={`m-0 fw-semibold ${account.type === "CREDIT_CARD" ? "text-danger" : ""}`}>{formatPhp(account.currentBalanceAmount)}</p>
                                             </div>
 
                                             <div className="d-flex gap-2 pt-1">
@@ -183,7 +145,7 @@ export default function WalletAccountGrid({
                                 id="edit-wallet-type"
                                 name="type"
                                 className="form-control"
-                                value={editType}
+                                value={editState?.type ?? ""}
                                 onChange={(event) =>
                                     setEditState((prev) => (prev ? { ...prev, type: event.target.value } : prev))
                                 }
@@ -207,70 +169,19 @@ export default function WalletAccountGrid({
                             />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="edit-wallet-balance" className="small fw-semibold">
-                                {editType === "ASSET" ? "Current Amount (Units)" : "Current Balance (PHP)"}
-                            </label>
+                            <label htmlFor="edit-wallet-balance" className="small fw-semibold">Current Balance (PHP)</label>
                             <input
                                 id="edit-wallet-balance"
                                 type="number"
                                 name="currentBalanceAmount"
                                 className="form-control"
-                                defaultValue={editState
-                                    ? editType === "ASSET"
-                                        ? editState.currentBalanceAmount.toString()
-                                        : editState.currentBalanceAmount.toFixed(2)
-                                    : ""}
+                                defaultValue={editState ? editState.currentBalanceAmount.toFixed(2) : ""}
                                 key={editState?.id ? `${editState.id}-balance` : "edit-balance-empty"}
                                 min="0"
-                                step={editType === "ASSET" ? "0.000001" : "0.01"}
+                                step="0.01"
                                 required
                             />
                         </div>
-                        {editType === "CREDIT_CARD" && (
-                            <>
-                                <div className="d-grid gap-1">
-                                    <label htmlFor="edit-wallet-credit-limit" className="small fw-semibold">Credit Limit</label>
-                                    <input
-                                        id="edit-wallet-credit-limit"
-                                        type="number"
-                                        name="creditLimitPhp"
-                                        className="form-control"
-                                        defaultValue={editState?.creditLimitPhp === null || editState?.creditLimitPhp === undefined
-                                            ? ""
-                                            : editState.creditLimitPhp.toFixed(2)}
-                                        key={editState?.id ? `${editState.id}-credit-limit` : "edit-credit-limit-empty"}
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
-                                <div className="d-grid gap-1">
-                                    <label htmlFor="edit-wallet-statement-close" className="small fw-semibold">Statement Closing Day (1-31)</label>
-                                    <input
-                                        id="edit-wallet-statement-close"
-                                        type="number"
-                                        name="statementClosingDay"
-                                        className="form-control"
-                                        defaultValue={editState?.statementClosingDay ?? ""}
-                                        key={editState?.id ? `${editState.id}-statement-close` : "edit-statement-close-empty"}
-                                        min="1"
-                                        max="31"
-                                    />
-                                </div>
-                                <div className="d-grid gap-1">
-                                    <label htmlFor="edit-wallet-statement-due" className="small fw-semibold">Statement Due Day (1-31)</label>
-                                    <input
-                                        id="edit-wallet-statement-due"
-                                        type="number"
-                                        name="statementDueDay"
-                                        className="form-control"
-                                        defaultValue={editState?.statementDueDay ?? ""}
-                                        key={editState?.id ? `${editState.id}-statement-due` : "edit-statement-due-empty"}
-                                        min="1"
-                                        max="31"
-                                    />
-                                </div>
-                            </>
-                        )}
                     </Modal.Body>
                     <Modal.Footer>
                         <Button type="button" variant="outline-secondary" onClick={() => setEditState(null)}>

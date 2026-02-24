@@ -28,7 +28,7 @@ export type TransactionFormInput = {
 
 export type WalletAccountSummary = Pick<
     WalletAccount,
-    "id" | "name" | "type" | "currentBalanceAmount" | "statementClosingDay" | "statementDueDay"
+    "id" | "name" | "type" | "currentBalanceAmount"
 >;
 
 export type BudgetEnvelopeSummary = Pick<

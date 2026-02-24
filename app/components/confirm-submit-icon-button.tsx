@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ComponentProps } from "react";
+import type { MouseEvent } from "react";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmationModal from "@/app/components/confirmation-modal";
 
@@ -11,6 +12,8 @@ type ConfirmSubmitIconButtonProps = Omit<ComponentProps<typeof ActionIconButton>
 };
 
 export default function ConfirmSubmitIconButton({
+    action,
+    label,
     confirmTitle = "Confirm Action",
     confirmMessage,
     ...props
@@ -22,8 +25,10 @@ export default function ConfirmSubmitIconButton({
         <>
             <ActionIconButton
                 {...props}
+                action={action}
+                label={label}
                 type="button"
-                onClick={(event) => {
+                onClick={(event: MouseEvent<HTMLButtonElement>) => {
                     setFormElement(event.currentTarget.form);
                     setIsOpen(true);
                 }}

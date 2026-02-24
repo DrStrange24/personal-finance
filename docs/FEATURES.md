@@ -26,11 +26,13 @@
     - cash
     - bank
     - e-wallet
-    - asset
     - credit card
   - Balance updates and account archival.
-  - Asset holdings shown in native units plus estimated PHP value from Coins.ph depth bid price.
-  - Credit card fields: credit limit, statement closing day, statement due day.
+
+- Investments:
+  - `/investment` investment management.
+  - Add/edit/delete investment records via icon actions with modal flows.
+  - Track initial investment and current value with gain/loss totals.
 
 - Income:
   - `/income` income stream management.
@@ -52,7 +54,7 @@
 - Workbook Import:
   - Parse `.xlsx` workbook (`/api/imports/workbook`) with 6-sheet support.
   - Commit staged import (`/api/imports/commit`).
-  - Mapping into wallet accounts, income streams, budget envelopes, loans, and monthly overview compatibility rows.
+  - Mapping into wallet accounts, investments, income streams, budget envelopes, loans, and monthly overview compatibility rows.
 
 - Legacy Compatibility:
   - `/monthly-overview` remains active.

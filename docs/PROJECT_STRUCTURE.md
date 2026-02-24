@@ -15,6 +15,10 @@
       - page.tsx (income stream management page shell + server actions)
       - add-income-stream-modal.tsx (income stream create modal trigger/form with icon action)
       - income-stream-table.tsx (income stream table + edit modal + icon edit/delete actions)
+    - investment/
+      - page.tsx (investment management page shell + server actions)
+      - add-investment-modal.tsx (investment create modal trigger/form with icon action)
+      - investment-table.tsx (investment table + edit modal + icon edit/delete actions)
     - budget/
       - page.tsx (budget page shell + server actions for create/allocate/edit/delete)
       - add-budget-envelope-modal.tsx (budget envelope create modal trigger/form with icon action)
@@ -88,6 +92,7 @@
     - 20260219095824_init/
     - 20260220112918_update_table/
     - 20260224082315_rename_wallet_balance_column/
+    - 20260224193000_investment-module/
 - public/
 
 Notes:

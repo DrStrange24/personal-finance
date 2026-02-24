@@ -9,11 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import type { ParsedWorkbook } from "@/lib/import/workbook";
 
-const inferWalletType = (name: string, hasInitialInvestment: boolean) => {
-    if (hasInitialInvestment) {
-        return WalletAccountType.ASSET;
-    }
-
+const inferWalletType = (name: string) => {
     const lowered = name.toLowerCase();
     if (lowered.includes("gcash") || lowered.includes("coins") || lowered.includes("maya")) {
         return WalletAccountType.E_WALLET;
@@ -47,7 +43,54 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
             },
         });
 
-        const type = inferWalletType(entry.name, (entry.initialInvestmentPhp ?? 0) > 0);
+        const isInvestmentEntry = (entry.initialInvestmentPhp ?? 0) > 0;
+
+        if (isInvestmentEntry) {
+            const existingInvestment = await prisma.investment.findFirst({
+                where: {
+                    userId,
+                    name: entry.name,
+                    isArchived: false,
+                },
+            });
+            const initialInvestmentPhp = new Prisma.Decimal(entry.initialInvestmentPhp ?? entry.amountPhp);
+            const currentValuePhp = new Prisma.Decimal(entry.amountPhp);
+
+            if (existingInvestment) {
+                await prisma.investment.update({
+                    where: { id: existingInvestment.id },
+                    data: {
+                        initialInvestmentPhp,
+                        currentValuePhp,
+                        remarks: entry.remarks,
+                    },
+                });
+            } else {
+                await prisma.investment.create({
+                    data: {
+                        userId,
+                        name: entry.name,
+                        initialInvestmentPhp,
+                        currentValuePhp,
+                        remarks: entry.remarks,
+                    },
+                });
+            }
+
+            if (existing && existing.type === WalletAccountType.ASSET) {
+                await prisma.walletAccount.update({
+                    where: { id: existing.id },
+                    data: {
+                        isArchived: true,
+                    },
+                });
+            }
+
+            result.walletAccountsUpserted += 1;
+            continue;
+        }
+
+        const type = inferWalletType(entry.name);
         const balance = new Prisma.Decimal(entry.amountPhp);
 
         if (existing) {

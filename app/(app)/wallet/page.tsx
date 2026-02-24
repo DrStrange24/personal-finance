@@ -6,7 +6,6 @@ import AddWalletAccountModal from "./add-wallet-account-modal";
 import WalletAccountGrid from "./wallet-account-grid";
 import styles from "./page.module.scss";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
-import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { walletAccountTypeLabel } from "@/lib/finance/types";
 import { getAuthenticatedSession } from "@/lib/server-session";
@@ -16,11 +15,6 @@ type WalletAccountActionResult = {
     ok: boolean;
     message: string;
 };
-
-const assetAmountFormatter = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 8,
-});
 
 const parseRequiredName = (value: FormDataEntryValue | null) => {
     if (typeof value !== "string") {
@@ -41,47 +35,6 @@ const parseAccountType = (value: FormDataEntryValue | null): WalletAccountType |
     return Object.values(WalletAccountType).includes(normalized) ? normalized : null;
 };
 
-const parseOptionalDay = (value: FormDataEntryValue | null) => {
-    if (typeof value !== "string" || value.trim().length === 0) {
-        return null;
-    }
-    const parsed = Number(value.trim());
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 31) {
-        return null;
-    }
-    return parsed;
-};
-
-const parseAssetAmountInput = (value: FormDataEntryValue | null) => {
-    if (typeof value !== "string") {
-        return { ok: false, value: null as number | null };
-    }
-
-    const normalized = value.replaceAll(",", "").trim();
-    if (normalized.length === 0) {
-        return { ok: false, value: null as number | null };
-    }
-
-    const parsed = Number(normalized);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-        return { ok: false, value: null as number | null };
-    }
-
-    return { ok: true, value: parsed };
-};
-
-const parseWalletBalanceByType = (type: WalletAccountType, value: FormDataEntryValue | null) => {
-    if (type === WalletAccountType.ASSET) {
-        return parseAssetAmountInput(value);
-    }
-    return parseMoneyInput(value, true);
-};
-
-const inferAssetSymbol = (name: string) => {
-    const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
-    return match?.[0] ?? "UNITS";
-};
-
 export default async function WalletPage() {
     const session = await getAuthenticatedSession();
     await ensureFinanceBootstrap(session.userId);
@@ -92,12 +45,9 @@ export default async function WalletPage() {
         const actionSession = await getAuthenticatedSession();
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
-        const balanceResult = type ? parseWalletBalanceByType(type, formData.get("currentBalanceAmount")) : { ok: false, value: null as number | null };
-        const creditLimitResult = parseMoneyInput(formData.get("creditLimitPhp"), false);
-        const statementClosingDay = parseOptionalDay(formData.get("statementClosingDay"));
-        const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
+        const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
 
-        if (!type || !name || !balanceResult.ok || balanceResult.value === null || !creditLimitResult.ok) {
+        if (!type || type === WalletAccountType.ASSET || !name || !balanceResult.ok || balanceResult.value === null) {
             return { ok: false, message: "Please provide valid wallet account details." };
         }
 
@@ -108,13 +58,10 @@ export default async function WalletPage() {
                     type,
                     name,
                     currentBalanceAmount: balanceResult.value,
-                    creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
-                    statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
-                    statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
                 },
             });
 
-            if (type !== WalletAccountType.ASSET && balanceResult.value > 0) {
+            if (balanceResult.value > 0) {
                 await prisma.financeTransaction.create({
                     data: {
                         userId: actionSession.userId,
@@ -142,12 +89,9 @@ export default async function WalletPage() {
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
-        const balanceResult = type ? parseWalletBalanceByType(type, formData.get("currentBalanceAmount")) : { ok: false, value: null as number | null };
-        const creditLimitResult = parseMoneyInput(formData.get("creditLimitPhp"), false);
-        const statementClosingDay = parseOptionalDay(formData.get("statementClosingDay"));
-        const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
+        const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
 
-        if (!id || !type || !name || !balanceResult.ok || balanceResult.value === null || !creditLimitResult.ok) {
+        if (!id || !type || type === WalletAccountType.ASSET || !name || !balanceResult.ok || balanceResult.value === null) {
             return { ok: false, message: "Please provide valid wallet account details." };
         }
 
@@ -170,15 +114,11 @@ export default async function WalletPage() {
                     type,
                     name,
                     currentBalanceAmount: balanceResult.value,
-                    creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
-                    statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
-                    statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
                 },
             });
 
             const delta = balanceResult.value - Number(existing.currentBalanceAmount);
-            const shouldCreatePhpAdjustment = existing.type !== WalletAccountType.ASSET && type !== WalletAccountType.ASSET;
-            if (shouldCreatePhpAdjustment && Math.abs(delta) > 0.0001) {
+            if (Math.abs(delta) > 0.0001) {
                 await prisma.financeTransaction.create({
                     data: {
                         userId: actionSession.userId,
@@ -236,22 +176,19 @@ export default async function WalletPage() {
         where: {
             userId: session.userId,
             isArchived: false,
+            type: {
+                not: WalletAccountType.ASSET,
+            },
         },
         orderBy: [{ type: "asc" }, { createdAt: "asc" }],
     });
 
-    const groupedAccounts = Object.values(WalletAccountType).map((type) => ({
+    const visibleWalletTypes = Object.values(WalletAccountType).filter((type) => type !== WalletAccountType.ASSET);
+    const groupedAccounts = visibleWalletTypes.map((type) => ({
         type,
         label: walletAccountTypeLabel[type],
         entries: accounts.filter((account) => account.type === type),
     }));
-    const assetAccounts = accounts.filter((account) => account.type === WalletAccountType.ASSET);
-    const assetEstimatedPhpPairs = await Promise.all(assetAccounts.map(async (account) => {
-        const symbol = inferAssetSymbol(account.name);
-        const estimatePhp = await getCoinsPhEstimatedValuePhp(symbol, Number(account.currentBalanceAmount));
-        return [account.id, estimatePhp] as const;
-    }));
-    const assetEstimatedPhpByAccountId = new Map(assetEstimatedPhpPairs);
     const groupedAccountCards = groupedAccounts.map((group) => ({
         type: group.type,
         label: group.label,
@@ -260,30 +197,20 @@ export default async function WalletPage() {
             type: account.type,
             name: account.name,
             currentBalanceAmount: Number(account.currentBalanceAmount),
-            estimatedPhpValue: account.type === WalletAccountType.ASSET
-                ? (assetEstimatedPhpByAccountId.get(account.id) ?? null)
-                : null,
-            creditLimitPhp: account.creditLimitPhp === null ? null : Number(account.creditLimitPhp),
-            statementClosingDay: account.statementClosingDay,
-            statementDueDay: account.statementDueDay,
         })),
     }));
-    const accountTypeOptions = Object.values(WalletAccountType).map((type) => ({
+    const accountTypeOptions = visibleWalletTypes
+        .map((type) => ({
         value: type,
         label: walletAccountTypeLabel[type],
     }));
 
     const totalNonCredit = accounts
-        .filter((account) => account.type !== WalletAccountType.CREDIT_CARD && account.type !== WalletAccountType.ASSET)
+        .filter((account) => account.type !== WalletAccountType.CREDIT_CARD)
         .reduce((sum, account) => sum + Number(account.currentBalanceAmount), 0);
     const totalCreditDebt = accounts
         .filter((account) => account.type === WalletAccountType.CREDIT_CARD)
         .reduce((sum, account) => sum + Number(account.currentBalanceAmount), 0);
-    const assetHoldings = accounts
-        .filter((account) => account.type === WalletAccountType.ASSET)
-        .map((account) => `${assetAmountFormatter.format(Number(account.currentBalanceAmount))} ${inferAssetSymbol(account.name)}`);
-    const assetHoldingsLabel = assetHoldings.length === 0 ? "-" : assetHoldings.join(", ");
-    const totalAssetEstimatePhp = assetEstimatedPhpPairs.reduce((sum, [, estimatePhp]) => sum + (estimatePhp ?? 0), 0);
 
     return (
         <section className="d-grid gap-4">
@@ -291,7 +218,7 @@ export default async function WalletPage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Main Page</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Wallet Accounts</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Ledger-compatible accounts with wallet, bank, e-wallet, asset, and credit card support.
+                    Ledger-compatible accounts with cash, bank, e-wallet, and credit card support.
                 </p>
             </header>
 
@@ -316,9 +243,9 @@ export default async function WalletPage() {
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Asset Holdings (Units)</small>
-                        <p className="m-0 fs-6 fw-semibold" title={assetHoldingsLabel}>{assetHoldingsLabel}</p>
-                        <small style={{ color: "var(--color-text-muted)" }}>Estimated Value: {formatPhp(totalAssetEstimatePhp)}</small>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Accounts</small>
+                        <p className="m-0 fs-5 fw-semibold">{accounts.length}</p>
+                        <small style={{ color: "var(--color-text-muted)" }}>Investments are tracked in the Investment page.</small>
                     </CardBody>
                 </Card>
             </div>

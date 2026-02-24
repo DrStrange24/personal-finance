@@ -21,7 +21,8 @@
 
 Primary models:
 
-- `WalletAccount` (cash, bank, e-wallet, asset, credit card)
+- `WalletAccount` (cash, bank, e-wallet, credit card)
+- `Investment` (initial investment + current value)
 - `IncomeStream`
 - `BudgetEnvelope` (including hidden system envelopes)
 - `LoanRecord`
@@ -82,7 +83,7 @@ Two-step import flow:
    - stages parsed content in in-memory staging store
 2. `POST /api/imports/commit`
    - reads staged import by `importId`
-   - commits into wallet accounts, income streams, budgets, loans, and monthly overview compatibility rows
+   - commits into wallet accounts, investments, income streams, budgets, loans, and monthly overview compatibility rows
 
 ## Styling
 
