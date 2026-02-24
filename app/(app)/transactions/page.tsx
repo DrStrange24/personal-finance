@@ -187,7 +187,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
-        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalancePhp))})`,
+        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
     }));
     const budgetOptions = context.budgets.map((budget) => ({
         id: budget.id,
@@ -287,3 +287,4 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         </section>
     );
 }
+

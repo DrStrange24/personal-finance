@@ -91,7 +91,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
                     userId,
                     name: legacyEntry.name,
                     type: inferWalletAccountType(legacyEntry.name, legacyEntry.type),
-                    currentBalancePhp: currentBalance,
+                    currentBalanceAmount: currentBalance,
                 },
             });
 
@@ -153,3 +153,4 @@ export const ensureFinanceBootstrap = async (userId: string) => {
         });
     }
 };
+

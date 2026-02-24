@@ -97,7 +97,7 @@ export default async function DashboardPage() {
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
-        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalancePhp))})`,
+        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
     }));
     const budgetOptions = context.budgets.map((budget) => ({
         id: budget.id,
@@ -216,7 +216,7 @@ export default async function DashboardPage() {
                                             Statement day: {card.statementClosingDay ?? "-"} | Due day: {card.statementDueDay ?? "-"}
                                         </p>
                                     </div>
-                                    <p className="m-0 fw-semibold text-danger">{formatPhp(Number(card.currentBalancePhp))}</p>
+                                    <p className="m-0 fw-semibold text-danger">{formatPhp(Number(card.currentBalanceAmount))}</p>
                                 </div>
                             ))}
                         </div>
@@ -226,3 +226,4 @@ export default async function DashboardPage() {
         </section>
     );
 }
+

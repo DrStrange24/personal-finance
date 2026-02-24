@@ -73,7 +73,7 @@ const updateWalletBalance = async (tx: TxClient, walletId: string, delta: Prisma
     await tx.walletAccount.update({
         where: { id: walletId },
         data: {
-            currentBalancePhp: {
+            currentBalanceAmount: {
                 increment: delta,
             },
         },
@@ -383,3 +383,4 @@ export const deleteFinanceTransactionWithReversal = async (userId: string, trans
         });
     });
 };
+

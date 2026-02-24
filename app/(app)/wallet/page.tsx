@@ -16,6 +16,11 @@ type WalletAccountActionResult = {
     message: string;
 };
 
+const assetAmountFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
+});
+
 const parseRequiredName = (value: FormDataEntryValue | null) => {
     if (typeof value !== "string") {
         return null;
@@ -46,6 +51,36 @@ const parseOptionalDay = (value: FormDataEntryValue | null) => {
     return parsed;
 };
 
+const parseAssetAmountInput = (value: FormDataEntryValue | null) => {
+    if (typeof value !== "string") {
+        return { ok: false, value: null as number | null };
+    }
+
+    const normalized = value.replaceAll(",", "").trim();
+    if (normalized.length === 0) {
+        return { ok: false, value: null as number | null };
+    }
+
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return { ok: false, value: null as number | null };
+    }
+
+    return { ok: true, value: parsed };
+};
+
+const parseWalletBalanceByType = (type: WalletAccountType, value: FormDataEntryValue | null) => {
+    if (type === WalletAccountType.ASSET) {
+        return parseAssetAmountInput(value);
+    }
+    return parseMoneyInput(value, true);
+};
+
+const inferAssetSymbol = (name: string) => {
+    const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
+    return match?.[0] ?? "UNITS";
+};
+
 export default async function WalletPage() {
     const session = await getAuthenticatedSession();
     await ensureFinanceBootstrap(session.userId);
@@ -56,7 +91,7 @@ export default async function WalletPage() {
         const actionSession = await getAuthenticatedSession();
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
-        const balanceResult = parseMoneyInput(formData.get("currentBalancePhp"), true);
+        const balanceResult = type ? parseWalletBalanceByType(type, formData.get("currentBalanceAmount")) : { ok: false, value: null as number | null };
         const creditLimitResult = parseMoneyInput(formData.get("creditLimitPhp"), false);
         const statementClosingDay = parseOptionalDay(formData.get("statementClosingDay"));
         const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
@@ -71,14 +106,14 @@ export default async function WalletPage() {
                     userId: actionSession.userId,
                     type,
                     name,
-                    currentBalancePhp: balanceResult.value,
+                    currentBalanceAmount: balanceResult.value,
                     creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
                     statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
                     statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
                 },
             });
 
-            if (balanceResult.value > 0) {
+            if (type !== WalletAccountType.ASSET && balanceResult.value > 0) {
                 await prisma.financeTransaction.create({
                     data: {
                         userId: actionSession.userId,
@@ -106,7 +141,7 @@ export default async function WalletPage() {
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
-        const balanceResult = parseMoneyInput(formData.get("currentBalancePhp"), true);
+        const balanceResult = type ? parseWalletBalanceByType(type, formData.get("currentBalanceAmount")) : { ok: false, value: null as number | null };
         const creditLimitResult = parseMoneyInput(formData.get("creditLimitPhp"), false);
         const statementClosingDay = parseOptionalDay(formData.get("statementClosingDay"));
         const statementDueDay = parseOptionalDay(formData.get("statementDueDay"));
@@ -133,15 +168,16 @@ export default async function WalletPage() {
                 data: {
                     type,
                     name,
-                    currentBalancePhp: balanceResult.value,
+                    currentBalanceAmount: balanceResult.value,
                     creditLimitPhp: type === WalletAccountType.CREDIT_CARD ? creditLimitResult.value : null,
                     statementClosingDay: type === WalletAccountType.CREDIT_CARD ? statementClosingDay : null,
                     statementDueDay: type === WalletAccountType.CREDIT_CARD ? statementDueDay : null,
                 },
             });
 
-            const delta = balanceResult.value - Number(existing.currentBalancePhp);
-            if (Math.abs(delta) > 0.0001) {
+            const delta = balanceResult.value - Number(existing.currentBalanceAmount);
+            const shouldCreatePhpAdjustment = existing.type !== WalletAccountType.ASSET && type !== WalletAccountType.ASSET;
+            if (shouldCreatePhpAdjustment && Math.abs(delta) > 0.0001) {
                 await prisma.financeTransaction.create({
                     data: {
                         userId: actionSession.userId,
@@ -215,7 +251,7 @@ export default async function WalletPage() {
             id: account.id,
             type: account.type,
             name: account.name,
-            currentBalancePhp: Number(account.currentBalancePhp),
+            currentBalanceAmount: Number(account.currentBalanceAmount),
             creditLimitPhp: account.creditLimitPhp === null ? null : Number(account.creditLimitPhp),
             statementClosingDay: account.statementClosingDay,
             statementDueDay: account.statementDueDay,
@@ -227,11 +263,15 @@ export default async function WalletPage() {
     }));
 
     const totalNonCredit = accounts
-        .filter((account) => account.type !== WalletAccountType.CREDIT_CARD)
-        .reduce((sum, account) => sum + Number(account.currentBalancePhp), 0);
+        .filter((account) => account.type !== WalletAccountType.CREDIT_CARD && account.type !== WalletAccountType.ASSET)
+        .reduce((sum, account) => sum + Number(account.currentBalanceAmount), 0);
     const totalCreditDebt = accounts
         .filter((account) => account.type === WalletAccountType.CREDIT_CARD)
-        .reduce((sum, account) => sum + Number(account.currentBalancePhp), 0);
+        .reduce((sum, account) => sum + Number(account.currentBalanceAmount), 0);
+    const assetHoldings = accounts
+        .filter((account) => account.type === WalletAccountType.ASSET)
+        .map((account) => `${assetAmountFormatter.format(Number(account.currentBalanceAmount))} ${inferAssetSymbol(account.name)}`);
+    const assetHoldingsLabel = assetHoldings.length === 0 ? "-" : assetHoldings.join(", ");
 
     return (
         <section className="d-grid gap-4">
@@ -246,7 +286,7 @@ export default async function WalletPage() {
             <div className={styles.walletSummaryGrid}>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Cash / Assets Total</small>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Cash / E-Wallet Total</small>
                         <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit)}</p>
                     </CardBody>
                 </Card>
@@ -258,8 +298,14 @@ export default async function WalletPage() {
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Net Position</small>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Net Cash Position</small>
                         <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit - totalCreditDebt)}</p>
+                    </CardBody>
+                </Card>
+                <Card className="pf-surface-card">
+                    <CardBody className="d-grid gap-1">
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Asset Holdings (Units)</small>
+                        <p className="m-0 fs-6 fw-semibold" title={assetHoldingsLabel}>{assetHoldingsLabel}</p>
                     </CardBody>
                 </Card>
             </div>
@@ -278,3 +324,4 @@ export default async function WalletPage() {
         </section>
     );
 }
+

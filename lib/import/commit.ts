@@ -55,7 +55,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
                 where: { id: existing.id },
                 data: {
                     type,
-                    currentBalancePhp: balance,
+                    currentBalanceAmount: balance,
                 },
             });
         } else {
@@ -64,7 +64,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
                     userId,
                     name: entry.name,
                     type,
-                    currentBalancePhp: balance,
+                    currentBalanceAmount: balance,
                 },
             });
 
@@ -224,3 +224,4 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
 
     return result;
 };
+

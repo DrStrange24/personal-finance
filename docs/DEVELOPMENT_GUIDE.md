@@ -27,10 +27,14 @@ Apply migrations:
 npx prisma migrate dev
 ```
 
+This includes schema updates such as the wallet balance column rename (`currentBalancePhp` -> `currentBalanceAmount`).
+
 AI agent safety rule:
 
 - AI agents must not execute `npx prisma migrate dev` or `npx prisma migrate reset`.
-- AI can prepare schema/migration changes, but migration commands must be run by a human developer.
+- AI agents should update `prisma/schema.prisma` only for DB model changes.
+- AI agents should not create or edit migration folders/files unless explicitly requested by the user.
+- Migration commands must be run by a human developer.
 
 Generate Prisma client:
 
@@ -41,7 +45,8 @@ npx prisma generate
 ## Prisma Migration Safety
 
 - Do not edit `prisma/migrations/*/migration.sql` after that migration has been applied to any database.
-- If schema changes are needed, update `prisma/schema.prisma` and create a new migration with an explicit initiative/feature-oriented name:
+- If schema changes are needed, update `prisma/schema.prisma`.
+- Then create a new migration manually (human developer) with an explicit initiative/feature-oriented name:
 
 ```bash
 npx prisma migrate dev --name your-change-name

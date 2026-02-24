@@ -71,7 +71,7 @@ model WalletAccount {
   userId              String
   name                String
   type                WalletAccountType
-  currentBalancePhp   Decimal              @default(0)
+  currentBalanceAmount   Decimal              @default(0)
   creditLimitPhp      Decimal?
   statementClosingDay Int?
   statementDueDay     Int?
@@ -171,3 +171,4 @@ model FinanceTransaction {
   @@index([userId, budgetEnvelopeId, postedAt])
   @@index([userId, walletAccountId, postedAt])
 }
+

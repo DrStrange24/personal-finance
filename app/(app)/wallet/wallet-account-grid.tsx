@@ -20,7 +20,7 @@ type WalletAccountViewModel = {
     id: string;
     type: string;
     name: string;
-    currentBalancePhp: number;
+    currentBalanceAmount: number;
     creditLimitPhp: number | null;
     statementClosingDay: number | null;
     statementDueDay: number | null;
@@ -40,6 +40,18 @@ type WalletAccountGridProps = {
 };
 
 type EditState = WalletAccountViewModel | null;
+
+const assetAmountFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
+});
+
+const inferAssetSymbol = (name: string) => {
+    const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
+    return match?.[0] ?? "UNITS";
+};
+
+const formatAssetBalance = (name: string, amount: number) => `${assetAmountFormatter.format(amount)} ${inferAssetSymbol(name)}`;
 
 export default function WalletAccountGrid({
     groups,
@@ -105,11 +117,13 @@ export default function WalletAccountGrid({
                                                         {account.name}
                                                     </h4>
                                                     <small style={{ color: "var(--color-text-muted)" }}>
-                                                        Balance
+                                                        {account.type === "ASSET" ? "Holdings" : "Balance"}
                                                     </small>
                                                 </div>
                                                 <p className={`m-0 fw-semibold ${account.type === "CREDIT_CARD" ? "text-danger" : ""}`}>
-                                                    {formatPhp(account.currentBalancePhp)}
+                                                    {account.type === "ASSET"
+                                                        ? formatAssetBalance(account.name, account.currentBalanceAmount)
+                                                        : formatPhp(account.currentBalanceAmount)}
                                                 </p>
                                             </div>
 
@@ -187,16 +201,22 @@ export default function WalletAccountGrid({
                             />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="edit-wallet-balance" className="small fw-semibold">Current Balance (PHP)</label>
+                            <label htmlFor="edit-wallet-balance" className="small fw-semibold">
+                                {editType === "ASSET" ? "Current Amount (Units)" : "Current Balance (PHP)"}
+                            </label>
                             <input
                                 id="edit-wallet-balance"
                                 type="number"
-                                name="currentBalancePhp"
+                                name="currentBalanceAmount"
                                 className="form-control"
-                                defaultValue={editState ? editState.currentBalancePhp.toFixed(2) : ""}
+                                defaultValue={editState
+                                    ? editType === "ASSET"
+                                        ? editState.currentBalanceAmount.toString()
+                                        : editState.currentBalanceAmount.toFixed(2)
+                                    : ""}
                                 key={editState?.id ? `${editState.id}-balance` : "edit-balance-empty"}
                                 min="0"
-                                step="0.01"
+                                step={editType === "ASSET" ? "0.000001" : "0.01"}
                                 required
                             />
                         </div>
@@ -257,3 +277,4 @@ export default function WalletAccountGrid({
         </>
     );
 }
+

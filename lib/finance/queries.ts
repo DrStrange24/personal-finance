@@ -16,7 +16,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
             },
             select: {
                 type: true,
-                currentBalancePhp: true,
+                currentBalanceAmount: true,
             },
         }),
         prisma.budgetEnvelope.aggregate({
@@ -61,7 +61,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     let totalWalletBalancePhp = 0;
 
     for (const wallet of walletAccounts) {
-        const amount = Number(wallet.currentBalancePhp);
+        const amount = Number(wallet.currentBalanceAmount);
         if (wallet.type === WalletAccountType.CREDIT_CARD) {
             totalCreditCardDebtPhp += amount;
         } else {
@@ -147,7 +147,7 @@ export const getCreditCardStatus = async (userId: string) => {
 
     return creditCards.map((card) => ({
         ...card,
-        currentBalancePhp: Number(card.currentBalancePhp),
+        currentBalanceAmount: Number(card.currentBalanceAmount),
     }));
 };
 
@@ -166,3 +166,4 @@ export const formatTransactionDirection = (
     }
     return Math.abs(numeric);
 };
+

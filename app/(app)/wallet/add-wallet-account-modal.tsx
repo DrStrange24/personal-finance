@@ -21,6 +21,7 @@ export default function AddWalletAccountModal({
     createWalletAccountAction,
 }: AddWalletAccountModalProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [selectedType, setSelectedType] = useState(accountTypeOptions[0]?.value ?? "");
     const { showSuccess, showError } = useAppToast();
 
     const submitCreateWalletAccount = async (formData: FormData) => {
@@ -56,7 +57,13 @@ export default function AddWalletAccountModal({
                     <Modal.Body className="d-grid gap-3">
                         <div className="d-grid gap-1">
                             <label htmlFor="wallet-type" className="small fw-semibold">Type</label>
-                            <select id="wallet-type" name="type" className="form-control" defaultValue={accountTypeOptions[0]?.value ?? ""}>
+                            <select
+                                id="wallet-type"
+                                name="type"
+                                className="form-control"
+                                value={selectedType}
+                                onChange={(event) => setSelectedType(event.target.value)}
+                            >
                                 {accountTypeOptions.map((type) => (
                                     <option key={type.value} value={type.value}>{type.label}</option>
                                 ))}
@@ -67,21 +74,35 @@ export default function AddWalletAccountModal({
                             <input id="wallet-name" type="text" name="name" className="form-control" maxLength={80} required />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="wallet-balance" className="small fw-semibold">Current Balance (PHP)</label>
-                            <input id="wallet-balance" type="number" name="currentBalancePhp" className="form-control" min="0" step="0.01" required />
+                            <label htmlFor="wallet-balance" className="small fw-semibold">
+                                {selectedType === "ASSET" ? "Current Amount (Units)" : "Current Balance (PHP)"}
+                            </label>
+                            <input
+                                id="wallet-balance"
+                                type="number"
+                                name="currentBalanceAmount"
+                                className="form-control"
+                                min="0"
+                                step={selectedType === "ASSET" ? "0.000001" : "0.01"}
+                                required
+                            />
                         </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-credit-limit" className="small fw-semibold">Credit Limit (for credit card)</label>
-                            <input id="wallet-credit-limit" type="number" name="creditLimitPhp" className="form-control" min="0" step="0.01" />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-statement-close" className="small fw-semibold">Statement Closing Day (1-31)</label>
-                            <input id="wallet-statement-close" type="number" name="statementClosingDay" className="form-control" min="1" max="31" />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="wallet-statement-due" className="small fw-semibold">Statement Due Day (1-31)</label>
-                            <input id="wallet-statement-due" type="number" name="statementDueDay" className="form-control" min="1" max="31" />
-                        </div>
+                        {selectedType === "CREDIT_CARD" && (
+                            <>
+                                <div className="d-grid gap-1">
+                                    <label htmlFor="wallet-credit-limit" className="small fw-semibold">Credit Limit (for credit card)</label>
+                                    <input id="wallet-credit-limit" type="number" name="creditLimitPhp" className="form-control" min="0" step="0.01" />
+                                </div>
+                                <div className="d-grid gap-1">
+                                    <label htmlFor="wallet-statement-close" className="small fw-semibold">Statement Closing Day (1-31)</label>
+                                    <input id="wallet-statement-close" type="number" name="statementClosingDay" className="form-control" min="1" max="31" />
+                                </div>
+                                <div className="d-grid gap-1">
+                                    <label htmlFor="wallet-statement-due" className="small fw-semibold">Statement Due Day (1-31)</label>
+                                    <input id="wallet-statement-due" type="number" name="statementDueDay" className="form-control" min="1" max="31" />
+                                </div>
+                            </>
+                        )}
                     </Modal.Body>
                     <Modal.Footer>
                         <Button type="button" variant="outline-secondary" onClick={() => setIsOpen(false)}>
@@ -94,3 +115,4 @@ export default function AddWalletAccountModal({
         </>
     );
 }
+

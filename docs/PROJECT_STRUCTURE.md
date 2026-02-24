@@ -85,10 +85,8 @@
   - schema.prisma
   - migrations/
     - 20260219095824_init/
-    - 20260219113000_add_monthly_overview_entry/
-    - 20260219133652_monthly_overview_id_db_default/
-    - 20260220163000_add_wallet_entry/
-    - 20260220190000_add_finance_core/
+    - 20260220112918_update_table/
+    - 20260224120000_rename-wallet-balance-column/
 - public/
 
 Notes:

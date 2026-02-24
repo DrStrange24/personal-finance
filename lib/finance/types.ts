@@ -28,7 +28,7 @@ export type TransactionFormInput = {
 
 export type WalletAccountSummary = Pick<
     WalletAccount,
-    "id" | "name" | "type" | "currentBalancePhp" | "statementClosingDay" | "statementDueDay"
+    "id" | "name" | "type" | "currentBalanceAmount" | "statementClosingDay" | "statementDueDay"
 >;
 
 export type BudgetEnvelopeSummary = Pick<
@@ -111,3 +111,4 @@ export const transactionKindLabel: Record<TransactionKind, string> = {
     LOAN_REPAY: "Loan Repay",
     ADJUSTMENT: "Adjustment",
 };
+
