@@ -4,6 +4,7 @@ import CardBody from "react-bootstrap/CardBody";
 import AddInvestmentModal from "./add-investment-modal";
 import InvestmentTable from "./investment-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
+import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,29 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
     return normalized;
 };
 
+const parseUnitsInput = (value: FormDataEntryValue | null) => {
+    if (typeof value !== "string") {
+        return { ok: false, value: null as number | null };
+    }
+
+    const normalized = value.replaceAll(",", "").trim();
+    if (normalized.length === 0) {
+        return { ok: false, value: null as number | null };
+    }
+
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return { ok: false, value: null as number | null };
+    }
+
+    return { ok: true, value: parsed };
+};
+
+const inferAssetSymbol = (name: string) => {
+    const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
+    return match?.[0] ?? "UNITS";
+};
+
 export default async function InvestmentPage() {
     const session = await getAuthenticatedSession();
     await ensureFinanceBootstrap(session.userId);
@@ -34,10 +58,17 @@ export default async function InvestmentPage() {
 
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
-        const valueResult = parseMoneyInput(formData.get("value"), true);
+        const valueResult = parseUnitsInput(formData.get("value"));
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
-        if (!name || !initialResult.ok || initialResult.value === null || !valueResult.ok || valueResult.value === null || !remarksResult.ok) {
+        if (
+            !name
+            || !initialResult.ok
+            || initialResult.value === null
+            || !valueResult.ok
+            || valueResult.value === null
+            || !remarksResult.ok
+        ) {
             return { ok: false, message: "Please provide valid investment details." };
         }
 
@@ -66,10 +97,18 @@ export default async function InvestmentPage() {
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
-        const valueResult = parseMoneyInput(formData.get("value"), true);
+        const valueResult = parseUnitsInput(formData.get("value"));
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
-        if (!id || !name || !initialResult.ok || initialResult.value === null || !valueResult.ok || valueResult.value === null || !remarksResult.ok) {
+        if (
+            !id
+            || !name
+            || !initialResult.ok
+            || initialResult.value === null
+            || !valueResult.ok
+            || valueResult.value === null
+            || !remarksResult.ok
+        ) {
             return { ok: false, message: "Please provide valid investment details." };
         }
 
@@ -139,28 +178,39 @@ export default async function InvestmentPage() {
         orderBy: [{ createdAt: "desc" }],
     });
 
+    const estimatedValuePairs = await Promise.all(investments.map(async (investment) => {
+        const symbol = inferAssetSymbol(investment.name);
+        const estimatedPhpValue = await getCoinsPhEstimatedValuePhp(symbol, Number(investment.value));
+        return [investment.id, { symbol, estimatedPhpValue }] as const;
+    }));
+    const estimatedById = new Map(estimatedValuePairs);
+
     const investmentRows = investments.map((investment) => {
         const initialInvestmentPhp = Number(investment.initialInvestmentPhp);
         const value = Number(investment.value);
+        const estimation = estimatedById.get(investment.id);
+        const estimatedPhpValue = estimation?.estimatedPhpValue ?? null;
 
         return {
             id: investment.id,
             name: investment.name,
+            symbol: estimation?.symbol ?? "UNITS",
             initialInvestmentPhp,
             value,
-            gainLossPhp: value - initialInvestmentPhp,
+            estimatedPhpValue,
+            gainLossPhp: estimatedPhpValue === null ? null : estimatedPhpValue - initialInvestmentPhp,
             remarks: investment.remarks,
         };
     });
 
     const totals = investmentRows.reduce((acc, row) => ({
         totalInitialPhp: acc.totalInitialPhp + row.initialInvestmentPhp,
-        totalCurrentPhp: acc.totalCurrentPhp + row.value,
+        totalEstimatedPhp: acc.totalEstimatedPhp + (row.estimatedPhpValue ?? 0),
     }), {
         totalInitialPhp: 0,
-        totalCurrentPhp: 0,
+        totalEstimatedPhp: 0,
     });
-    const totalGainLossPhp = totals.totalCurrentPhp - totals.totalInitialPhp;
+    const totalGainLossPhp = totals.totalEstimatedPhp - totals.totalInitialPhp;
 
     return (
         <section className="d-grid gap-4">
@@ -168,7 +218,7 @@ export default async function InvestmentPage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-secondary)" }}>Portfolio</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Investments</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Track each investment with initial amount, current value, and gain/loss.
+                    Track each investment with units and estimated PHP value from live market bids.
                 </p>
             </header>
 
@@ -181,8 +231,8 @@ export default async function InvestmentPage() {
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Current Value</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totals.totalCurrentPhp)}</p>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Est. PHP Value</small>
+                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totals.totalEstimatedPhp)}</p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">

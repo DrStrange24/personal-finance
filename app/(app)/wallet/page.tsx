@@ -177,13 +177,13 @@ export default async function WalletPage() {
             userId: session.userId,
             isArchived: false,
             type: {
-                not: WalletAccountType.ASSET,
+                in: [WalletAccountType.CASH, WalletAccountType.BANK, WalletAccountType.E_WALLET],
             },
         },
         orderBy: [{ type: "asc" }, { createdAt: "asc" }],
     });
 
-    const visibleWalletTypes = Object.values(WalletAccountType).filter((type) => type !== WalletAccountType.ASSET);
+    const visibleWalletTypes = [WalletAccountType.CASH, WalletAccountType.BANK, WalletAccountType.E_WALLET];
     const groupedAccounts = visibleWalletTypes.map((type) => ({
         type,
         label: walletAccountTypeLabel[type],
@@ -206,10 +206,6 @@ export default async function WalletPage() {
     }));
 
     const totalNonCredit = accounts
-        .filter((account) => account.type !== WalletAccountType.CREDIT_CARD)
-        .reduce((sum, account) => sum + Number(account.currentBalanceAmount), 0);
-    const totalCreditDebt = accounts
-        .filter((account) => account.type === WalletAccountType.CREDIT_CARD)
         .reduce((sum, account) => sum + Number(account.currentBalanceAmount), 0);
 
     return (
@@ -225,27 +221,8 @@ export default async function WalletPage() {
             <div className={styles.walletSummaryGrid}>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Cash / E-Wallet Total</small>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Wallet Total</small>
                         <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit)}</p>
-                    </CardBody>
-                </Card>
-                <Card className="pf-surface-card">
-                    <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Credit Card Debt</small>
-                        <p className="m-0 fs-5 fw-semibold text-danger">{formatPhp(totalCreditDebt)}</p>
-                    </CardBody>
-                </Card>
-                <Card className="pf-surface-card">
-                    <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Net Cash Position</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit - totalCreditDebt)}</p>
-                    </CardBody>
-                </Card>
-                <Card className="pf-surface-card">
-                    <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Accounts</small>
-                        <p className="m-0 fs-5 fw-semibold">{accounts.length}</p>
-                        <small style={{ color: "var(--color-text-muted)" }}>Investments are tracked in the Investment page.</small>
                     </CardBody>
                 </Card>
             </div>

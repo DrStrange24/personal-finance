@@ -92,7 +92,8 @@
     - 20260219095824_init/
     - 20260220112918_update_table/
     - 20260224082315_rename_wallet_balance_column/
-    - 20260224193000_investment-module/
+    - 20260224192406_investment-module/
+    - 20260224194823_rename_investment_value/
 - public/
 
 Notes:

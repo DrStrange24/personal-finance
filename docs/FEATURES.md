@@ -32,7 +32,7 @@
 - Investments:
   - `/investment` investment management.
   - Add/edit/delete investment records via icon actions with modal flows.
-  - Track initial investment and current value with gain/loss totals.
+  - Track initial investment, unit value, and PHP value with gain/loss totals.
 
 - Income:
   - `/income` income stream management.

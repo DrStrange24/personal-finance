@@ -50,8 +50,8 @@ export default function AddInvestmentModal({ createInvestmentAction }: AddInvest
                             <input id="investment-initial" type="number" name="initialInvestmentPhp" className="form-control" min="0" step="0.01" required />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="investment-value" className="small fw-semibold">Value (PHP)</label>
-                            <input id="investment-value" type="number" name="value" className="form-control" min="0" step="0.01" required />
+                            <label htmlFor="investment-value" className="small fw-semibold">Value (Units)</label>
+                            <input id="investment-value" type="number" name="value" className="form-control" min="0" step="0.000001" required />
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="investment-remarks" className="small fw-semibold">Remarks</label>

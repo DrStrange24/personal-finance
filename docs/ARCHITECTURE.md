@@ -22,7 +22,7 @@
 Primary models:
 
 - `WalletAccount` (cash, bank, e-wallet, credit card)
-- `Investment` (initial investment + current value)
+- `Investment` (initial investment + unit value + PHP value)
 - `IncomeStream`
 - `BudgetEnvelope` (including hidden system envelopes)
 - `LoanRecord`
