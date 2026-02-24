@@ -19,7 +19,7 @@ Project documentation lives in `docs/`.
 - Authenticated (requires `pf_session` cookie):
   - `/dashboard` quick actions + key finance metrics + workbook import
   - `/transactions` unified ledger with filters and posting form
-  - `/income` income stream setup and income posting
+  - `/income` income stream setup and management
   - `/budget` envelope budgeting and allocation
   - `/loan` loan register (`you owe` and `you are owed`) + repayment/borrow posting
   - `/wallet` wallet account management (cash/bank/e-wallet/asset/credit card) with grouped cards and modal add/edit flows
@@ -103,6 +103,7 @@ Supported workbook sheets:
 
 ## UX Safety Rule
 
+- For add/edit/delete actions across all modules, use icon-only action buttons that open modal workflows.
 - Destructive actions (delete/archive/removal) must always use a confirmation modal before submit across all modules.
 - Prefer `app/components/confirmation-modal.tsx` (or wrappers based on it) for consistency.
 - Create/edit/save actions submitted from modals should close the modal when submit completes.

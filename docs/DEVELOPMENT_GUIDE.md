@@ -95,6 +95,13 @@ npm run build
 - This rule applies to all modules and routes.
 - Reuse `app/components/confirmation-modal.tsx` (directly or via wrapper components) to keep behavior consistent.
 
+## Action UI Rule
+
+- For add/edit/delete actions, use icon-only action buttons as triggers.
+- Add and edit actions should open modal forms.
+- Delete/archive/removal actions should trigger a confirmation modal before submit.
+- Keep this behavior consistent when adding new features or tables.
+
 ## Modal Submit Behavior
 
 - For create/edit/save modal forms, close the modal after submit completes.

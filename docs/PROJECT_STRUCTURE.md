@@ -10,7 +10,9 @@
     - transactions/
       - page.tsx (ledger page with filters + posting form)
     - income/
-      - page.tsx (income stream management + income posting)
+      - page.tsx (income stream management page shell + server actions)
+      - add-income-stream-modal.tsx (income stream create modal trigger/form with icon action)
+      - income-stream-table.tsx (income stream table + edit modal + icon edit/delete actions)
     - budget/
       - page.tsx (envelope management + budget allocation posting)
     - loan/

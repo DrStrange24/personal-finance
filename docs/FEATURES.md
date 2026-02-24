@@ -33,7 +33,7 @@
 
 - Income:
   - `/income` income stream management.
-  - Income posting to wallet + budget envelope.
+  - Add/edit/delete stream actions via icon buttons with modal flows.
 
 - Budget:
   - `/budget` envelope budgeting.
