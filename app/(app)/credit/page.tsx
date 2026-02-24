@@ -35,9 +35,16 @@ export default async function CreditPage() {
 
         const actionSession = await getAuthenticatedSession();
         const name = parseRequiredName(formData.get("name"));
+        const creditLimitResult = parseMoneyInput(formData.get("creditLimitAmount"), true);
         const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
 
-        if (!name || !balanceResult.ok || balanceResult.value === null) {
+        if (
+            !name
+            || !creditLimitResult.ok
+            || creditLimitResult.value === null
+            || !balanceResult.ok
+            || balanceResult.value === null
+        ) {
             return { ok: false, message: "Please provide valid credit account details." };
         }
 
@@ -46,6 +53,7 @@ export default async function CreditPage() {
                 data: {
                     userId: actionSession.userId,
                     name,
+                    creditLimitAmount: creditLimitResult.value,
                     currentBalanceAmount: balanceResult.value,
                 },
             });
@@ -63,9 +71,17 @@ export default async function CreditPage() {
         const actionSession = await getAuthenticatedSession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
+        const creditLimitResult = parseMoneyInput(formData.get("creditLimitAmount"), true);
         const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
 
-        if (!id || !name || !balanceResult.ok || balanceResult.value === null) {
+        if (
+            !id
+            || !name
+            || !creditLimitResult.ok
+            || creditLimitResult.value === null
+            || !balanceResult.ok
+            || balanceResult.value === null
+        ) {
             return { ok: false, message: "Please provide valid credit account details." };
         }
 
@@ -86,6 +102,7 @@ export default async function CreditPage() {
                 where: { id: existing.id },
                 data: {
                     name,
+                    creditLimitAmount: creditLimitResult.value,
                     currentBalanceAmount: balanceResult.value,
                 },
             });
@@ -141,12 +158,14 @@ export default async function CreditPage() {
     const creditRows = accounts.map((account) => ({
         id: account.id,
         name: account.name,
+        creditLimitAmount: Number(account.creditLimitAmount),
         currentBalanceAmount: Number(account.currentBalanceAmount),
         createdAtLabel: account.createdAt.toISOString().slice(0, 10),
     }));
 
-    const totalDebtPhp = creditRows.reduce((sum, account) => sum + account.currentBalanceAmount, 0);
-    const averageDebtPhp = creditRows.length > 0 ? totalDebtPhp / creditRows.length : 0;
+    const totalLimitPhp = creditRows.reduce((sum, account) => sum + account.creditLimitAmount, 0);
+    const totalUsedPhp = creditRows.reduce((sum, account) => sum + account.currentBalanceAmount, 0);
+    const totalRemainingPhp = totalLimitPhp - totalUsedPhp;
 
     return (
         <section className="d-grid gap-4">
@@ -167,14 +186,22 @@ export default async function CreditPage() {
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Debt</small>
-                        <p className="m-0 fs-5 fw-semibold text-danger">{formatPhp(totalDebtPhp)}</p>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Limit</small>
+                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalLimitPhp)}</p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
-                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Average/Card</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(averageDebtPhp)}</p>
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Used</small>
+                        <p className="m-0 fs-5 fw-semibold text-danger">{formatPhp(totalUsedPhp)}</p>
+                    </CardBody>
+                </Card>
+                <Card className="pf-surface-card">
+                    <CardBody className="d-grid gap-1">
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Remaining</small>
+                        <p className={`m-0 fs-5 fw-semibold ${totalRemainingPhp >= 0 ? "text-success" : "text-danger"}`}>
+                            {formatPhp(totalRemainingPhp)}
+                        </p>
                     </CardBody>
                 </Card>
             </div>

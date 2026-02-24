@@ -89,6 +89,7 @@ model CreditAccount {
   id                   String   @id @default(cuid())
   userId               String
   name                 String
+  creditLimitAmount    Decimal  @default(0)
   currentBalanceAmount Decimal  @default(0)
   isArchived           Boolean  @default(false)
   createdAt            DateTime @default(now())

@@ -14,6 +14,7 @@ import { formatPhp } from "@/lib/finance/money";
 type CreditAccountRow = {
     id: string;
     name: string;
+    creditLimitAmount: number;
     currentBalanceAmount: number;
     createdAtLabel: string;
 };
@@ -70,7 +71,9 @@ export default function CreditAccountTable({
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Current Balance</th>
+                                    <th>Credit Limit</th>
+                                    <th>Used</th>
+                                    <th>Remaining</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
@@ -78,7 +81,7 @@ export default function CreditAccountTable({
                             <tbody>
                                 {accounts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No credit accounts yet.
                                         </td>
                                     </tr>
@@ -86,7 +89,11 @@ export default function CreditAccountTable({
                                     accounts.map((account) => (
                                         <tr key={account.id}>
                                             <td>{account.name}</td>
+                                            <td>{formatPhp(account.creditLimitAmount)}</td>
                                             <td className="text-danger">{formatPhp(account.currentBalanceAmount)}</td>
+                                            <td className={account.creditLimitAmount - account.currentBalanceAmount >= 0 ? "text-success" : "text-danger"}>
+                                                {formatPhp(account.creditLimitAmount - account.currentBalanceAmount)}
+                                            </td>
                                             <td>{account.createdAtLabel}</td>
                                             <td>
                                                 <div className="d-flex align-items-center gap-2">
@@ -137,7 +144,21 @@ export default function CreditAccountTable({
                             />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="edit-credit-balance" className="small fw-semibold">Current Balance (PHP)</label>
+                            <label htmlFor="edit-credit-limit" className="small fw-semibold">Credit Limit (PHP)</label>
+                            <input
+                                id="edit-credit-limit"
+                                type="number"
+                                name="creditLimitAmount"
+                                className="form-control"
+                                defaultValue={editState ? editState.creditLimitAmount.toFixed(2) : ""}
+                                key={editState?.id ? `${editState.id}-limit` : "edit-credit-limit-empty"}
+                                min="0"
+                                step="0.01"
+                                required
+                            />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="edit-credit-balance" className="small fw-semibold">Used (PHP)</label>
                             <input
                                 id="edit-credit-balance"
                                 type="number"

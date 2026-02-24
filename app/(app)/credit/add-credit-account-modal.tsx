@@ -50,7 +50,19 @@ export default function AddCreditAccountModal({ createCreditAccountAction }: Add
                             <input id="credit-name" type="text" name="name" className="form-control" maxLength={80} required />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="credit-balance" className="small fw-semibold">Current Balance (PHP)</label>
+                            <label htmlFor="credit-limit" className="small fw-semibold">Credit Limit (PHP)</label>
+                            <input
+                                id="credit-limit"
+                                type="number"
+                                name="creditLimitAmount"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                required
+                            />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="credit-balance" className="small fw-semibold">Used (PHP)</label>
                             <input
                                 id="credit-balance"
                                 type="number"
