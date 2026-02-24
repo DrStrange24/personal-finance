@@ -3,10 +3,9 @@ import { revalidatePath } from "next/cache";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Table from "react-bootstrap/Table";
+import AddTransactionModal from "@/app/(app)/transactions/add-transaction-modal";
 import MetricCard from "@/app/components/finance/metric-card";
-import TransactionForm from "@/app/components/finance/transaction-form";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
-import WorkbookImportCard from "@/app/components/finance/import-workbook-card";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { parseTransactionForm } from "@/lib/finance/form-parsers";
@@ -64,6 +63,7 @@ export default async function DashboardPage() {
             } satisfies FinanceActionResult;
         }
 
+        revalidatePath("/");
         revalidatePath("/dashboard");
         revalidatePath("/transactions");
         revalidatePath("/budget");
@@ -103,10 +103,6 @@ export default async function DashboardPage() {
         id: budget.id,
         label: `${budget.name} (${formatPhp(Number(budget.availablePhp))})`,
     }));
-    const targetWalletOptions = context.wallets.map((wallet) => ({
-        id: wallet.id,
-        label: wallet.name,
-    }));
     const incomeOptions = context.incomes.map((income) => ({
         id: income.id,
         label: income.name,
@@ -118,12 +114,21 @@ export default async function DashboardPage() {
 
     return (
         <section className="d-grid gap-4">
-            <header className="d-grid gap-2">
-                <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Main Page</p>
-                <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h2>
-                <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Quick post flow for income, expenses, transfers, credit card movements, and loan movements.
-                </p>
+            <header className="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div className="d-grid gap-2">
+                    <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Main Page</p>
+                    <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h2>
+                    <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
+                        Quick post flow for income, expenses, transfers, credit card movements, and loan movements.
+                    </p>
+                </div>
+                <AddTransactionModal
+                    wallets={walletOptions}
+                    budgets={budgetOptions}
+                    incomeStreams={incomeOptions}
+                    loanRecords={loanOptions}
+                    postTransactionAction={createTransactionAction}
+                />
             </header>
 
             <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
@@ -134,21 +139,6 @@ export default async function DashboardPage() {
                 <MetricCard label="Month Income" value={formatPhp(summary.monthIncomePhp)} />
                 <MetricCard label="Month Expense" value={formatPhp(summary.monthExpensePhp)} />
                 <MetricCard label="Month Net Cashflow" value={formatPhp(summary.monthNetCashflowPhp)} />
-            </div>
-
-            <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-                <TransactionForm
-                    submitAction={createTransactionAction}
-                    wallets={walletOptions}
-                    budgets={budgetOptions}
-                    targetWallets={targetWalletOptions}
-                    incomeStreams={incomeOptions}
-                    loanRecords={loanOptions}
-                    includeKindSelect
-                    title="Quick Transaction"
-                    submitLabel="Post Transaction"
-                />
-                <WorkbookImportCard />
             </div>
 
             <Card className="pf-surface-panel">
