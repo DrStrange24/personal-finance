@@ -37,8 +37,8 @@
 
 - Budget:
   - `/budget` envelope budgeting.
-  - Envelope create/update.
-  - Budget allocation posting (`wallet -> envelope`).
+  - Envelope create/update/delete via icon actions with modal flows.
+  - Budget allocation posting (`wallet -> envelope`) via modal action.
   - Envelope table with target/available/spent/remaining.
 
 - Loan:

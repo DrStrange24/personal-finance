@@ -1,9 +1,7 @@
 import { revalidatePath } from "next/cache";
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import CardBody from "react-bootstrap/CardBody";
-import Table from "react-bootstrap/Table";
-import TransactionForm from "@/app/components/finance/transaction-form";
+import AddBudgetEnvelopeModal from "./add-budget-envelope-modal";
+import AllocateBudgetModal from "./allocate-budget-modal";
+import BudgetEnvelopeTable from "./budget-envelope-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
@@ -23,11 +21,16 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
     return normalized;
 };
 
+type BudgetActionResult = {
+    ok: boolean;
+    message: string;
+};
+
 export default async function BudgetPage() {
     const session = await getAuthenticatedSession();
     await ensureFinanceBootstrap(session.userId);
 
-    const createBudgetEnvelopeAction = async (formData: FormData) => {
+    const createBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
@@ -46,36 +49,41 @@ export default async function BudgetPage() {
             || !payToResult.ok
             || !remarksResult.ok
         ) {
-            return;
+            return { ok: false, message: "Please provide valid budget envelope details." };
         }
 
-        const maxSortOrder = await prisma.budgetEnvelope.aggregate({
-            where: {
-                userId: actionSession.userId,
-                isSystem: false,
-            },
-            _max: {
-                sortOrder: true,
-            },
-        });
+        try {
+            const maxSortOrder = await prisma.budgetEnvelope.aggregate({
+                where: {
+                    userId: actionSession.userId,
+                    isSystem: false,
+                },
+                _max: {
+                    sortOrder: true,
+                },
+            });
 
-        await prisma.budgetEnvelope.create({
-            data: {
-                userId: actionSession.userId,
-                name,
-                monthlyTargetPhp: monthlyTargetResult.value,
-                availablePhp: availableResult.value,
-                payTo: payToResult.value,
-                remarks: remarksResult.value,
-                sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1,
-            },
-        });
+            await prisma.budgetEnvelope.create({
+                data: {
+                    userId: actionSession.userId,
+                    name,
+                    monthlyTargetPhp: monthlyTargetResult.value,
+                    availablePhp: availableResult.value,
+                    payTo: payToResult.value,
+                    remarks: remarksResult.value,
+                    sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1,
+                },
+            });
 
-        revalidatePath("/budget");
-        revalidatePath("/dashboard");
+            revalidatePath("/budget");
+            revalidatePath("/dashboard");
+            return { ok: true, message: "Budget envelope created successfully." };
+        } catch {
+            return { ok: false, message: "Could not create budget envelope. Please try again." };
+        }
     };
 
-    const updateBudgetEnvelopeAction = async (formData: FormData) => {
+    const updateBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
@@ -92,28 +100,73 @@ export default async function BudgetPage() {
             || !payToResult.ok
             || !remarksResult.ok
         ) {
-            return;
+            return { ok: false, message: "Please provide valid budget envelope details." };
         }
 
-        await prisma.budgetEnvelope.updateMany({
-            where: {
-                id,
-                userId: actionSession.userId,
-                isSystem: false,
-            },
-            data: {
-                monthlyTargetPhp: monthlyTargetResult.value,
-                payTo: payToResult.value,
-                remarks: remarksResult.value,
-                rolloverEnabled,
-            },
-        });
+        try {
+            const updated = await prisma.budgetEnvelope.updateMany({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isSystem: false,
+                },
+                data: {
+                    monthlyTargetPhp: monthlyTargetResult.value,
+                    payTo: payToResult.value,
+                    remarks: remarksResult.value,
+                    rolloverEnabled,
+                },
+            });
 
-        revalidatePath("/budget");
-        revalidatePath("/dashboard");
+            if (updated.count === 0) {
+                return { ok: false, message: "Budget envelope not found." };
+            }
+
+            revalidatePath("/budget");
+            revalidatePath("/dashboard");
+            return { ok: true, message: "Budget envelope updated successfully." };
+        } catch {
+            return { ok: false, message: "Could not update budget envelope. Please try again." };
+        }
     };
 
-    const postBudgetAllocationAction = async (formData: FormData) => {
+    const deleteBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
+        "use server";
+
+        const actionSession = await getAuthenticatedSession();
+        const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
+
+        if (!id) {
+            return { ok: false, message: "Missing budget envelope id." };
+        }
+
+        try {
+            const archived = await prisma.budgetEnvelope.updateMany({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isSystem: false,
+                    isArchived: false,
+                },
+                data: {
+                    isArchived: true,
+                },
+            });
+
+            if (archived.count === 0) {
+                return { ok: false, message: "Budget envelope not found." };
+            }
+
+            revalidatePath("/budget");
+            revalidatePath("/dashboard");
+            revalidatePath("/transactions");
+            return { ok: true, message: "Budget envelope deleted successfully." };
+        } catch {
+            return { ok: false, message: "Could not delete budget envelope. Please try again." };
+        }
+    };
+
+    const postBudgetAllocationAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
         const actionSession = await getAuthenticatedSession();
 
@@ -181,6 +234,17 @@ export default async function BudgetPage() {
             id: budget.id,
             label: budget.name,
         }));
+    const budgetRows = budgetStats.map((budget) => ({
+        id: budget.id,
+        name: budget.name,
+        monthlyTargetPhp: budget.monthlyTargetPhp,
+        availablePhp: budget.availablePhp,
+        spentPhp: budget.spentPhp,
+        remainingPhp: budget.remainingPhp,
+        payTo: budget.payTo,
+        remarks: budget.remarks,
+        rolloverEnabled: budget.rolloverEnabled,
+    }));
 
     return (
         <section className="d-grid gap-4">
@@ -192,123 +256,20 @@ export default async function BudgetPage() {
                 </p>
             </header>
 
-            <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-                <TransactionForm
-                    submitAction={postBudgetAllocationAction}
+            <div className="d-flex justify-content-end gap-2">
+                <AllocateBudgetModal
                     wallets={walletOptions}
                     budgets={budgetOptions}
-                    includeKindSelect={false}
-                    defaultKind="BUDGET_ALLOCATION"
-                    title="Allocate Budget"
-                    submitLabel="Allocate"
+                    postBudgetAllocationAction={postBudgetAllocationAction}
                 />
-
-                <Card className="pf-surface-panel">
-                    <CardBody className="d-grid gap-3">
-                        <h3 className="m-0 fs-6 fw-semibold">Add Budget Envelope</h3>
-                        <form action={createBudgetEnvelopeAction} className="d-grid gap-3">
-                            <div className="d-grid gap-1">
-                                <label htmlFor="budget-name" className="small fw-semibold">Name</label>
-                                <input id="budget-name" type="text" name="name" className="form-control" maxLength={80} required />
-                            </div>
-                            <div className="d-grid gap-1">
-                                <label htmlFor="budget-monthly-target" className="small fw-semibold">Monthly Target (PHP)</label>
-                                <input id="budget-monthly-target" type="number" name="monthlyTargetPhp" className="form-control" min="0" step="0.01" required />
-                            </div>
-                            <div className="d-grid gap-1">
-                                <label htmlFor="budget-available" className="small fw-semibold">Starting Available (PHP)</label>
-                                <input id="budget-available" type="number" name="availablePhp" className="form-control" min="0" step="0.01" required />
-                            </div>
-                            <div className="d-grid gap-1">
-                                <label htmlFor="budget-pay-to" className="small fw-semibold">Pay To</label>
-                                <input id="budget-pay-to" type="text" name="payTo" className="form-control" maxLength={80} />
-                            </div>
-                            <div className="d-grid gap-1">
-                                <label htmlFor="budget-remarks" className="small fw-semibold">Remarks</label>
-                                <textarea id="budget-remarks" name="remarks" className="form-control" rows={2} />
-                            </div>
-                            <Button type="submit">Create Envelope</Button>
-                        </form>
-                    </CardBody>
-                </Card>
+                <AddBudgetEnvelopeModal createBudgetEnvelopeAction={createBudgetEnvelopeAction} />
             </div>
 
-            <Card className="pf-surface-panel">
-                <CardBody className="d-grid gap-3">
-                    <h3 className="m-0 fs-6 fw-semibold">Envelopes</h3>
-                    <div className="table-responsive">
-                        <Table hover className="align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Target</th>
-                                    <th>Available</th>
-                                    <th>Spent (MTD)</th>
-                                    <th>Remaining</th>
-                                    <th>Pay To</th>
-                                    <th>Update</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {budgetStats.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
-                                            No budget envelopes yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    budgetStats.map((budget) => (
-                                        <tr key={budget.id}>
-                                            <td>{budget.name}</td>
-                                            <td>{Number(budget.monthlyTargetPhp).toFixed(2)}</td>
-                                            <td>{Number(budget.availablePhp).toFixed(2)}</td>
-                                            <td>{budget.spentPhp.toFixed(2)}</td>
-                                            <td className={budget.remainingPhp < 0 ? "text-danger" : "text-success"}>
-                                                {budget.remainingPhp.toFixed(2)}
-                                            </td>
-                                            <td>{budget.payTo?.trim() || "-"}</td>
-                                            <td>
-                                                <form action={updateBudgetEnvelopeAction} className="d-flex align-items-center gap-2">
-                                                    <input type="hidden" name="id" value={budget.id} />
-                                                    <input
-                                                        type="number"
-                                                        name="monthlyTargetPhp"
-                                                        defaultValue={Number(budget.monthlyTargetPhp).toFixed(2)}
-                                                        className="form-control form-control-sm"
-                                                        min="0"
-                                                        step="0.01"
-                                                        required
-                                                        style={{ width: "8rem" }}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        name="payTo"
-                                                        defaultValue={budget.payTo ?? ""}
-                                                        className="form-control form-control-sm"
-                                                        placeholder="Pay to"
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        name="remarks"
-                                                        defaultValue={budget.remarks ?? ""}
-                                                        className="form-control form-control-sm"
-                                                        placeholder="Remarks"
-                                                    />
-                                                    <label className="small d-flex align-items-center gap-1 m-0">
-                                                        <input type="checkbox" name="rolloverEnabled" defaultChecked={budget.rolloverEnabled} />
-                                                        Rollover
-                                                    </label>
-                                                    <Button size="sm" type="submit" variant="outline-primary">Save</Button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </Table>
-                    </div>
-                </CardBody>
-            </Card>
+            <BudgetEnvelopeTable
+                budgets={budgetRows}
+                updateBudgetEnvelopeAction={updateBudgetEnvelopeAction}
+                deleteBudgetEnvelopeAction={deleteBudgetEnvelopeAction}
+            />
         </section>
     );
 }

@@ -14,7 +14,10 @@
       - add-income-stream-modal.tsx (income stream create modal trigger/form with icon action)
       - income-stream-table.tsx (income stream table + edit modal + icon edit/delete actions)
     - budget/
-      - page.tsx (envelope management + budget allocation posting)
+      - page.tsx (budget page shell + server actions for create/allocate/edit/delete)
+      - add-budget-envelope-modal.tsx (budget envelope create modal trigger/form with icon action)
+      - allocate-budget-modal.tsx (budget allocation modal trigger/form with icon action)
+      - budget-envelope-table.tsx (budget envelope table + edit modal + icon edit/delete actions)
     - loan/
       - page.tsx (loan registry + borrow/repay posting)
     - wallet/
