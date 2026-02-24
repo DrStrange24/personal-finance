@@ -72,6 +72,14 @@ const LoanIcon = (props: IconProps) => (
     </svg>
 );
 
+const CreditIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <rect x="3" y="6" width="18" height="12" rx="2.5" />
+        <path d="M3 10h18" />
+        <path d="M7 14h4" />
+    </svg>
+);
+
 const CalendarIcon = (props: IconProps) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
         <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
@@ -105,6 +113,7 @@ const links = [
     { href: "/investment", label: "Investment", Icon: InvestmentIcon },
     { href: "/budget", label: "Budget", Icon: BudgetIcon },
     { href: "/loan", label: "Loan", Icon: LoanIcon },
+    { href: "/credit", label: "Credit", Icon: CreditIcon },
     { href: "/wallet", label: "Wallet", Icon: WalletIcon },
     { href: "/monthly-overview", label: "Monthly Overview", Icon: CalendarIcon },
 ];

@@ -26,6 +26,10 @@
       - budget-envelope-table.tsx (budget envelope table + edit modal + icon edit/delete actions)
     - loan/
       - page.tsx (loan registry + borrow/repay posting)
+    - credit/
+      - page.tsx (credit card account management page shell + server actions)
+      - add-credit-account-modal.tsx (credit account create modal trigger/form with icon action)
+      - credit-account-table.tsx (credit account table + edit modal + icon edit/archive actions)
     - wallet/
       - page.tsx (wallet account management page shell + server actions)
       - add-wallet-account-modal.tsx (wallet account create modal trigger/form)
@@ -94,6 +98,6 @@
 Notes:
 
 - Protected pages are under `app/(app)`.
-- New finance domain models are in Prisma (`WalletAccount`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
+- New finance domain models are in Prisma (`WalletAccount`, `CreditAccount`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
 - Legacy model (`MonthlyOverviewEntry`) remains for migration compatibility.
 - Workbook import currently uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) workflow.

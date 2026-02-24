@@ -26,8 +26,12 @@
     - cash
     - bank
     - e-wallet
-    - credit card
   - Balance updates and account archival.
+
+- Credit:
+  - `/credit` dedicated credit card account management page.
+  - Add/edit/archive credit accounts via icon actions with modal flows.
+  - Table view with current balance tracking.
 
 - Investments:
   - `/investment` investment management.
