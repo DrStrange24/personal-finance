@@ -159,7 +159,7 @@ export default async function DashboardPage() {
         return { ok: true, message: "Transaction posted successfully." } satisfies FinanceActionResult;
     };
 
-    const [summary, context, recentTransactions, creditCards, creditAccounts] = await Promise.all([
+    const [summary, context, recentTransactions, creditAccounts] = await Promise.all([
         getDashboardSummary(session.userId),
         getFinanceContextData(session.userId),
         prisma.financeTransaction.findMany({
@@ -171,14 +171,6 @@ export default async function DashboardPage() {
             },
             orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
             take: 12,
-        }),
-        prisma.walletAccount.findMany({
-            where: {
-                userId: session.userId,
-                isArchived: false,
-                type: "CREDIT_CARD",
-            },
-            orderBy: { name: "asc" },
         }),
         prisma.creditAccount.findMany({
             where: {
@@ -296,30 +288,6 @@ export default async function DashboardPage() {
                             </tbody>
                         </Table>
                     </div>
-                </CardBody>
-            </Card>
-
-            <Card className="pf-surface-panel">
-                <CardBody className="d-grid gap-2">
-                    <h3 className="m-0 fs-6 fw-semibold" style={{ color: "var(--color-text-strong)" }}>
-                        Credit Cards
-                    </h3>
-                    {creditCards.length === 0 ? (
-                        <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                            No credit card account yet. Add one in Wallet Accounts and use Credit Card Charge/Payment transactions.
-                        </p>
-                    ) : (
-                        <div className="d-grid gap-2">
-                            {creditCards.map((card) => (
-                                <div key={card.id} className="d-flex justify-content-between align-items-center border rounded px-3 py-2">
-                                    <div>
-                                        <p className="m-0 fw-semibold">{card.name}</p>
-                                    </div>
-                                    <p className="m-0 fw-semibold text-danger">{formatPhp(Number(card.currentBalanceAmount))}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </CardBody>
             </Card>
         </section>
