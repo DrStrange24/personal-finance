@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { verifySessionToken } from "@/lib/auth";
+import { getDashboardSummary } from "@/lib/finance/queries";
 import { prisma } from "@/lib/prisma";
 import MonthlyOverviewChartModal from "./chart-modal";
 import MonthlyOverviewEntryTable from "./entry-table";
@@ -215,6 +216,7 @@ export default async function MonthlyOverviewPage() {
             WHERE "userId" = ${session.userId}
             ORDER BY "entryDate" DESC, "createdAt" DESC
         `;
+    const summary = await getDashboardSummary(session.userId);
 
     const chartEntries = [...entries].reverse();
     const chartData = chartEntries.map((entry) => ({
@@ -258,6 +260,7 @@ export default async function MonthlyOverviewPage() {
                     <div className="table-responsive">
                         <MonthlyOverviewEntryTable
                             entries={tableEntries}
+                            defaultWalletAmount={summary.totalAssetsPhp}
                             createEntryAction={createEntryAction}
                             updateEntryAction={updateEntryAction}
                             deleteEntryAction={deleteEntryAction}

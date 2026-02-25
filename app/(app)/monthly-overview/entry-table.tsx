@@ -25,6 +25,7 @@ type EntryAction = (formData: FormData) => Promise<EntryActionResult>;
 
 type MonthlyOverviewEntryTableProps = {
     entries: EntryRow[];
+    defaultWalletAmount: number;
     createEntryAction: EntryAction;
     updateEntryAction: EntryAction;
     deleteEntryAction: EntryAction;
@@ -65,8 +66,18 @@ const formatSignedPercent = (value: number) => {
     return percentFormatter.format(value);
 };
 
+const endOfCurrentMonthIso = () => {
+    const now = new Date();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const year = endOfMonth.getFullYear();
+    const month = String(endOfMonth.getMonth() + 1).padStart(2, "0");
+    const day = String(endOfMonth.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
 export default function MonthlyOverviewEntryTable({
     entries,
+    defaultWalletAmount,
     createEntryAction,
     updateEntryAction,
     deleteEntryAction,
@@ -249,7 +260,14 @@ export default function MonthlyOverviewEntryTable({
                     <Modal.Body className="d-grid gap-3">
                         <div className="d-grid gap-1">
                             <label htmlFor="create-entry-date" className="small fw-semibold">Date</label>
-                            <input id="create-entry-date" type="date" name="entryDate" className="form-control" required />
+                            <input
+                                id="create-entry-date"
+                                type="date"
+                                name="entryDate"
+                                className="form-control"
+                                defaultValue={endOfCurrentMonthIso()}
+                                required
+                            />
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="create-wallet-amount" className="small fw-semibold">Wallet Amount</label>
@@ -258,6 +276,7 @@ export default function MonthlyOverviewEntryTable({
                                 type="number"
                                 name="walletAmount"
                                 className="form-control"
+                                defaultValue={defaultWalletAmount.toFixed(2)}
                                 min="0"
                                 step="0.01"
                                 required
