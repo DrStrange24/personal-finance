@@ -64,6 +64,7 @@ export type LoanStats = {
 export type DashboardSummary = {
     totalWalletBalancePhp: number;
     totalCreditCardDebtPhp: number;
+    totalAssetsPhp: number;
     netPositionPhp: number;
     budgetAvailablePhp: number;
     unallocatedCashPhp: number;

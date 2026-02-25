@@ -1,4 +1,5 @@
 import { Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
+import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { prisma } from "@/lib/prisma";
 import type { DashboardSummary } from "@/lib/finance/types";
 
@@ -8,7 +9,7 @@ const startOfMonth = () => {
 };
 
 export const getDashboardSummary = async (userId: string): Promise<DashboardSummary> => {
-    const [walletAccounts, budgetAggregate, incomeAggregate, expenseAggregate] = await Promise.all([
+    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate] = await Promise.all([
         prisma.walletAccount.findMany({
             where: {
                 userId,
@@ -17,6 +18,16 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
             select: {
                 type: true,
                 currentBalanceAmount: true,
+            },
+        }),
+        prisma.investment.findMany({
+            where: {
+                userId,
+                isArchived: false,
+            },
+            select: {
+                name: true,
+                value: true,
             },
         }),
         prisma.budgetEnvelope.aggregate({
@@ -57,20 +68,30 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         }),
     ]);
 
+    const estimatedInvestmentValues = await Promise.all(
+        investments.map(async (investment) => {
+            const symbol = investment.name.toUpperCase().match(/\b[A-Z]{2,10}\b/)?.[0] ?? "UNITS";
+            return getCoinsPhEstimatedValuePhp(symbol, Number(investment.value));
+        }),
+    );
+
     let totalCreditCardDebtPhp = 0;
     let totalWalletBalancePhp = 0;
+    let totalAllWalletsPhp = 0;
 
     for (const wallet of walletAccounts) {
         const amount = Number(wallet.currentBalanceAmount);
+        totalAllWalletsPhp += amount;
         if (wallet.type === WalletAccountType.CREDIT_CARD) {
             totalCreditCardDebtPhp += amount;
-        } else if (wallet.type === WalletAccountType.ASSET) {
-            continue;
-        } else {
+        } else if (wallet.type !== WalletAccountType.ASSET) {
             totalWalletBalancePhp += amount;
         }
     }
 
+    const totalEstimatedInvestmentsPhp = estimatedInvestmentValues
+        .reduce((sum, value) => sum + (value ?? 0), 0);
+    const totalAssetsPhp = totalAllWalletsPhp + totalEstimatedInvestmentsPhp;
     const budgetAvailablePhp = Number(budgetAggregate._sum.availablePhp ?? 0);
     const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
     const monthExpensePhp = Number(expenseAggregate._sum.amountPhp ?? 0);
@@ -78,6 +99,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     return {
         totalWalletBalancePhp,
         totalCreditCardDebtPhp,
+        totalAssetsPhp,
         netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
         budgetAvailablePhp,
         unallocatedCashPhp: totalWalletBalancePhp - budgetAvailablePhp,
