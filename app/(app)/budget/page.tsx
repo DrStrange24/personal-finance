@@ -1,9 +1,12 @@
 import { revalidatePath } from "next/cache";
+import { WalletAccountType } from "@prisma/client";
 import AddBudgetEnvelopeModal from "./add-budget-envelope-modal";
 import AllocateBudgetModal from "./allocate-budget-modal";
 import BudgetEnvelopeTable from "./budget-envelope-table";
+import MetricCard from "@/app/components/finance/metric-card";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
+import { formatPhp } from "@/lib/finance/money";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getBudgetStats } from "@/lib/finance/queries";
@@ -245,6 +248,18 @@ export default async function BudgetPage() {
         remarks: budget.remarks,
         rolloverEnabled: budget.rolloverEnabled,
     }));
+    const liquidWalletBalancePhp = context.wallets.reduce((total, wallet) => {
+        if (
+            wallet.type !== WalletAccountType.CASH
+            && wallet.type !== WalletAccountType.BANK
+            && wallet.type !== WalletAccountType.E_WALLET
+        ) {
+            return total;
+        }
+        return total + Number(wallet.currentBalanceAmount);
+    }, 0);
+    const allocatedBudgetPhp = budgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
+    const unallocatedCashPhp = liquidWalletBalancePhp - allocatedBudgetPhp;
 
     return (
         <section className="d-grid gap-4">
@@ -263,6 +278,14 @@ export default async function BudgetPage() {
                     postBudgetAllocationAction={postBudgetAllocationAction}
                 />
                 <AddBudgetEnvelopeModal createBudgetEnvelopeAction={createBudgetEnvelopeAction} />
+            </div>
+
+            <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                <MetricCard
+                    label="Unallocated Cash"
+                    value={formatPhp(unallocatedCashPhp)}
+                    helper="Liquid wallets minus envelope balances."
+                />
             </div>
 
             <BudgetEnvelopeTable
