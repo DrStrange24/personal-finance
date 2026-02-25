@@ -25,6 +25,12 @@ type LoanTransactionModalProps = {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const getEmptyRepaymentRow = () => ({ loanRecordId: "", amountPhp: "" });
+const getRepaymentRowsFromLoans = (loans: FormOption[]) => loans.map((loan) => ({
+    loanRecordId: loan.id,
+    amountPhp: Number.isFinite(loan.defaultAmountPhp) && (loan.defaultAmountPhp ?? 0) > 0
+        ? Number(loan.defaultAmountPhp).toFixed(2)
+        : "",
+}));
 
 export default function LoanTransactionModal({
     title,
@@ -38,6 +44,7 @@ export default function LoanTransactionModal({
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [repaymentRows, setRepaymentRows] = useState([getEmptyRepaymentRow()]);
+    const [selectAllLoans, setSelectAllLoans] = useState(false);
     const { showError, showSuccess } = useAppToast();
 
     const onSubmit = async (formData: FormData) => {
@@ -81,6 +88,7 @@ export default function LoanTransactionModal({
                 showSuccess("Transaction Posted", result.message);
                 setIsOpen(false);
                 setRepaymentRows([getEmptyRepaymentRow()]);
+                setSelectAllLoans(false);
                 return;
             }
 
@@ -120,11 +128,33 @@ export default function LoanTransactionModal({
                             <div className="d-grid gap-2">
                                 <div className="d-flex align-items-center justify-content-between">
                                     <label className="small fw-semibold m-0">Repayment Items</label>
-                                    <ActionIconButton
-                                        action="add"
-                                        label="Add repayment item"
-                                        onClick={() => setRepaymentRows((rows) => [...rows, getEmptyRepaymentRow()])}
-                                    />
+                                    <div className="d-flex align-items-center gap-2">
+                                        <div className="form-check m-0">
+                                            <input
+                                                id="repayment-select-all"
+                                                type="checkbox"
+                                                className="form-check-input"
+                                                checked={selectAllLoans}
+                                                disabled={loanRecords.length === 0}
+                                                onChange={(event) => {
+                                                    const shouldSelectAll = event.target.checked;
+                                                    setSelectAllLoans(shouldSelectAll);
+                                                    setRepaymentRows(shouldSelectAll ? getRepaymentRowsFromLoans(loanRecords) : [getEmptyRepaymentRow()]);
+                                                }}
+                                            />
+                                            <label htmlFor="repayment-select-all" className="form-check-label small">
+                                                Select all loans
+                                            </label>
+                                        </div>
+                                        <ActionIconButton
+                                            action="add"
+                                            label="Add repayment item"
+                                            onClick={() => {
+                                                setSelectAllLoans(false);
+                                                setRepaymentRows((rows) => [...rows, getEmptyRepaymentRow()]);
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                                 {repaymentRows.map((row, index) => (
                                     <div key={`repayment-item-${index}`} className="d-grid gap-2" style={{ gridTemplateColumns: "1fr 170px auto" }}>
@@ -144,6 +174,7 @@ export default function LoanTransactionModal({
                                                         ? { ...entry, loanRecordId: nextLoanRecordId, amountPhp: nextAmount }
                                                         : entry
                                                 )));
+                                                setSelectAllLoans(false);
                                             }}
                                         >
                                             <option value="">Select loan record</option>
@@ -160,16 +191,22 @@ export default function LoanTransactionModal({
                                             step="0.01"
                                             placeholder="Amount"
                                             value={row.amountPhp}
-                                            onChange={(event) => setRepaymentRows((rows) => rows.map((entry, entryIndex) => (
-                                                entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
-                                            )))}
+                                            onChange={(event) => {
+                                                setRepaymentRows((rows) => rows.map((entry, entryIndex) => (
+                                                    entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
+                                                )));
+                                                setSelectAllLoans(false);
+                                            }}
                                         />
                                         <ActionIconButton
                                             action="delete"
                                             label={`Remove repayment item ${index + 1}`}
                                             type="button"
                                             disabled={repaymentRows.length === 1}
-                                            onClick={() => setRepaymentRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
+                                            onClick={() => {
+                                                setSelectAllLoans(false);
+                                                setRepaymentRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index));
+                                            }}
                                         />
                                     </div>
                                 ))}
