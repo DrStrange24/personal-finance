@@ -77,8 +77,6 @@ export default function BudgetEnvelopeTable({
                                     <th>Name</th>
                                     <th>Target</th>
                                     <th>Available</th>
-                                    <th>Spent (MTD)</th>
-                                    <th>Remaining</th>
                                     <th>Rollover</th>
                                     <th>Pay To</th>
                                     <th>Actions</th>
@@ -87,7 +85,7 @@ export default function BudgetEnvelopeTable({
                             <tbody>
                                 {budgets.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No budget envelopes yet.
                                         </td>
                                     </tr>
@@ -97,10 +95,6 @@ export default function BudgetEnvelopeTable({
                                             <td>{budget.name}</td>
                                             <td>{formatPhp(budget.monthlyTargetPhp)}</td>
                                             <td>{formatPhp(budget.availablePhp)}</td>
-                                            <td>{formatPhp(budget.spentPhp)}</td>
-                                            <td className={budget.remainingPhp < 0 ? "text-danger" : "text-success"}>
-                                                {formatPhp(budget.remainingPhp)}
-                                            </td>
                                             <td>{budget.rolloverEnabled ? "On" : "Off"}</td>
                                             <td>{budget.payTo?.trim() || "-"}</td>
                                             <td>
