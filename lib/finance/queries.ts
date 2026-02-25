@@ -120,7 +120,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         totalInvestmentPhp: totalEstimatedInvestmentsPhp,
         netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
         budgetAvailablePhp,
-        unallocatedCashPhp: totalWalletBalancePhp - budgetAvailablePhp,
+        unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditCardDebtPhp),
         monthlyTotalIncomePhp,
         monthIncomePhp,
         monthExpensePhp,
