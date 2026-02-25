@@ -1,0 +1,181 @@
+"use client";
+
+import { useState } from "react";
+import Button from "react-bootstrap/Button";
+import Modal from "react-bootstrap/Modal";
+import Table from "react-bootstrap/Table";
+import ActionIconButton from "@/app/components/action-icon-button";
+import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAppToast } from "@/app/components/toast-provider";
+import { formatPhp } from "@/lib/finance/money";
+
+type LoanRecordActionResult = {
+    ok: boolean;
+    message: string;
+};
+
+type LoanStatusValue = "ACTIVE" | "PAID" | "WRITTEN_OFF";
+
+type LoanRow = {
+    id: string;
+    itemName: string;
+    counterparty: string | null;
+    principalPhp: number;
+    paidToDatePhp: number;
+    remainingPhp: number;
+    status: LoanStatusValue;
+    remarks: string | null;
+};
+
+type LoanRecordTableProps = {
+    title: string;
+    rows: LoanRow[];
+    remainingClassName: "text-danger" | "text-warning";
+    updateLoanAction: (formData: FormData) => Promise<LoanRecordActionResult>;
+    deleteLoanAction: (formData: FormData) => Promise<LoanRecordActionResult>;
+};
+
+export default function LoanRecordTable({
+    title,
+    rows,
+    remainingClassName,
+    updateLoanAction,
+    deleteLoanAction,
+}: LoanRecordTableProps) {
+    const [editState, setEditState] = useState<LoanRow | null>(null);
+    const { showError, showSuccess } = useAppToast();
+
+    const submitUpdateLoan = async (formData: FormData) => {
+        try {
+            const result = await updateLoanAction(formData);
+            if (result.ok) {
+                showSuccess("Loan Updated", result.message);
+                setEditState(null);
+                return;
+            }
+
+            showError("Update Failed", result.message);
+        } catch {
+            showError("Update Failed", "Could not update loan record. Please try again.");
+        }
+    };
+
+    const submitDeleteLoan = async (formData: FormData) => {
+        try {
+            const result = await deleteLoanAction(formData);
+            if (result.ok) {
+                showSuccess("Loan Deleted", result.message);
+            } else {
+                showError("Delete Failed", result.message);
+            }
+        } catch {
+            showError("Delete Failed", "Could not delete loan record. Please try again.");
+        }
+    };
+
+    return (
+        <>
+            <div>
+                <h3 className="m-0 fs-6 fw-semibold">{title}</h3>
+                <div className="table-responsive mt-2">
+                    <Table hover className="align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Counterparty</th>
+                                <th>Principal</th>
+                                <th>Paid</th>
+                                <th>Remaining</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        No records.
+                                    </td>
+                                </tr>
+                            ) : (
+                                rows.map((loan) => (
+                                    <tr key={loan.id}>
+                                        <td>{loan.itemName}</td>
+                                        <td>{loan.counterparty?.trim() || "-"}</td>
+                                        <td>{formatPhp(loan.principalPhp)}</td>
+                                        <td>{formatPhp(loan.paidToDatePhp)}</td>
+                                        <td className={loan.remainingPhp > 0 ? remainingClassName : "text-success"}>
+                                            {formatPhp(loan.remainingPhp)}
+                                        </td>
+                                        <td>{loan.status}</td>
+                                        <td>
+                                            <div className="d-flex align-items-center gap-2">
+                                                <ActionIconButton
+                                                    action="edit"
+                                                    label={`Edit loan record ${loan.itemName}`}
+                                                    onClick={() => setEditState(loan)}
+                                                />
+                                                <form action={submitDeleteLoan}>
+                                                    <input type="hidden" name="id" value={loan.id} />
+                                                    <ConfirmSubmitIconButton
+                                                        action="delete"
+                                                        label={`Delete loan record ${loan.itemName}`}
+                                                        type="submit"
+                                                        confirmTitle="Delete Loan Record"
+                                                        confirmMessage={`Delete loan record "${loan.itemName}"?`}
+                                                    />
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </Table>
+                </div>
+            </div>
+
+            <Modal show={editState !== null} onHide={() => setEditState(null)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Edit Loan Record</Modal.Title>
+                </Modal.Header>
+                <form action={submitUpdateLoan}>
+                    <Modal.Body className="d-grid gap-3">
+                        <input type="hidden" name="id" value={editState?.id ?? ""} />
+                        <div className="d-grid gap-1">
+                            <label htmlFor="edit-loan-status" className="small fw-semibold">Status</label>
+                            <select
+                                id="edit-loan-status"
+                                name="status"
+                                className="form-control"
+                                defaultValue={editState?.status ?? "ACTIVE"}
+                                key={editState?.id ? `${editState.id}-status` : "edit-loan-status-empty"}
+                            >
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="PAID">PAID</option>
+                                <option value="WRITTEN_OFF">WRITTEN_OFF</option>
+                            </select>
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="edit-loan-remarks" className="small fw-semibold">Remarks</label>
+                            <textarea
+                                id="edit-loan-remarks"
+                                name="remarks"
+                                className="form-control"
+                                rows={3}
+                                defaultValue={editState?.remarks ?? ""}
+                                key={editState?.id ? `${editState.id}-remarks` : "edit-loan-remarks-empty"}
+                            />
+                        </div>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button type="button" variant="outline-secondary" onClick={() => setEditState(null)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit">Save</Button>
+                    </Modal.Footer>
+                </form>
+            </Modal>
+        </>
+    );
+}

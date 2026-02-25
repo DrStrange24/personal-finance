@@ -1,10 +1,9 @@
 import { LoanDirection, LoanStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
-import Table from "react-bootstrap/Table";
 import AddLoanRecordModal from "./add-loan-record-modal";
+import LoanRecordTable from "./loan-record-table";
 import LoanTransactionModal from "./loan-transaction-modal";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
@@ -84,7 +83,7 @@ export default async function LoanPage() {
         return { ok: true, message: "Loan record created successfully." };
     };
 
-    const updateLoanStatusAction = async (formData: FormData) => {
+    const updateLoanStatusAction = async (formData: FormData): Promise<LoanActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
@@ -93,7 +92,7 @@ export default async function LoanPage() {
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
         if (!id || !remarksResult.ok) {
-            return;
+            return { ok: false, message: "Please provide valid loan update details." };
         }
 
         const status = statusRaw === LoanStatus.WRITTEN_OFF
@@ -102,18 +101,56 @@ export default async function LoanPage() {
                 ? LoanStatus.PAID
                 : LoanStatus.ACTIVE;
 
-        await prisma.loanRecord.updateMany({
-            where: {
-                id,
-                userId: actionSession.userId,
-            },
-            data: {
-                status,
-                remarks: remarksResult.value,
-            },
-        });
+        try {
+            const result = await prisma.loanRecord.updateMany({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                },
+                data: {
+                    status,
+                    remarks: remarksResult.value,
+                },
+            });
+
+            if (result.count === 0) {
+                return { ok: false, message: "Loan record not found." };
+            }
+        } catch {
+            return { ok: false, message: "Could not update loan record. Please try again." };
+        }
 
         revalidatePath("/loan");
+        return { ok: true, message: "Loan record updated successfully." };
+    };
+
+    const deleteLoanAction = async (formData: FormData): Promise<LoanActionResult> => {
+        "use server";
+
+        const actionSession = await getAuthenticatedSession();
+        const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
+
+        if (!id) {
+            return { ok: false, message: "Missing loan record id." };
+        }
+
+        try {
+            const result = await prisma.loanRecord.deleteMany({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                },
+            });
+
+            if (result.count === 0) {
+                return { ok: false, message: "Loan record not found." };
+            }
+        } catch {
+            return { ok: false, message: "Could not delete loan record. Please try again." };
+        }
+
+        revalidatePath("/loan");
+        return { ok: true, message: "Loan record deleted successfully." };
     };
 
     const postLoanRepaymentAction = async (formData: FormData) => {
@@ -240,8 +277,30 @@ export default async function LoanPage() {
         id: loan.id,
         label: `${loan.itemName} (${Number(loan.remainingPhp).toFixed(2)})`,
     }));
-    const youOwe = loans.filter((loan) => loan.direction === LoanDirection.YOU_OWE);
-    const youAreOwed = loans.filter((loan) => loan.direction === LoanDirection.YOU_ARE_OWED);
+    const youOwe = loans
+        .filter((loan) => loan.direction === LoanDirection.YOU_OWE)
+        .map((loan) => ({
+            id: loan.id,
+            itemName: loan.itemName,
+            counterparty: loan.counterparty,
+            principalPhp: Number(loan.principalPhp),
+            paidToDatePhp: Number(loan.paidToDatePhp),
+            remainingPhp: Number(loan.remainingPhp),
+            status: loan.status,
+            remarks: loan.remarks,
+        }));
+    const youAreOwed = loans
+        .filter((loan) => loan.direction === LoanDirection.YOU_ARE_OWED)
+        .map((loan) => ({
+            id: loan.id,
+            itemName: loan.itemName,
+            counterparty: loan.counterparty,
+            principalPhp: Number(loan.principalPhp),
+            paidToDatePhp: Number(loan.paidToDatePhp),
+            remainingPhp: Number(loan.remainingPhp),
+            status: loan.status,
+            remarks: loan.remarks,
+        }));
 
     return (
         <section className="d-grid gap-4">
@@ -277,109 +336,20 @@ export default async function LoanPage() {
 
             <Card className="pf-surface-panel">
                 <CardBody className="d-grid gap-4">
-                    <div>
-                        <h3 className="m-0 fs-6 fw-semibold">You Owe</h3>
-                        <div className="table-responsive mt-2">
-                            <Table hover className="align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Counterparty</th>
-                                        <th>Principal</th>
-                                        <th>Paid</th>
-                                        <th>Remaining</th>
-                                        <th>Status</th>
-                                        <th>Update</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {youOwe.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
-                                                No records.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        youOwe.map((loan) => (
-                                            <tr key={loan.id}>
-                                                <td>{loan.itemName}</td>
-                                                <td>{loan.counterparty?.trim() || "-"}</td>
-                                                <td>{Number(loan.principalPhp).toFixed(2)}</td>
-                                                <td>{Number(loan.paidToDatePhp).toFixed(2)}</td>
-                                                <td className={Number(loan.remainingPhp) > 0 ? "text-danger" : "text-success"}>
-                                                    {Number(loan.remainingPhp).toFixed(2)}
-                                                </td>
-                                                <td>{loan.status}</td>
-                                                <td>
-                                                    <form action={updateLoanStatusAction} className="d-flex align-items-center gap-2">
-                                                        <input type="hidden" name="id" value={loan.id} />
-                                                        <select
-                                                            name="status"
-                                                            className="form-control form-control-sm"
-                                                            defaultValue={loan.status}
-                                                            style={{ width: "8rem" }}
-                                                        >
-                                                            <option value="ACTIVE">ACTIVE</option>
-                                                            <option value="PAID">PAID</option>
-                                                            <option value="WRITTEN_OFF">WRITTEN_OFF</option>
-                                                        </select>
-                                                        <input
-                                                            type="text"
-                                                            name="remarks"
-                                                            className="form-control form-control-sm"
-                                                            defaultValue={loan.remarks ?? ""}
-                                                            placeholder="Remarks"
-                                                        />
-                                                        <Button size="sm" type="submit" variant="outline-primary">Save</Button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </Table>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 className="m-0 fs-6 fw-semibold">You Are Owed</h3>
-                        <div className="table-responsive mt-2">
-                            <Table hover className="align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Counterparty</th>
-                                        <th>Principal</th>
-                                        <th>Paid</th>
-                                        <th>Remaining</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {youAreOwed.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
-                                                No records.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        youAreOwed.map((loan) => (
-                                            <tr key={loan.id}>
-                                                <td>{loan.itemName}</td>
-                                                <td>{loan.counterparty?.trim() || "-"}</td>
-                                                <td>{Number(loan.principalPhp).toFixed(2)}</td>
-                                                <td>{Number(loan.paidToDatePhp).toFixed(2)}</td>
-                                                <td className={Number(loan.remainingPhp) > 0 ? "text-warning" : "text-success"}>
-                                                    {Number(loan.remainingPhp).toFixed(2)}
-                                                </td>
-                                                <td>{loan.status}</td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </Table>
-                        </div>
-                    </div>
+                    <LoanRecordTable
+                        title="You Owe"
+                        rows={youOwe}
+                        remainingClassName="text-danger"
+                        updateLoanAction={updateLoanStatusAction}
+                        deleteLoanAction={deleteLoanAction}
+                    />
+                    <LoanRecordTable
+                        title="You Are Owed"
+                        rows={youAreOwed}
+                        remainingClassName="text-warning"
+                        updateLoanAction={updateLoanStatusAction}
+                        deleteLoanAction={deleteLoanAction}
+                    />
                 </CardBody>
             </Card>
         </section>
