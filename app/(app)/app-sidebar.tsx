@@ -167,7 +167,7 @@ export default function AppSidebar() {
                                 transition: "color 160ms ease, opacity 160ms ease",
                             }}
                         >
-                            <SidebarToggleIcon isCollapsed={isCollapsed} width={16} height={16} />
+                            <SidebarToggleIcon isCollapsed={isCollapsed} width={20} height={20} />
                         </Button>
                     </div>
                     {!isCollapsed && <h1 className="mt-2 mb-0 fs-4 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h1>}

@@ -235,14 +235,12 @@ export default async function DashboardPage() {
 
             <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                 <MetricCard label="Total Assets" value={formatPhp(summary.totalAssetsPhp)} />
+                <MetricCard label="Total Investment" value={formatPhp(summary.totalInvestmentPhp)} />
                 <MetricCard label="Wallet Balance" value={formatPhp(summary.totalWalletBalancePhp)} />
+                <MetricCard label="Allocated Budget" value={formatPhp(summary.budgetAvailablePhp)} />
+                <MetricCard label="Unallocated Budget" value={formatPhp(summary.unallocatedCashPhp)} />
+                <MetricCard label="Total Monthly Income" value={formatPhp(summary.monthlyTotalIncomePhp)} />
                 <MetricCard label="Credit Card Debt" value={formatPhp(summary.totalCreditCardDebtPhp)} />
-                <MetricCard label="Net Position" value={formatPhp(summary.netPositionPhp)} />
-                <MetricCard label="Budget Available" value={formatPhp(summary.budgetAvailablePhp)} />
-                <MetricCard label="Unallocated Cash" value={formatPhp(summary.unallocatedCashPhp)} />
-                <MetricCard label="Month Income" value={formatPhp(summary.monthIncomePhp)} />
-                <MetricCard label="Month Expense" value={formatPhp(summary.monthExpensePhp)} />
-                <MetricCard label="Month Net Cashflow" value={formatPhp(summary.monthNetCashflowPhp)} />
             </div>
 
             <Card className="pf-surface-panel">
@@ -327,4 +325,3 @@ export default async function DashboardPage() {
         </section>
     );
 }
-
