@@ -9,7 +9,7 @@ const startOfMonth = () => {
 };
 
 export const getDashboardSummary = async (userId: string): Promise<DashboardSummary> => {
-    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate] = await Promise.all([
+    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate] = await Promise.all([
         prisma.walletAccount.findMany({
             where: {
                 userId,
@@ -66,6 +66,15 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
                 amountPhp: true,
             },
         }),
+        prisma.incomeStream.aggregate({
+            where: {
+                userId,
+                isActive: true,
+            },
+            _sum: {
+                defaultAmountPhp: true,
+            },
+        }),
     ]);
 
     const estimatedInvestmentValues = await Promise.all(
@@ -95,6 +104,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     const budgetAvailablePhp = Number(budgetAggregate._sum.availablePhp ?? 0);
     const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
     const monthExpensePhp = Number(expenseAggregate._sum.amountPhp ?? 0);
+    const monthlyTotalIncomePhp = Number(incomeStreamAggregate._sum.defaultAmountPhp ?? 0);
 
     return {
         totalWalletBalancePhp,
@@ -104,7 +114,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
         budgetAvailablePhp,
         unallocatedCashPhp: totalWalletBalancePhp - budgetAvailablePhp,
-        monthlyTotalIncomePhp: monthIncomePhp,
+        monthlyTotalIncomePhp,
         monthIncomePhp,
         monthExpensePhp,
         monthNetCashflowPhp: monthIncomePhp - monthExpensePhp,
