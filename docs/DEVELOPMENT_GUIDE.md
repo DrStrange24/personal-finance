@@ -103,6 +103,7 @@ npm run build
 ## Action UI Rule
 
 - For add/edit/delete actions, use icon-only action buttons as triggers.
+- For add/remove controls inside dynamic form rows, use icon-only action buttons (not text buttons).
 - Add and edit actions should open modal forms.
 - Delete/archive/removal actions should trigger a confirmation modal before submit.
 - Keep this behavior consistent when adding new features or tables.

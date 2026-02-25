@@ -64,6 +64,7 @@ docs/
 ## UX Safety Convention
 
 - For add/edit/delete actions, use icon-only action buttons that open modal workflows.
+- For dynamic row controls (for example add/remove item rows in forms), use icon-only action buttons instead of text buttons.
 - Always require an explicit confirmation modal for any delete/archive/removal action before the mutation is submitted.
 - Apply this consistently in every module/route.
 - For create/edit/save forms inside modals, close the modal when submit completes.

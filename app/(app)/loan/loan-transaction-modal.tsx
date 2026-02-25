@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
+import ActionIconButton from "@/app/components/action-icon-button";
 import { useAppToast } from "@/app/components/toast-provider";
 import type { FinanceActionResult } from "@/lib/finance/types";
 
@@ -22,6 +23,7 @@ type LoanTransactionModalProps = {
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const getEmptyRepaymentRow = () => ({ loanRecordId: "", amountPhp: "" });
 
 export default function LoanTransactionModal({
     title,
@@ -34,15 +36,50 @@ export default function LoanTransactionModal({
 }: LoanTransactionModalProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [repaymentRows, setRepaymentRows] = useState([getEmptyRepaymentRow()]);
     const { showError, showSuccess } = useAppToast();
 
     const onSubmit = async (formData: FormData) => {
+        if (defaultKind === "LOAN_REPAY") {
+            const normalizedRows = repaymentRows
+                .map((row) => ({
+                    loanRecordId: row.loanRecordId.trim(),
+                    amountPhp: Number(row.amountPhp),
+                }))
+                .filter((row) => row.loanRecordId.length > 0 || Number.isFinite(row.amountPhp));
+
+            if (normalizedRows.length === 0) {
+                showError("Post Failed", "Add at least one repayment item.");
+                return;
+            }
+
+            const hasInvalidRow = normalizedRows.some((row) => row.loanRecordId.length === 0 || !Number.isFinite(row.amountPhp) || row.amountPhp <= 0);
+            if (hasInvalidRow) {
+                showError("Post Failed", "Each repayment item needs a loan record and amount greater than 0.");
+                return;
+            }
+
+            const uniqueLoanCount = new Set(normalizedRows.map((row) => row.loanRecordId)).size;
+            if (uniqueLoanCount !== normalizedRows.length) {
+                showError("Post Failed", "Use each loan record only once per repayment post.");
+                return;
+            }
+
+            formData.delete("repaymentLoanRecordId");
+            formData.delete("repaymentAmountPhp");
+            for (const row of normalizedRows) {
+                formData.append("repaymentLoanRecordId", row.loanRecordId);
+                formData.append("repaymentAmountPhp", row.amountPhp.toFixed(2));
+            }
+        }
+
         setIsSubmitting(true);
         try {
             const result = await submitAction(formData);
             if (result.ok) {
                 showSuccess("Transaction Posted", result.message);
                 setIsOpen(false);
+                setRepaymentRows([getEmptyRepaymentRow()]);
                 return;
             }
 
@@ -78,18 +115,67 @@ export default function LoanTransactionModal({
                             />
                         </div>
 
-                        <div className="d-grid gap-1">
-                            <label htmlFor={`${defaultKind}-amount`} className="small fw-semibold">Amount (PHP)</label>
-                            <input
-                                id={`${defaultKind}-amount`}
-                                type="number"
-                                name="amountPhp"
-                                className="form-control"
-                                min="0.01"
-                                step="0.01"
-                                required
-                            />
-                        </div>
+                        {defaultKind === "LOAN_REPAY" ? (
+                            <div className="d-grid gap-2">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <label className="small fw-semibold m-0">Repayment Items</label>
+                                    <ActionIconButton
+                                        action="add"
+                                        label="Add repayment item"
+                                        onClick={() => setRepaymentRows((rows) => [...rows, getEmptyRepaymentRow()])}
+                                    />
+                                </div>
+                                {repaymentRows.map((row, index) => (
+                                    <div key={`repayment-item-${index}`} className="d-grid gap-2" style={{ gridTemplateColumns: "1fr 170px auto" }}>
+                                        <select
+                                            className="form-control"
+                                            value={row.loanRecordId}
+                                            onChange={(event) => setRepaymentRows((rows) => rows.map((entry, entryIndex) => (
+                                                entryIndex === index ? { ...entry, loanRecordId: event.target.value } : entry
+                                            )))}
+                                        >
+                                            <option value="">Select loan record</option>
+                                            {loanRecords.map((loan) => (
+                                                <option key={loan.id} value={loan.id}>
+                                                    {loan.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            min="0.01"
+                                            step="0.01"
+                                            placeholder="Amount"
+                                            value={row.amountPhp}
+                                            onChange={(event) => setRepaymentRows((rows) => rows.map((entry, entryIndex) => (
+                                                entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
+                                            )))}
+                                        />
+                                        <ActionIconButton
+                                            action="delete"
+                                            label={`Remove repayment item ${index + 1}`}
+                                            type="button"
+                                            disabled={repaymentRows.length === 1}
+                                            onClick={() => setRepaymentRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="d-grid gap-1">
+                                <label htmlFor={`${defaultKind}-amount`} className="small fw-semibold">Amount (PHP)</label>
+                                <input
+                                    id={`${defaultKind}-amount`}
+                                    type="number"
+                                    name="amountPhp"
+                                    className="form-control"
+                                    min="0.01"
+                                    step="0.01"
+                                    required
+                                />
+                            </div>
+                        )}
 
                         <div className="d-grid gap-1">
                             <label htmlFor={`${defaultKind}-wallet`} className="small fw-semibold">Wallet</label>
@@ -103,17 +189,19 @@ export default function LoanTransactionModal({
                             </select>
                         </div>
 
-                        <div className="d-grid gap-1">
-                            <label htmlFor={`${defaultKind}-loan`} className="small fw-semibold">Loan Record</label>
-                            <select id={`${defaultKind}-loan`} name="loanRecordId" className="form-control" required>
-                                <option value="">Select loan record</option>
-                                {loanRecords.map((loan) => (
-                                    <option key={loan.id} value={loan.id}>
-                                        {loan.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {defaultKind === "LOAN_REPAY" ? <input type="hidden" name="loanRecordId" value="" /> : (
+                            <div className="d-grid gap-1">
+                                <label htmlFor={`${defaultKind}-loan`} className="small fw-semibold">Loan Record</label>
+                                <select id={`${defaultKind}-loan`} name="loanRecordId" className="form-control" required>
+                                    <option value="">Select loan record</option>
+                                    {loanRecords.map((loan) => (
+                                        <option key={loan.id} value={loan.id}>
+                                            {loan.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div className="d-grid gap-1">
                             <label htmlFor={`${defaultKind}-remarks`} className="small fw-semibold">Remarks</label>

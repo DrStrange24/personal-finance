@@ -8,7 +8,7 @@ import LoanTransactionModal from "./loan-transaction-modal";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
-import { postFinanceTransaction } from "@/lib/finance/posting-engine";
+import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -158,21 +158,16 @@ export default async function LoanPage() {
 
         const actionSession = await getAuthenticatedSession();
         const postedAtRaw = formData.get("postedAt");
-        const amountResult = parseMoneyInput(formData.get("amountPhp"), true);
         const walletAccountId = typeof formData.get("walletAccountId") === "string"
             ? String(formData.get("walletAccountId")).trim()
             : "";
-        const loanRecordId = typeof formData.get("loanRecordId") === "string"
-            ? String(formData.get("loanRecordId")).trim()
-            : "";
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
+        const repaymentLoanRecordValues = formData.getAll("repaymentLoanRecordId");
+        const repaymentAmountValues = formData.getAll("repaymentAmountPhp");
 
         if (
             typeof postedAtRaw !== "string"
-            || !amountResult.ok
-            || amountResult.value === null
             || !walletAccountId
-            || !loanRecordId
             || !remarksResult.ok
         ) {
             return { ok: false, message: "Please provide valid repayment details." };
@@ -183,17 +178,70 @@ export default async function LoanPage() {
             return { ok: false, message: "Invalid date." };
         }
 
-        try {
-            await postFinanceTransaction({
-                userId: actionSession.userId,
-                kind: "LOAN_REPAY",
-                postedAt,
-                amountPhp: amountResult.value,
-                walletAccountId,
+        const repaymentItems: Array<{ loanRecordId: string; amountPhp: number }> = [];
+        if (repaymentLoanRecordValues.length > 0 || repaymentAmountValues.length > 0) {
+            if (repaymentLoanRecordValues.length !== repaymentAmountValues.length) {
+                return { ok: false, message: "Invalid repayment items." };
+            }
+
+            for (let index = 0; index < repaymentLoanRecordValues.length; index += 1) {
+                const loanValue = repaymentLoanRecordValues[index];
+                const amountValue = repaymentAmountValues[index];
+                const loanRecordId = typeof loanValue === "string" ? loanValue.trim() : "";
+                const amountResult = parseMoneyInput(amountValue ?? null, true);
+
+                if (!loanRecordId || !amountResult.ok || amountResult.value === null) {
+                    return { ok: false, message: "Invalid repayment items." };
+                }
+
+                repaymentItems.push({
+                    loanRecordId,
+                    amountPhp: amountResult.value,
+                });
+            }
+
+            if (new Set(repaymentItems.map((item) => item.loanRecordId)).size !== repaymentItems.length) {
+                return { ok: false, message: "Duplicate loan records are not allowed." };
+            }
+        } else {
+            const amountResult = parseMoneyInput(formData.get("amountPhp"), true);
+            const loanRecordId = typeof formData.get("loanRecordId") === "string"
+                ? String(formData.get("loanRecordId")).trim()
+                : "";
+
+            if (!amountResult.ok || amountResult.value === null || !loanRecordId) {
+                return { ok: false, message: "Please provide valid repayment details." };
+            }
+
+            repaymentItems.push({
                 loanRecordId,
-                remarks: remarksResult.value,
+                amountPhp: amountResult.value,
             });
+        }
+
+        const createdTransactionIds: string[] = [];
+        try {
+            for (const item of repaymentItems) {
+                const created = await postFinanceTransaction({
+                    userId: actionSession.userId,
+                    kind: "LOAN_REPAY",
+                    postedAt,
+                    amountPhp: item.amountPhp,
+                    walletAccountId,
+                    loanRecordId: item.loanRecordId,
+                    remarks: remarksResult.value,
+                });
+                createdTransactionIds.push(created.id);
+            }
         } catch (error) {
+            for (const transactionId of createdTransactionIds) {
+                try {
+                    await deleteFinanceTransactionWithReversal(actionSession.userId, transactionId);
+                } catch {
+                    // Best effort rollback if one of the batch items fails.
+                }
+            }
+
             return {
                 ok: false,
                 message: error instanceof Error ? error.message : "Could not post loan repayment.",
@@ -203,7 +251,12 @@ export default async function LoanPage() {
         revalidatePath("/loan");
         revalidatePath("/transactions");
         revalidatePath("/dashboard");
-        return { ok: true, message: "Loan repayment posted successfully." };
+        return {
+            ok: true,
+            message: repaymentItems.length === 1
+                ? "Loan repayment posted successfully."
+                : `Posted ${repaymentItems.length} loan repayments successfully.`,
+        };
     };
 
     const [context, loans] = await Promise.all([
