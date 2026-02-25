@@ -8,9 +8,9 @@ import MetricCard from "@/app/components/finance/metric-card";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
-import { parseTransactionForm } from "@/lib/finance/form-parsers";
+import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance/form-parsers";
 import { formatPhp } from "@/lib/finance/money";
-import { postFinanceTransaction } from "@/lib/finance/posting-engine";
+import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getDashboardSummary } from "@/lib/finance/queries";
 import type { FinanceActionResult } from "@/lib/finance/types";
 import { getAuthenticatedSession } from "@/lib/server-session";
@@ -83,18 +83,66 @@ export default async function DashboardPage() {
                 }
             }
 
-            await postFinanceTransaction({
-                userId: actionSession.userId,
-                kind: parsed.kind,
-                postedAt: parsed.postedAt,
-                amountPhp: parsed.amountPhp,
-                walletAccountId: sourceWalletAccountId,
-                budgetEnvelopeId: parsed.budgetEnvelopeId,
-                targetWalletAccountId: parsed.targetWalletAccountId,
-                incomeStreamId: parsed.incomeStreamId,
-                loanRecordId: parsed.loanRecordId,
-                remarks: parsed.remarks,
-            });
+            if (parsed.kind === TransactionKind.INCOME) {
+                const distribution = parseIncomeDistributionForm(formData);
+                if (!distribution.ok) {
+                    return {
+                        ok: false,
+                        message: "Income distribution is invalid. Please provide unique budgets and valid amounts.",
+                    } satisfies FinanceActionResult;
+                }
+
+                if (Math.abs(distribution.totalAmountPhp - parsed.amountPhp) > 0.009) {
+                    return {
+                        ok: false,
+                        message: "Income distribution total must match the income amount.",
+                    } satisfies FinanceActionResult;
+                }
+
+                const createdIds: string[] = [];
+                try {
+                    for (const row of distribution.rows) {
+                        const created = await postFinanceTransaction({
+                            userId: actionSession.userId,
+                            kind: parsed.kind,
+                            postedAt: parsed.postedAt,
+                            amountPhp: row.amountPhp,
+                            walletAccountId: sourceWalletAccountId,
+                            budgetEnvelopeId: row.budgetEnvelopeId,
+                            targetWalletAccountId: parsed.targetWalletAccountId,
+                            incomeStreamId: parsed.incomeStreamId,
+                            loanRecordId: parsed.loanRecordId,
+                            remarks: parsed.remarks,
+                        });
+                        createdIds.push(created.id);
+                    }
+                } catch (error) {
+                    for (const createdId of createdIds) {
+                        try {
+                            await deleteFinanceTransactionWithReversal(actionSession.userId, createdId);
+                        } catch {
+                            return {
+                                ok: false,
+                                message: "Income posting failed and could not fully roll back. Please review balances.",
+                            } satisfies FinanceActionResult;
+                        }
+                    }
+                    throw error;
+                }
+            } else {
+                await postFinanceTransaction({
+                    userId: actionSession.userId,
+                    kind: parsed.kind,
+                    postedAt: parsed.postedAt,
+                    amountPhp: parsed.amountPhp,
+                    walletAccountId: sourceWalletAccountId,
+                    budgetEnvelopeId: parsed.budgetEnvelopeId,
+                    targetWalletAccountId: parsed.targetWalletAccountId,
+                    incomeStreamId: parsed.incomeStreamId,
+                    loanRecordId: parsed.loanRecordId,
+                    remarks: parsed.remarks,
+                });
+            }
         } catch (error) {
             return {
                 ok: false,

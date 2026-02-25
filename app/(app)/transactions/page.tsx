@@ -7,7 +7,7 @@ import AddTransactionModal from "./add-transaction-modal";
 import TransactionsTable from "./transactions-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
-import { parseTransactionForm } from "@/lib/finance/form-parsers";
+import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance/form-parsers";
 import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
 import type { FinanceActionResult } from "@/lib/finance/types";
@@ -86,18 +86,63 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 }
             }
 
-            await postFinanceTransaction({
-                userId: actionSession.userId,
-                kind: parsed.kind,
-                postedAt: parsed.postedAt,
-                amountPhp: parsed.amountPhp,
-                walletAccountId: sourceWalletAccountId,
-                budgetEnvelopeId: parsed.budgetEnvelopeId,
-                targetWalletAccountId: parsed.targetWalletAccountId,
-                incomeStreamId: parsed.incomeStreamId,
-                loanRecordId: parsed.loanRecordId,
-                remarks: parsed.remarks,
-            });
+            if (parsed.kind === TransactionKind.INCOME) {
+                const distribution = parseIncomeDistributionForm(formData);
+                if (!distribution.ok) {
+                    return {
+                        ok: false,
+                        message: "Income distribution is invalid. Please provide unique budgets and valid amounts.",
+                    };
+                }
+
+                if (Math.abs(distribution.totalAmountPhp - parsed.amountPhp) > 0.009) {
+                    return {
+                        ok: false,
+                        message: "Income distribution total must match the income amount.",
+                    };
+                }
+
+                const createdIds: string[] = [];
+                try {
+                    for (const row of distribution.rows) {
+                        const created = await postFinanceTransaction({
+                            userId: actionSession.userId,
+                            kind: parsed.kind,
+                            postedAt: parsed.postedAt,
+                            amountPhp: row.amountPhp,
+                            walletAccountId: sourceWalletAccountId,
+                            budgetEnvelopeId: row.budgetEnvelopeId,
+                            targetWalletAccountId: parsed.targetWalletAccountId,
+                            incomeStreamId: parsed.incomeStreamId,
+                            loanRecordId: parsed.loanRecordId,
+                            remarks: parsed.remarks,
+                        });
+                        createdIds.push(created.id);
+                    }
+                } catch (error) {
+                    for (const createdId of createdIds) {
+                        try {
+                            await deleteFinanceTransactionWithReversal(actionSession.userId, createdId);
+                        } catch {
+                            return { ok: false, message: "Income posting failed and could not fully roll back. Please review balances." };
+                        }
+                    }
+                    throw error;
+                }
+            } else {
+                await postFinanceTransaction({
+                    userId: actionSession.userId,
+                    kind: parsed.kind,
+                    postedAt: parsed.postedAt,
+                    amountPhp: parsed.amountPhp,
+                    walletAccountId: sourceWalletAccountId,
+                    budgetEnvelopeId: parsed.budgetEnvelopeId,
+                    targetWalletAccountId: parsed.targetWalletAccountId,
+                    incomeStreamId: parsed.incomeStreamId,
+                    loanRecordId: parsed.loanRecordId,
+                    remarks: parsed.remarks,
+                });
+            }
         } catch (error) {
             return {
                 ok: false,

@@ -81,3 +81,57 @@ export const parseTransactionForm = (formData: FormData) => {
         loanRecordId,
     };
 };
+
+export type IncomeDistributionRow = {
+    budgetEnvelopeId: string;
+    amountPhp: number;
+};
+
+export const parseIncomeDistributionForm = (formData: FormData) => {
+    const envelopeValues = formData.getAll("distributedBudgetEnvelopeId");
+    const amountValues = formData.getAll("distributedAmountPhp");
+
+    if (envelopeValues.length !== amountValues.length) {
+        return {
+            ok: false,
+            rows: [] as IncomeDistributionRow[],
+            totalAmountPhp: 0,
+        };
+    }
+
+    const rows: IncomeDistributionRow[] = [];
+    const seenEnvelopeIds = new Set<string>();
+
+    for (let index = 0; index < envelopeValues.length; index += 1) {
+        const budgetEnvelopeId = parseRequiredId(envelopeValues[index] ?? null);
+        const amountResult = parseMoneyInput(amountValues[index] ?? null, true);
+
+        if (!budgetEnvelopeId || !amountResult.ok || amountResult.value === null) {
+            return {
+                ok: false,
+                rows: [] as IncomeDistributionRow[],
+                totalAmountPhp: 0,
+            };
+        }
+
+        if (seenEnvelopeIds.has(budgetEnvelopeId)) {
+            return {
+                ok: false,
+                rows: [] as IncomeDistributionRow[],
+                totalAmountPhp: 0,
+            };
+        }
+
+        seenEnvelopeIds.add(budgetEnvelopeId);
+        rows.push({
+            budgetEnvelopeId,
+            amountPhp: amountResult.value,
+        });
+    }
+
+    return {
+        ok: rows.length > 0,
+        rows,
+        totalAmountPhp: rows.reduce((sum, row) => sum + row.amountPhp, 0),
+    };
+};

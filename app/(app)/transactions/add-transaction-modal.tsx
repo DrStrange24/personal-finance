@@ -35,7 +35,6 @@ const allKinds: TransactionKind[] = [
 ];
 
 const kindsRequiringBudget = new Set<TransactionKind>([
-    "INCOME",
     "EXPENSE",
     "BUDGET_ALLOCATION",
     "CREDIT_CARD_CHARGE",
@@ -50,6 +49,7 @@ const kindsSupportingIncomeStream = new Set<TransactionKind>(["INCOME"]);
 const kindsSupportingLoan = new Set<TransactionKind>(["LOAN_BORROW", "LOAN_REPAY"]);
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const getEmptyDistributionRow = () => ({ budgetEnvelopeId: "", amountPhp: "" });
 
 export default function AddTransactionModal({
     wallets,
@@ -62,12 +62,14 @@ export default function AddTransactionModal({
     const [isOpen, setIsOpen] = useState(false);
     const [kind, setKind] = useState<TransactionKind>("EXPENSE");
     const [expenseFunding, setExpenseFunding] = useState<"wallet" | "credit">("wallet");
+    const [incomeDistributionRows, setIncomeDistributionRows] = useState([getEmptyDistributionRow()]);
     const { showSuccess, showError } = useAppToast();
 
     const requiresBudget = kindsRequiringBudget.has(kind);
     const requiresTargetWallet = kindsRequiringTargetWallet.has(kind);
     const supportsIncomeStream = kindsSupportingIncomeStream.has(kind);
     const supportsLoan = kindsSupportingLoan.has(kind);
+    const isIncome = kind === "INCOME";
     const isExpense = kind === "EXPENSE";
 
     const visibleKinds = useMemo(() => allKinds, []);
@@ -86,6 +88,54 @@ export default function AddTransactionModal({
         if (kind === "EXPENSE" && expenseFunding === "credit") {
             formData.set("kind", "CREDIT_CARD_CHARGE");
         }
+
+        if (kind === "INCOME") {
+            formData.set("budgetEnvelopeId", "");
+
+            const normalizedRows = incomeDistributionRows
+                .map((row) => ({
+                    budgetEnvelopeId: row.budgetEnvelopeId.trim(),
+                    amountPhp: Number(row.amountPhp),
+                }))
+                .filter((row) => row.budgetEnvelopeId.length > 0 || Number.isFinite(row.amountPhp));
+
+            if (normalizedRows.length === 0) {
+                showError("Post Failed", "Add at least one budget distribution row for income.");
+                return;
+            }
+
+            const hasInvalidRow = normalizedRows.some((row) => row.budgetEnvelopeId.length === 0 || !Number.isFinite(row.amountPhp) || row.amountPhp <= 0);
+            if (hasInvalidRow) {
+                showError("Post Failed", "Each income distribution row needs a budget envelope and amount greater than 0.");
+                return;
+            }
+
+            const uniqueEnvelopeCount = new Set(normalizedRows.map((row) => row.budgetEnvelopeId)).size;
+            if (uniqueEnvelopeCount !== normalizedRows.length) {
+                showError("Post Failed", "Use each budget envelope only once in income distribution.");
+                return;
+            }
+
+            const totalIncomeAmount = Number(formData.get("amountPhp"));
+            if (!Number.isFinite(totalIncomeAmount) || totalIncomeAmount <= 0) {
+                showError("Post Failed", "Income amount must be greater than 0.");
+                return;
+            }
+
+            const distributedTotal = normalizedRows.reduce((sum, row) => sum + row.amountPhp, 0);
+            if (Math.abs(distributedTotal - totalIncomeAmount) > 0.009) {
+                showError("Post Failed", "Distributed total must match the income amount.");
+                return;
+            }
+
+            formData.delete("distributedBudgetEnvelopeId");
+            formData.delete("distributedAmountPhp");
+            for (const row of normalizedRows) {
+                formData.append("distributedBudgetEnvelopeId", row.budgetEnvelopeId);
+                formData.append("distributedAmountPhp", row.amountPhp.toFixed(2));
+            }
+        }
+
         try {
             const result = await postTransactionAction(formData);
             if (result.ok) {
@@ -122,6 +172,9 @@ export default function AddTransactionModal({
                                     setKind(nextKind);
                                     if (nextKind !== "EXPENSE") {
                                         setExpenseFunding("wallet");
+                                    }
+                                    if (nextKind !== "INCOME") {
+                                        setIncomeDistributionRows([getEmptyDistributionRow()]);
                                     }
                                 }}
                             >
@@ -209,6 +262,59 @@ export default function AddTransactionModal({
                             </div>
                         ) : (
                             <input type="hidden" name="budgetEnvelopeId" value="" />
+                        )}
+
+                        {isIncome && (
+                            <div className="d-grid gap-2">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <label className="small fw-semibold m-0">Budget Distribution</label>
+                                    <Button
+                                        type="button"
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        onClick={() => setIncomeDistributionRows((rows) => [...rows, getEmptyDistributionRow()])}
+                                    >
+                                        Add Budget
+                                    </Button>
+                                </div>
+                                {incomeDistributionRows.map((row, index) => (
+                                    <div key={`income-dist-${index}`} className="d-grid gap-2" style={{ gridTemplateColumns: "1fr 170px auto" }}>
+                                        <select
+                                            className="form-control"
+                                            value={row.budgetEnvelopeId}
+                                            onChange={(event) => setIncomeDistributionRows((rows) => rows.map((entry, entryIndex) => (
+                                                entryIndex === index ? { ...entry, budgetEnvelopeId: event.target.value } : entry
+                                            )))}
+                                        >
+                                            <option value="">Select budget envelope</option>
+                                            {budgets.map((budget) => (
+                                                <option key={budget.id} value={budget.id}>
+                                                    {budget.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            min="0.01"
+                                            step="0.01"
+                                            placeholder="Amount"
+                                            value={row.amountPhp}
+                                            onChange={(event) => setIncomeDistributionRows((rows) => rows.map((entry, entryIndex) => (
+                                                entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
+                                            )))}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline-danger"
+                                            disabled={incomeDistributionRows.length === 1}
+                                            onClick={() => setIncomeDistributionRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
+                                        >
+                                            Remove
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
 
                         {supportsIncomeStream && (
