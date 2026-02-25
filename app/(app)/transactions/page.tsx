@@ -378,36 +378,36 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             </div>
 
             <Card className="pf-surface-panel">
-                <CardBody className="d-grid gap-3">
+                <CardBody className="d-grid gap-2">
                     <h3 className="m-0 fs-6 fw-semibold" style={{ color: "var(--color-text-strong)" }}>
                         Filters
                     </h3>
-                    <form method="GET" className="d-grid gap-3">
-                        <div className="d-grid gap-1">
-                            <label htmlFor="filter-kind" className="small fw-semibold">Kind</label>
-                            <select id="filter-kind" name="kind" className="form-control" defaultValue={selectedKind}>
+                    <form method="GET" className="row g-2 align-items-end">
+                        <div className="col-12 col-md-3">
+                            <label htmlFor="filter-kind" className="small fw-semibold mb-1">Kind</label>
+                            <select id="filter-kind" name="kind" className="form-control form-control-sm" defaultValue={selectedKind}>
                                 <option value="">All</option>
                                 {Object.values(TransactionKind).map((kind) => (
                                     <option key={kind} value={kind}>{kind}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="filter-wallet" className="small fw-semibold">Wallet</label>
-                            <select id="filter-wallet" name="wallet" className="form-control" defaultValue={selectedWalletId}>
+                        <div className="col-12 col-md-3">
+                            <label htmlFor="filter-wallet" className="small fw-semibold mb-1">Wallet</label>
+                            <select id="filter-wallet" name="wallet" className="form-control form-control-sm" defaultValue={selectedWalletId}>
                                 <option value="">All</option>
                                 {context.wallets.map((wallet) => (
                                     <option key={wallet.id} value={wallet.id}>{wallet.name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="filter-q" className="small fw-semibold">Remarks Search</label>
-                            <input id="filter-q" type="text" name="q" className="form-control" defaultValue={searchText} />
+                        <div className="col-12 col-md-4">
+                            <label htmlFor="filter-q" className="small fw-semibold mb-1">Remarks Search</label>
+                            <input id="filter-q" type="text" name="q" className="form-control form-control-sm" defaultValue={searchText} />
                         </div>
-                        <div className="d-flex gap-2">
-                            <Button type="submit" variant="primary">Apply</Button>
-                            <Button type="button" variant="outline-secondary" href="/transactions">Reset</Button>
+                        <div className="col-12 col-md-2 d-flex gap-2">
+                            <Button type="submit" variant="primary" size="sm">Apply</Button>
+                            <Button type="button" variant="outline-secondary" href="/transactions" size="sm">Reset</Button>
                         </div>
                     </form>
                 </CardBody>

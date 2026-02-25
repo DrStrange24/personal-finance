@@ -100,9 +100,11 @@ const LogoutIcon = (props: IconProps) => (
     </svg>
 );
 
-const ChevronLeftIcon = (props: IconProps) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-        <path d="M15 18 9 12l6-6" />
+const SidebarToggleIcon = ({ isCollapsed, ...props }: IconProps & { isCollapsed: boolean }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+        <path d="M8.5 6.5v11" />
+        {isCollapsed ? <path d="m13 9 3 3-3 3" /> : <path d="m16 9-3 3 3 3" />}
     </svg>
 );
 
@@ -150,18 +152,22 @@ export default function AppSidebar() {
                         )}
                         <Button
                             type="button"
-                            variant="light"
-                            className="border rounded-circle d-flex align-items-center justify-content-center p-0"
+                            variant="link"
+                            className="d-inline-flex align-items-center justify-content-center p-0 text-decoration-none"
                             onClick={() => setIsCollapsed((value) => !value)}
                             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                            style={{ width: "2rem", height: "2rem", color: "var(--color-text-subtle)", borderColor: "var(--color-border-default)", background: "transparent" }}
+                            style={{
+                                width: "1.75rem",
+                                height: "1.75rem",
+                                color: "var(--color-text-secondary)",
+                                border: 0,
+                                background: "transparent",
+                                boxShadow: "none",
+                                transition: "color 160ms ease, opacity 160ms ease",
+                            }}
                         >
-                            <ChevronLeftIcon
-                                width={16}
-                                height={16}
-                                style={isCollapsed ? { transform: "rotate(180deg)" } : undefined}
-                            />
+                            <SidebarToggleIcon isCollapsed={isCollapsed} width={16} height={16} />
                         </Button>
                     </div>
                     {!isCollapsed && <h1 className="mt-2 mb-0 fs-4 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h1>}
