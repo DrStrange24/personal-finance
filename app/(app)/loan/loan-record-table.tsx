@@ -21,6 +21,7 @@ type LoanRow = {
     itemName: string;
     counterparty: string | null;
     principalPhp: number;
+    monthlyDuePhp: number | null;
     paidToDatePhp: number;
     remainingPhp: number;
     status: LoanStatusValue;
@@ -84,6 +85,7 @@ export default function LoanRecordTable({
                                 <th>Item</th>
                                 <th>Counterparty</th>
                                 <th>Principal</th>
+                                <th>Monthly Due</th>
                                 <th>Paid</th>
                                 <th>Remaining</th>
                                 <th>Status</th>
@@ -93,7 +95,7 @@ export default function LoanRecordTable({
                         <tbody>
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                    <td colSpan={8} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                         No records.
                                     </td>
                                 </tr>
@@ -103,6 +105,7 @@ export default function LoanRecordTable({
                                         <td>{loan.itemName}</td>
                                         <td>{loan.counterparty?.trim() || "-"}</td>
                                         <td>{formatPhp(loan.principalPhp)}</td>
+                                        <td>{loan.monthlyDuePhp === null ? "-" : formatPhp(loan.monthlyDuePhp)}</td>
                                         <td>{formatPhp(loan.paidToDatePhp)}</td>
                                         <td className={loan.remainingPhp > 0 ? remainingClassName : "text-success"}>
                                             {formatPhp(loan.remainingPhp)}
