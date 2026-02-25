@@ -90,7 +90,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     }
 
     const totalEstimatedInvestmentsPhp = estimatedInvestmentValues
-        .reduce((sum, value) => sum + (value ?? 0), 0);
+        .reduce((sum: number, value) => sum + (value ?? 0), 0);
     const totalAssetsPhp = totalAllWalletsPhp + totalEstimatedInvestmentsPhp;
     const budgetAvailablePhp = Number(budgetAggregate._sum.availablePhp ?? 0);
     const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
