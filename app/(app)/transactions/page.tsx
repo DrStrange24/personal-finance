@@ -47,12 +47,51 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         }
 
         try {
+            let sourceWalletAccountId = parsed.walletAccountId;
+            if (sourceWalletAccountId.startsWith("credit:")) {
+                const creditId = sourceWalletAccountId.slice("credit:".length);
+                const creditAccount = await prisma.creditAccount.findFirst({
+                    where: {
+                        id: creditId,
+                        userId: actionSession.userId,
+                        isArchived: false,
+                    },
+                });
+
+                if (!creditAccount) {
+                    return { ok: false, message: "Credit account not found." };
+                }
+
+                const existingCreditWallet = await prisma.walletAccount.findFirst({
+                    where: {
+                        userId: actionSession.userId,
+                        isArchived: false,
+                        type: "CREDIT_CARD",
+                        name: creditAccount.name,
+                    },
+                });
+
+                if (existingCreditWallet) {
+                    sourceWalletAccountId = existingCreditWallet.id;
+                } else {
+                    const createdWallet = await prisma.walletAccount.create({
+                        data: {
+                            userId: actionSession.userId,
+                            name: creditAccount.name,
+                            type: "CREDIT_CARD",
+                            currentBalanceAmount: creditAccount.currentBalanceAmount,
+                        },
+                    });
+                    sourceWalletAccountId = createdWallet.id;
+                }
+            }
+
             await postFinanceTransaction({
                 userId: actionSession.userId,
                 kind: parsed.kind,
                 postedAt: parsed.postedAt,
                 amountPhp: parsed.amountPhp,
-                walletAccountId: parsed.walletAccountId,
+                walletAccountId: sourceWalletAccountId,
                 budgetEnvelopeId: parsed.budgetEnvelopeId,
                 targetWalletAccountId: parsed.targetWalletAccountId,
                 incomeStreamId: parsed.incomeStreamId,
@@ -94,12 +133,51 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
         let createdTransactionId: string | null = null;
         try {
+            let sourceWalletAccountId = parsed.walletAccountId;
+            if (sourceWalletAccountId.startsWith("credit:")) {
+                const creditId = sourceWalletAccountId.slice("credit:".length);
+                const creditAccount = await prisma.creditAccount.findFirst({
+                    where: {
+                        id: creditId,
+                        userId: actionSession.userId,
+                        isArchived: false,
+                    },
+                });
+
+                if (!creditAccount) {
+                    return { ok: false, message: "Credit account not found." };
+                }
+
+                const existingCreditWallet = await prisma.walletAccount.findFirst({
+                    where: {
+                        userId: actionSession.userId,
+                        isArchived: false,
+                        type: "CREDIT_CARD",
+                        name: creditAccount.name,
+                    },
+                });
+
+                if (existingCreditWallet) {
+                    sourceWalletAccountId = existingCreditWallet.id;
+                } else {
+                    const createdWallet = await prisma.walletAccount.create({
+                        data: {
+                            userId: actionSession.userId,
+                            name: creditAccount.name,
+                            type: "CREDIT_CARD",
+                            currentBalanceAmount: creditAccount.currentBalanceAmount,
+                        },
+                    });
+                    sourceWalletAccountId = createdWallet.id;
+                }
+            }
+
             const created = await postFinanceTransaction({
                 userId: actionSession.userId,
                 kind: parsed.kind,
                 postedAt: parsed.postedAt,
                 amountPhp: parsed.amountPhp,
-                walletAccountId: parsed.walletAccountId,
+                walletAccountId: sourceWalletAccountId,
                 budgetEnvelopeId: parsed.budgetEnvelopeId,
                 targetWalletAccountId: parsed.targetWalletAccountId,
                 incomeStreamId: parsed.incomeStreamId,
@@ -157,7 +235,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         return { ok: true, message: "Transaction deleted successfully." };
     };
 
-    const [context, transactions] = await Promise.all([
+    const [context, transactions, creditAccounts] = await Promise.all([
         getFinanceContextData(session.userId),
         prisma.financeTransaction.findMany({
             where: {
@@ -183,11 +261,19 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
             take: 200,
         }),
+        prisma.creditAccount.findMany({
+            where: {
+                userId: session.userId,
+                isArchived: false,
+            },
+            orderBy: { name: "asc" },
+        }),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
         label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
+        type: wallet.type,
     }));
     const budgetOptions = context.budgets.map((budget) => ({
         id: budget.id,
@@ -200,6 +286,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     const loanOptions = context.loans.map((loan) => ({
         id: loan.id,
         label: `${loan.itemName} (${formatPhp(Number(loan.remainingPhp))})`,
+    }));
+    const creditOptions = creditAccounts.map((credit) => ({
+        id: `credit:${credit.id}`,
+        label: `${credit.name} (${formatPhp(Number(credit.creditLimitAmount) - Number(credit.currentBalanceAmount))} remaining)`,
     }));
     const transactionRows = transactions.map((tx) => ({
         id: tx.id,
@@ -232,6 +322,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             <div className="d-flex justify-content-end">
                 <AddTransactionModal
                     wallets={walletOptions}
+                    creditAccounts={creditOptions}
                     budgets={budgetOptions}
                     incomeStreams={incomeOptions}
                     loanRecords={loanOptions}

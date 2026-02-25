@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TransactionKind } from "@prisma/client";
+import { TransactionKind, WalletAccountType } from "@prisma/client";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import ActionIconButton from "@/app/components/action-icon-button";
@@ -11,10 +11,12 @@ import { transactionKindLabel } from "@/lib/finance/types";
 type FormOption = {
     id: string;
     label: string;
+    type?: WalletAccountType;
 };
 
 type AddTransactionModalProps = {
     wallets: FormOption[];
+    creditAccounts?: FormOption[];
     budgets: FormOption[];
     incomeStreams: FormOption[];
     loanRecords: FormOption[];
@@ -51,6 +53,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export default function AddTransactionModal({
     wallets,
+    creditAccounts = [],
     budgets,
     incomeStreams,
     loanRecords,
@@ -58,16 +61,31 @@ export default function AddTransactionModal({
 }: AddTransactionModalProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [kind, setKind] = useState<TransactionKind>("EXPENSE");
+    const [expenseFunding, setExpenseFunding] = useState<"wallet" | "credit">("wallet");
     const { showSuccess, showError } = useAppToast();
 
     const requiresBudget = kindsRequiringBudget.has(kind);
     const requiresTargetWallet = kindsRequiringTargetWallet.has(kind);
     const supportsIncomeStream = kindsSupportingIncomeStream.has(kind);
     const supportsLoan = kindsSupportingLoan.has(kind);
+    const isExpense = kind === "EXPENSE";
 
     const visibleKinds = useMemo(() => allKinds, []);
+    const sourceWallets = useMemo(() => {
+        if (!isExpense) {
+            return wallets;
+        }
+        if (expenseFunding === "credit") {
+            const creditWallets = wallets.filter((wallet) => wallet.type === "CREDIT_CARD");
+            return creditWallets.length > 0 ? creditWallets : creditAccounts;
+        }
+        return wallets.filter((wallet) => wallet.type !== "CREDIT_CARD");
+    }, [creditAccounts, expenseFunding, isExpense, wallets]);
 
     const submitTransaction = async (formData: FormData) => {
+        if (kind === "EXPENSE" && expenseFunding === "credit") {
+            formData.set("kind", "CREDIT_CARD_CHARGE");
+        }
         try {
             const result = await postTransactionAction(formData);
             if (result.ok) {
@@ -99,7 +117,13 @@ export default function AddTransactionModal({
                                 name="kind"
                                 className="form-control"
                                 value={kind}
-                                onChange={(event) => setKind(event.target.value as TransactionKind)}
+                                onChange={(event) => {
+                                    const nextKind = event.target.value as TransactionKind;
+                                    setKind(nextKind);
+                                    if (nextKind !== "EXPENSE") {
+                                        setExpenseFunding("wallet");
+                                    }
+                                }}
                             >
                                 {visibleKinds.map((value) => (
                                     <option key={value} value={value}>
@@ -119,16 +143,40 @@ export default function AddTransactionModal({
                             <input id="tx-amount" type="number" name="amountPhp" className="form-control" min="0.01" step="0.01" required />
                         </div>
 
+                        {isExpense && (
+                            <div className="d-grid gap-1">
+                                <label htmlFor="tx-expense-funding" className="small fw-semibold">Pay Using</label>
+                                <select
+                                    id="tx-expense-funding"
+                                    className="form-control"
+                                    value={expenseFunding}
+                                    onChange={(event) => setExpenseFunding(event.target.value as "wallet" | "credit")}
+                                >
+                                    <option value="wallet">Wallet</option>
+                                    <option value="credit">Credit</option>
+                                </select>
+                            </div>
+                        )}
+
                         <div className="d-grid gap-1">
-                            <label htmlFor="tx-wallet" className="small fw-semibold">Wallet</label>
+                            <label htmlFor="tx-wallet" className="small fw-semibold">
+                                {isExpense && expenseFunding === "credit" ? "Credit Account" : "Wallet"}
+                            </label>
                             <select id="tx-wallet" name="walletAccountId" className="form-control" required>
-                                <option value="">Select wallet</option>
-                                {wallets.map((wallet) => (
+                                <option value="">
+                                    {isExpense && expenseFunding === "credit" ? "Select credit account" : "Select wallet"}
+                                </option>
+                                {sourceWallets.map((wallet) => (
                                     <option key={wallet.id} value={wallet.id}>
                                         {wallet.label}
                                     </option>
                                 ))}
                             </select>
+                            {isExpense && expenseFunding === "credit" && sourceWallets.length === 0 && (
+                                <small style={{ color: "var(--color-text-muted)" }}>
+                                    No credit account found. Add one in Credit or add a Credit Card wallet.
+                                </small>
+                            )}
                         </div>
 
                         {requiresTargetWallet ? (
