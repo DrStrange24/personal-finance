@@ -278,6 +278,7 @@ export default async function LoanPage() {
         .map((loan) => ({
             id: loan.id,
             label: `${loan.itemName} (${formatPhp(Number(loan.remainingPhp))})`,
+            defaultAmountPhp: loan.monthlyDuePhp === null ? null : Number(loan.monthlyDuePhp),
         }));
     const youOwe = loans
         .filter((loan) => loan.direction === LoanDirection.YOU_OWE)

@@ -10,6 +10,7 @@ import type { FinanceActionResult } from "@/lib/finance/types";
 type FormOption = {
     id: string;
     label: string;
+    defaultAmountPhp?: number | null;
 };
 
 type LoanTransactionModalProps = {
@@ -130,9 +131,20 @@ export default function LoanTransactionModal({
                                         <select
                                             className="form-control"
                                             value={row.loanRecordId}
-                                            onChange={(event) => setRepaymentRows((rows) => rows.map((entry, entryIndex) => (
-                                                entryIndex === index ? { ...entry, loanRecordId: event.target.value } : entry
-                                            )))}
+                                            onChange={(event) => {
+                                                const nextLoanRecordId = event.target.value;
+                                                const selectedLoan = loanRecords.find((loan) => loan.id === nextLoanRecordId);
+                                                const defaultAmount = selectedLoan?.defaultAmountPhp;
+                                                const nextAmount = Number.isFinite(defaultAmount) && (defaultAmount ?? 0) > 0
+                                                    ? Number(defaultAmount).toFixed(2)
+                                                    : "";
+
+                                                setRepaymentRows((rows) => rows.map((entry, entryIndex) => (
+                                                    entryIndex === index
+                                                        ? { ...entry, loanRecordId: nextLoanRecordId, amountPhp: nextAmount }
+                                                        : entry
+                                                )));
+                                            }}
                                         >
                                             <option value="">Select loan record</option>
                                             {loanRecords.map((loan) => (
