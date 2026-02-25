@@ -17,7 +17,17 @@ type AddLoanRecordModalProps = {
 export default function AddLoanRecordModal({ createLoanAction }: AddLoanRecordModalProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [principalPhp, setPrincipalPhp] = useState("");
+    const [monthsToPay, setMonthsToPay] = useState("");
     const { showError, showSuccess } = useAppToast();
+    const principalValue = Number(principalPhp);
+    const monthsValue = Number(monthsToPay);
+    const monthlyDueValue = Number.isFinite(principalValue)
+        && principalValue > 0
+        && Number.isFinite(monthsValue)
+        && monthsValue > 0
+        ? (principalValue / monthsValue).toFixed(2)
+        : "";
 
     const onSubmit = async (formData: FormData) => {
         setIsSubmitting(true);
@@ -26,6 +36,8 @@ export default function AddLoanRecordModal({ createLoanAction }: AddLoanRecordMo
             if (result.ok) {
                 showSuccess("Loan Record Created", result.message);
                 setIsOpen(false);
+                setPrincipalPhp("");
+                setMonthsToPay("");
                 return;
             }
 
@@ -39,7 +51,15 @@ export default function AddLoanRecordModal({ createLoanAction }: AddLoanRecordMo
 
     return (
         <>
-            <Button onClick={() => setIsOpen(true)}>Add Loan Record</Button>
+            <Button
+                onClick={() => {
+                    setPrincipalPhp("");
+                    setMonthsToPay("");
+                    setIsOpen(true);
+                }}
+            >
+                Add Loan Record
+            </Button>
 
             <Modal show={isOpen} onHide={() => setIsOpen(false)} centered>
                 <Modal.Header closeButton>
@@ -64,15 +84,54 @@ export default function AddLoanRecordModal({ createLoanAction }: AddLoanRecordMo
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="loan-principal" className="small fw-semibold">Principal (PHP)</label>
-                            <input id="loan-principal" type="number" name="principalPhp" className="form-control" min="0" step="0.01" required />
+                            <input
+                                id="loan-principal"
+                                type="number"
+                                name="principalPhp"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={principalPhp}
+                                onChange={(event) => setPrincipalPhp(event.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="loan-months-to-pay" className="small fw-semibold">Months to Pay (UI only)</label>
+                            <input
+                                id="loan-months-to-pay"
+                                type="number"
+                                className="form-control"
+                                min="1"
+                                step="1"
+                                value={monthsToPay}
+                                onChange={(event) => setMonthsToPay(event.target.value)}
+                                placeholder="e.g. 12"
+                            />
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="loan-monthly" className="small fw-semibold">Monthly Due (PHP)</label>
-                            <input id="loan-monthly" type="number" name="monthlyDuePhp" className="form-control" min="0" step="0.01" />
+                            <input
+                                id="loan-monthly"
+                                type="number"
+                                name="monthlyDuePhp"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                value={monthlyDueValue}
+                                readOnly
+                            />
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="loan-paid" className="small fw-semibold">Paid To Date (PHP)</label>
-                            <input id="loan-paid" type="number" name="paidToDatePhp" className="form-control" min="0" step="0.01" />
+                            <input
+                                id="loan-paid"
+                                type="number"
+                                name="paidToDatePhp"
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                            />
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="loan-remarks" className="small fw-semibold">Remarks</label>
