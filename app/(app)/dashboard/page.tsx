@@ -146,10 +146,12 @@ export default async function DashboardPage() {
         label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
         type: wallet.type,
     }));
-    const budgetOptions = context.budgets.map((budget) => ({
-        id: budget.id,
-        label: `${budget.name} (${formatPhp(Number(budget.availablePhp))})`,
-    }));
+    const budgetOptions = context.budgets
+        .filter((budget) => !budget.isSystem)
+        .map((budget) => ({
+            id: budget.id,
+            label: `${budget.name} (${formatPhp(Number(budget.availablePhp))})`,
+        }));
     const incomeOptions = context.incomes.map((income) => ({
         id: income.id,
         label: income.name,
