@@ -8,6 +8,11 @@ This file defines mandatory folder-structure rules for AI-assisted changes in th
 - Reuse existing folders first.
 - If a new folder is required, document it in `docs/PROJECT_STRUCTURE.md` in the same change.
 
+## Reuse Rule
+
+- When logic is repeated (computations, variable derivations, query/fetch patterns), extract it into a reusable function, constant, or shared utility.
+- Prefer one canonical implementation over copy-pasted formulas across pages.
+
 ## Folder Contract
 
 - `app/`: App Router routes, layouts, and route-specific UI.

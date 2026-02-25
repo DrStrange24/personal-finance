@@ -222,9 +222,18 @@ export default async function BudgetPage() {
         return { ok: true, message: "Budget allocation posted successfully." };
     };
 
-    const [context, budgetStats] = await Promise.all([
+    const [context, budgetStats, creditAggregate] = await Promise.all([
         getFinanceContextData(session.userId),
         getBudgetStats(session.userId),
+        prisma.creditAccount.aggregate({
+            where: {
+                userId: session.userId,
+                isArchived: false,
+            },
+            _sum: {
+                currentBalanceAmount: true,
+            },
+        }),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({
@@ -259,7 +268,8 @@ export default async function BudgetPage() {
         return total + Number(wallet.currentBalanceAmount);
     }, 0);
     const allocatedBudgetPhp = budgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
-    const unallocatedCashPhp = liquidWalletBalancePhp - allocatedBudgetPhp;
+    const totalCreditCardDebtPhp = Number(creditAggregate._sum.currentBalanceAmount ?? 0);
+    const unallocatedCashPhp = liquidWalletBalancePhp - (allocatedBudgetPhp + totalCreditCardDebtPhp);
 
     return (
         <section className="d-grid gap-4">
@@ -284,7 +294,7 @@ export default async function BudgetPage() {
                 <MetricCard
                     label="Unallocated Cash"
                     value={formatPhp(unallocatedCashPhp)}
-                    helper="Liquid wallets minus envelope balances."
+                    helper="Liquid wallets minus (allocated budget plus credit card debt)."
                 />
             </div>
 
