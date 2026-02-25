@@ -44,7 +44,14 @@ export default function LoanRecordTable({
     deleteLoanAction,
 }: LoanRecordTableProps) {
     const [editState, setEditState] = useState<LoanRow | null>(null);
+    const [statusFilter, setStatusFilter] = useState<"NON_PAID" | "ALL" | LoanStatusValue>("NON_PAID");
     const { showError, showSuccess } = useAppToast();
+    const visibleRows = statusFilter === "ALL"
+        ? rows
+        : statusFilter === "NON_PAID"
+            ? rows.filter((row) => row.status !== "PAID")
+            : rows.filter((row) => row.status === statusFilter);
+    const statusFilterId = `${title.toLowerCase().replace(/\s+/g, "-")}-status-filter`;
 
     const submitUpdateLoan = async (formData: FormData) => {
         try {
@@ -77,7 +84,25 @@ export default function LoanRecordTable({
     return (
         <>
             <div>
-                <h3 className="m-0 fs-6 fw-semibold">{title}</h3>
+                <div className="d-flex align-items-center justify-content-between gap-2">
+                    <h3 className="m-0 fs-6 fw-semibold">{title}</h3>
+                    <div className="d-flex align-items-center gap-2">
+                        <label htmlFor={statusFilterId} className="small fw-semibold m-0">Status</label>
+                        <select
+                            id={statusFilterId}
+                            className="form-control form-control-sm"
+                            style={{ width: "9rem" }}
+                            value={statusFilter}
+                            onChange={(event) => setStatusFilter(event.target.value as "NON_PAID" | "ALL" | LoanStatusValue)}
+                        >
+                            <option value="NON_PAID">ALL (NO PAID)</option>
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="ALL">ALL</option>
+                            <option value="PAID">PAID</option>
+                            <option value="WRITTEN_OFF">WRITTEN_OFF</option>
+                        </select>
+                    </div>
+                </div>
                 <div className="table-responsive mt-2">
                     <Table hover className="align-middle mb-0">
                         <thead>
@@ -93,14 +118,14 @@ export default function LoanRecordTable({
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.length === 0 ? (
+                            {visibleRows.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                         No records.
                                     </td>
                                 </tr>
                             ) : (
-                                rows.map((loan) => (
+                                visibleRows.map((loan) => (
                                     <tr key={loan.id}>
                                         <td>{loan.itemName}</td>
                                         <td>{loan.counterparty?.trim() || "-"}</td>
