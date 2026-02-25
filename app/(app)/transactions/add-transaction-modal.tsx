@@ -268,14 +268,11 @@ export default function AddTransactionModal({
                             <div className="d-grid gap-2">
                                 <div className="d-flex align-items-center justify-content-between">
                                     <label className="small fw-semibold m-0">Budget Distribution</label>
-                                    <Button
-                                        type="button"
-                                        variant="outline-secondary"
-                                        size="sm"
+                                    <ActionIconButton
+                                        action="add"
+                                        label="Add budget distribution row"
                                         onClick={() => setIncomeDistributionRows((rows) => [...rows, getEmptyDistributionRow()])}
-                                    >
-                                        Add Budget
-                                    </Button>
+                                    />
                                 </div>
                                 {incomeDistributionRows.map((row, index) => (
                                     <div key={`income-dist-${index}`} className="d-grid gap-2" style={{ gridTemplateColumns: "1fr 170px auto" }}>
@@ -304,14 +301,13 @@ export default function AddTransactionModal({
                                                 entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
                                             )))}
                                         />
-                                        <Button
+                                        <ActionIconButton
+                                            action="delete"
+                                            label={`Remove budget distribution row ${index + 1}`}
                                             type="button"
-                                            variant="outline-danger"
                                             disabled={incomeDistributionRows.length === 1}
                                             onClick={() => setIncomeDistributionRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
-                                        >
-                                            Remove
-                                        </Button>
+                                        />
                                     </div>
                                 ))}
                             </div>
