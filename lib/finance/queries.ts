@@ -9,7 +9,7 @@ const startOfMonth = () => {
 };
 
 export const getDashboardSummary = async (userId: string): Promise<DashboardSummary> => {
-    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate] = await Promise.all([
+    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate, creditAggregate] = await Promise.all([
         prisma.walletAccount.findMany({
             where: {
                 userId,
@@ -75,6 +75,15 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
                 defaultAmountPhp: true,
             },
         }),
+        prisma.creditAccount.aggregate({
+            where: {
+                userId,
+                isArchived: false,
+            },
+            _sum: {
+                currentBalanceAmount: true,
+            },
+        }),
     ]);
 
     const estimatedInvestmentValues = await Promise.all(
@@ -84,16 +93,13 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         }),
     );
 
-    let totalCreditCardDebtPhp = 0;
     let totalWalletBalancePhp = 0;
     let totalAllWalletsPhp = 0;
 
     for (const wallet of walletAccounts) {
         const amount = Number(wallet.currentBalanceAmount);
         totalAllWalletsPhp += amount;
-        if (wallet.type === WalletAccountType.CREDIT_CARD) {
-            totalCreditCardDebtPhp += amount;
-        } else if (wallet.type !== WalletAccountType.ASSET) {
+        if (wallet.type !== WalletAccountType.CREDIT_CARD && wallet.type !== WalletAccountType.ASSET) {
             totalWalletBalancePhp += amount;
         }
     }
@@ -105,6 +111,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
     const monthExpensePhp = Number(expenseAggregate._sum.amountPhp ?? 0);
     const monthlyTotalIncomePhp = Number(incomeStreamAggregate._sum.defaultAmountPhp ?? 0);
+    const totalCreditCardDebtPhp = Number(creditAggregate._sum.currentBalanceAmount ?? 0);
 
     return {
         totalWalletBalancePhp,
