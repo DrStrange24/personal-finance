@@ -206,59 +206,6 @@ export default async function LoanPage() {
         return { ok: true, message: "Loan repayment posted successfully." };
     };
 
-    const postLoanBorrowAction = async (formData: FormData) => {
-        "use server";
-
-        const actionSession = await getAuthenticatedSession();
-        const postedAtRaw = formData.get("postedAt");
-        const amountResult = parseMoneyInput(formData.get("amountPhp"), true);
-        const walletAccountId = typeof formData.get("walletAccountId") === "string"
-            ? String(formData.get("walletAccountId")).trim()
-            : "";
-        const loanRecordId = typeof formData.get("loanRecordId") === "string"
-            ? String(formData.get("loanRecordId")).trim()
-            : "";
-        const remarksResult = parseOptionalText(formData.get("remarks"), 300);
-
-        if (
-            typeof postedAtRaw !== "string"
-            || !amountResult.ok
-            || amountResult.value === null
-            || !walletAccountId
-            || !loanRecordId
-            || !remarksResult.ok
-        ) {
-            return { ok: false, message: "Please provide valid borrow details." };
-        }
-
-        const postedAt = new Date(`${postedAtRaw}T00:00:00`);
-        if (Number.isNaN(postedAt.valueOf())) {
-            return { ok: false, message: "Invalid date." };
-        }
-
-        try {
-            await postFinanceTransaction({
-                userId: actionSession.userId,
-                kind: "LOAN_BORROW",
-                postedAt,
-                amountPhp: amountResult.value,
-                walletAccountId,
-                loanRecordId,
-                remarks: remarksResult.value,
-            });
-        } catch (error) {
-            return {
-                ok: false,
-                message: error instanceof Error ? error.message : "Could not post loan borrow transaction.",
-            };
-        }
-
-        revalidatePath("/loan");
-        revalidatePath("/transactions");
-        revalidatePath("/dashboard");
-        return { ok: true, message: "Loan borrow transaction posted successfully." };
-    };
-
     const [context, loans] = await Promise.all([
         getFinanceContextData(session.userId),
         prisma.loanRecord.findMany({
@@ -321,15 +268,6 @@ export default async function LoanPage() {
                     title="Post Loan Repayment"
                     triggerLabel="Post Loan Repayment"
                     submitLabel="Post Repayment"
-                />
-                <LoanTransactionModal
-                    submitAction={postLoanBorrowAction}
-                    wallets={walletOptions}
-                    loanRecords={loanOptions}
-                    defaultKind="LOAN_BORROW"
-                    title="Post Loan Borrow"
-                    triggerLabel="Post Loan Borrow"
-                    submitLabel="Post Borrow"
                 />
                 <AddLoanRecordModal createLoanAction={createLoanAction} />
             </div>

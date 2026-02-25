@@ -25,8 +25,8 @@
       - allocate-budget-modal.tsx (budget allocation modal trigger/form with icon action)
       - budget-envelope-table.tsx (budget envelope table + edit modal + icon edit/delete actions)
     - loan/
-      - page.tsx (loan registry + modal actions for borrow/repay/create)
-      - loan-transaction-modal.tsx (borrow/repay modal form trigger + submit flow)
+      - page.tsx (loan registry + modal actions for repayment/create)
+      - loan-transaction-modal.tsx (loan transaction modal form trigger + submit flow)
       - add-loan-record-modal.tsx (loan record create modal trigger/form)
       - loan-record-table.tsx (loan table UI + edit modal + icon delete confirmation for both sections)
     - credit/
