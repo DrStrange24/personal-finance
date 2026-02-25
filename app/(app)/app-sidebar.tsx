@@ -174,31 +174,31 @@ export default function AppSidebar() {
                 </div>
 
                 <Nav className="flex-column gap-2 pb-1">
-                {links.map((link) => {
-                    const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                    {links.map((link) => {
+                        const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
 
-                    return (
-                        <NavLink
-                            key={link.href}
-                            as={Link}
-                            href={link.href}
-                            className={`rounded-4 px-3 py-2 border d-flex align-items-center ${isCollapsed ? "justify-content-center" : "gap-2"}`}
-                            style={isActive ? {
-                                background: "var(--color-primary)",
-                                borderColor: "transparent",
-                                color: "var(--color-primary-text)",
-                            } : {
-                                borderColor: "var(--color-border-default)",
-                                color: "var(--color-text-subtle)",
-                            }}
-                            aria-label={isCollapsed ? link.label : undefined}
-                            title={isCollapsed ? link.label : undefined}
-                        >
-                            <link.Icon width={16} height={16} />
-                            {!isCollapsed && <span>{link.label}</span>}
-                        </NavLink>
-                    );
-                })}
+                        return (
+                            <NavLink
+                                key={link.href}
+                                as={Link}
+                                href={link.href}
+                                className={`rounded-4 px-3 py-2 border d-flex align-items-center ${isCollapsed ? "justify-content-center" : "gap-2"}`}
+                                style={isActive ? {
+                                    background: "var(--color-primary)",
+                                    borderColor: "transparent",
+                                    color: "var(--color-primary-text)",
+                                } : {
+                                    borderColor: "var(--color-border-default)",
+                                    color: "var(--color-text-subtle)",
+                                }}
+                                aria-label={isCollapsed ? link.label : undefined}
+                                title={isCollapsed ? link.label : undefined}
+                            >
+                                <link.Icon width={16} height={16} />
+                                {!isCollapsed && <span>{link.label}</span>}
+                            </NavLink>
+                        );
+                    })}
                 </Nav>
 
                 <Button
