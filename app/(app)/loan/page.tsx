@@ -224,7 +224,7 @@ export default async function LoanPage() {
         .filter((loan) => loan.status !== LoanStatus.PAID)
         .map((loan) => ({
             id: loan.id,
-            label: `${loan.itemName} (${Number(loan.remainingPhp).toFixed(2)})`,
+            label: `${loan.itemName} (${formatPhp(Number(loan.remainingPhp))})`,
         }));
     const youOwe = loans
         .filter((loan) => loan.direction === LoanDirection.YOU_OWE)
