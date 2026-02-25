@@ -234,8 +234,8 @@ export default async function DashboardPage() {
             </header>
 
             <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                <MetricCard label="Wallet Balance" value={formatPhp(summary.totalWalletBalancePhp)} />
                 <MetricCard label="Total Assets" value={formatPhp(summary.totalAssetsPhp)} />
+                <MetricCard label="Wallet Balance" value={formatPhp(summary.totalWalletBalancePhp)} />
                 <MetricCard label="Credit Card Debt" value={formatPhp(summary.totalCreditCardDebtPhp)} />
                 <MetricCard label="Net Position" value={formatPhp(summary.netPositionPhp)} />
                 <MetricCard label="Budget Available" value={formatPhp(summary.budgetAvailablePhp)} />
