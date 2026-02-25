@@ -7,7 +7,7 @@ import LoanRecordTable from "./loan-record-table";
 import LoanTransactionModal from "./loan-transaction-modal";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
-import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
+import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -218,12 +218,14 @@ export default async function LoanPage() {
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
-        label: wallet.name,
+        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
     }));
-    const loanOptions = loans.map((loan) => ({
-        id: loan.id,
-        label: `${loan.itemName} (${Number(loan.remainingPhp).toFixed(2)})`,
-    }));
+    const loanOptions = loans
+        .filter((loan) => loan.status !== LoanStatus.PAID)
+        .map((loan) => ({
+            id: loan.id,
+            label: `${loan.itemName} (${Number(loan.remainingPhp).toFixed(2)})`,
+        }));
     const youOwe = loans
         .filter((loan) => loan.direction === LoanDirection.YOU_OWE)
         .map((loan) => ({
