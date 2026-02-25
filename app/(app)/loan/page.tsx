@@ -4,13 +4,19 @@ import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Table from "react-bootstrap/Table";
-import TransactionForm from "@/app/components/finance/transaction-form";
+import AddLoanRecordModal from "./add-loan-record-modal";
+import LoanTransactionModal from "./loan-transaction-modal";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
+
+type LoanActionResult = {
+    ok: boolean;
+    message: string;
+};
 
 const parseRequiredName = (value: FormDataEntryValue | null) => {
     if (typeof value !== "string") {
@@ -27,7 +33,7 @@ export default async function LoanPage() {
     const session = await getAuthenticatedSession();
     await ensureFinanceBootstrap(session.userId);
 
-    const createLoanAction = async (formData: FormData) => {
+    const createLoanAction = async (formData: FormData): Promise<LoanActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedSession();
@@ -49,28 +55,33 @@ export default async function LoanPage() {
             || !paidToDateResult.ok
             || !remarksResult.ok
         ) {
-            return;
+            return { ok: false, message: "Please provide valid loan details." };
         }
 
         const paidToDate = paidToDateResult.value ?? 0;
         const remaining = Math.max(0, principalResult.value - paidToDate);
 
-        await prisma.loanRecord.create({
-            data: {
-                userId: actionSession.userId,
-                direction,
-                itemName,
-                counterparty: counterpartyResult.value,
-                principalPhp: principalResult.value,
-                monthlyDuePhp: monthlyDueResult.value,
-                paidToDatePhp: paidToDate,
-                remainingPhp: remaining,
-                status: remaining <= 0 ? LoanStatus.PAID : LoanStatus.ACTIVE,
-                remarks: remarksResult.value,
-            },
-        });
+        try {
+            await prisma.loanRecord.create({
+                data: {
+                    userId: actionSession.userId,
+                    direction,
+                    itemName,
+                    counterparty: counterpartyResult.value,
+                    principalPhp: principalResult.value,
+                    monthlyDuePhp: monthlyDueResult.value,
+                    paidToDatePhp: paidToDate,
+                    remainingPhp: remaining,
+                    status: remaining <= 0 ? LoanStatus.PAID : LoanStatus.ACTIVE,
+                    remarks: remarksResult.value,
+                },
+            });
+        } catch {
+            return { ok: false, message: "Could not create loan record. Please try again." };
+        }
 
         revalidatePath("/loan");
+        return { ok: true, message: "Loan record created successfully." };
     };
 
     const updateLoanStatusAction = async (formData: FormData) => {
@@ -242,68 +253,27 @@ export default async function LoanPage() {
                 </p>
             </header>
 
-            <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-                <TransactionForm
+            <div className="d-flex flex-wrap gap-2 justify-content-end">
+                <LoanTransactionModal
                     submitAction={postLoanRepaymentAction}
                     wallets={walletOptions}
-                    budgets={[]}
                     loanRecords={loanOptions}
-                    includeKindSelect={false}
                     defaultKind="LOAN_REPAY"
                     title="Post Loan Repayment"
+                    triggerLabel="Post Loan Repayment"
                     submitLabel="Post Repayment"
                 />
-                <TransactionForm
+                <LoanTransactionModal
                     submitAction={postLoanBorrowAction}
                     wallets={walletOptions}
-                    budgets={[]}
                     loanRecords={loanOptions}
-                    includeKindSelect={false}
                     defaultKind="LOAN_BORROW"
                     title="Post Loan Borrow"
+                    triggerLabel="Post Loan Borrow"
                     submitLabel="Post Borrow"
                 />
+                <AddLoanRecordModal createLoanAction={createLoanAction} />
             </div>
-
-            <Card className="pf-surface-panel">
-                <CardBody className="d-grid gap-3">
-                    <h3 className="m-0 fs-6 fw-semibold">Add Loan Record</h3>
-                    <form action={createLoanAction} className="d-grid gap-3">
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-direction" className="small fw-semibold">Direction</label>
-                            <select id="loan-direction" name="direction" className="form-control" defaultValue="YOU_OWE">
-                                <option value="YOU_OWE">You Owe</option>
-                                <option value="YOU_ARE_OWED">You Are Owed</option>
-                            </select>
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-item-name" className="small fw-semibold">Item / Loan Name</label>
-                            <input id="loan-item-name" type="text" name="itemName" className="form-control" maxLength={120} required />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-counterparty" className="small fw-semibold">Counterparty</label>
-                            <input id="loan-counterparty" type="text" name="counterparty" className="form-control" maxLength={120} />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-principal" className="small fw-semibold">Principal (PHP)</label>
-                            <input id="loan-principal" type="number" name="principalPhp" className="form-control" min="0" step="0.01" required />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-monthly" className="small fw-semibold">Monthly Due (PHP)</label>
-                            <input id="loan-monthly" type="number" name="monthlyDuePhp" className="form-control" min="0" step="0.01" />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-paid" className="small fw-semibold">Paid To Date (PHP)</label>
-                            <input id="loan-paid" type="number" name="paidToDatePhp" className="form-control" min="0" step="0.01" />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="loan-remarks" className="small fw-semibold">Remarks</label>
-                            <textarea id="loan-remarks" name="remarks" className="form-control" rows={2} />
-                        </div>
-                        <Button type="submit">Create Loan</Button>
-                    </form>
-                </CardBody>
-            </Card>
 
             <Card className="pf-surface-panel">
                 <CardBody className="d-grid gap-4">

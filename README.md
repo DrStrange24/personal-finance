@@ -22,7 +22,7 @@ Project documentation lives in `docs/`.
   - `/income` income stream setup and management
   - `/investment` investment register with unit value + PHP value CRUD
   - `/budget` envelope budgeting and allocation
-  - `/loan` loan register (`you owe` and `you are owed`) + repayment/borrow posting
+  - `/loan` loan register (`you owe` and `you are owed`) + modal actions for repayment, borrow, and loan record creation
   - `/credit` credit card account CRUD table with modal add/edit and archive actions
   - `/wallet` wallet account management (cash/bank/e-wallet) with grouped cards and modal add/edit flows
   - `/monthly-overview` historical wallet snapshot table/chart (legacy-compatible page)
