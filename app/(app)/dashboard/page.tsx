@@ -230,9 +230,9 @@ export default async function DashboardPage() {
                 <MetricCard label="Total Investment" value={formatPhp(summary.totalInvestmentPhp)} />
                 <MetricCard label="Wallet Balance" value={formatPhp(summary.totalWalletBalancePhp)} />
                 <MetricCard label="Allocated Budget" value={formatPhp(summary.budgetAvailablePhp)} />
+                <MetricCard label="Credit Card Debt" value={formatPhp(summary.totalCreditCardDebtPhp)} />
                 <MetricCard label="Unallocated Budget" value={formatPhp(summary.unallocatedCashPhp)} />
                 <MetricCard label="Total Monthly Income" value={formatPhp(summary.monthlyTotalIncomePhp)} />
-                <MetricCard label="Credit Card Debt" value={formatPhp(summary.totalCreditCardDebtPhp)} />
             </div>
 
             <Card className="pf-surface-panel">
