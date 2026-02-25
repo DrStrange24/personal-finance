@@ -136,6 +136,7 @@ export default async function DashboardPage() {
                 <MetricCard label="Credit Card Debt" value={formatPhp(summary.totalCreditCardDebtPhp)} />
                 <MetricCard label="Net Position" value={formatPhp(summary.netPositionPhp)} />
                 <MetricCard label="Budget Available" value={formatPhp(summary.budgetAvailablePhp)} />
+                <MetricCard label="Unallocated Cash" value={formatPhp(summary.unallocatedCashPhp)} />
                 <MetricCard label="Month Income" value={formatPhp(summary.monthIncomePhp)} />
                 <MetricCard label="Month Expense" value={formatPhp(summary.monthExpensePhp)} />
                 <MetricCard label="Month Net Cashflow" value={formatPhp(summary.monthNetCashflowPhp)} />

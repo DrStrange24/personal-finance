@@ -66,6 +66,7 @@ export type DashboardSummary = {
     totalCreditCardDebtPhp: number;
     netPositionPhp: number;
     budgetAvailablePhp: number;
+    unallocatedCashPhp: number;
     monthIncomePhp: number;
     monthExpensePhp: number;
     monthNetCashflowPhp: number;
