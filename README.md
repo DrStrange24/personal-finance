@@ -62,6 +62,7 @@ Migration rule:
 - For data-migration SQL steps, use guarded/idempotent patterns:
   - insert/create rows with `IF NOT EXISTS` semantics
   - delete rows with `IF EXISTS` semantics
+- For foreign keys, default to `ON DELETE CASCADE` and `ON UPDATE CASCADE` unless a requirement explicitly says otherwise.
 
 Generate Prisma client (if needed):
 

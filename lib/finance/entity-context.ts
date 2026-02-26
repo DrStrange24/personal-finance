@@ -27,6 +27,19 @@ export type FinanceEntityRecordCounts = {
     total: number;
 };
 
+type EntityInput = {
+    name: string;
+    type: EntityType;
+};
+
+const normalizeEntityName = (name: string) => {
+    const normalized = name.trim();
+    if (normalized.length < 1 || normalized.length > 80) {
+        throw new Error("Entity name must be between 1 and 80 characters.");
+    }
+    return normalized;
+};
+
 const createDefaultEntityForUser = async (db: PrismaClientLike, userId: string): Promise<FinanceEntitySummary> => {
     return db.financeEntity.create({
         data: {
@@ -139,6 +152,73 @@ export const setActiveFinanceEntityForUser = async (
     return entity;
 };
 
+export const createFinanceEntityForUser = async (
+    userId: string,
+    input: EntityInput,
+): Promise<FinanceEntitySummary> => {
+    const name = normalizeEntityName(input.name);
+    const existing = await prisma.financeEntity.findFirst({
+        where: {
+            userId,
+            name,
+            type: input.type,
+        },
+        select: { id: true },
+    });
+
+    if (existing) {
+        throw new Error("An entity with this name and type already exists.");
+    }
+
+    return prisma.financeEntity.create({
+        data: {
+            userId,
+            name,
+            type: input.type,
+        },
+        select: {
+            id: true,
+            name: true,
+            type: true,
+        },
+    });
+};
+
+export const updateFinanceEntityForUser = async (
+    userId: string,
+    entityId: string,
+    input: EntityInput,
+): Promise<FinanceEntitySummary> => {
+    await requireOwnedFinanceEntity(prisma, userId, entityId);
+    const name = normalizeEntityName(input.name);
+    const existing = await prisma.financeEntity.findFirst({
+        where: {
+            userId,
+            id: { not: entityId },
+            name,
+            type: input.type,
+        },
+        select: { id: true },
+    });
+
+    if (existing) {
+        throw new Error("Another entity with this name and type already exists.");
+    }
+
+    return prisma.financeEntity.update({
+        where: { id: entityId },
+        data: {
+            name,
+            type: input.type,
+        },
+        select: {
+            id: true,
+            name: true,
+            type: true,
+        },
+    });
+};
+
 export const getFinanceEntityRecordCounts = async (
     db: PrismaClientLike,
     userId: string,
@@ -175,18 +255,6 @@ export const getFinanceEntityRecordCounts = async (
 export const deleteFinanceEntityForUser = async (userId: string, entityId: string) => {
     return prisma.$transaction(async (tx) => {
         await requireOwnedFinanceEntity(tx, userId, entityId);
-        const counts = await getFinanceEntityRecordCounts(tx, userId, entityId);
-
-        if (counts.total > 0) {
-            throw new Error("Cannot delete an entity that still has financial records.");
-        }
-
-        const remainingEntities = await tx.financeEntity.count({
-            where: { userId },
-        });
-        if (remainingEntities <= 1) {
-            throw new Error("At least one finance entity must remain.");
-        }
 
         await tx.financeEntity.delete({
             where: {

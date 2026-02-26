@@ -79,6 +79,11 @@ npx prisma migrate dev --name your-change-name
 - Delete/remove data rows with `IF EXISTS` semantics (for example, `DELETE ... WHERE EXISTS (...)` or scoped `DELETE` predicates that only run when matching rows exist).
 - Prefer guarded updates over blind writes so re-running migration logic does not corrupt or duplicate data.
 
+### FK Action Default
+
+- Default foreign-key behavior is `ON DELETE CASCADE` and `ON UPDATE CASCADE`.
+- Use a non-cascade behavior (`RESTRICT`, `SET NULL`, etc.) only when explicitly required by the feature and documented in the PR/change notes.
+
 ## Run
 
 ```bash
