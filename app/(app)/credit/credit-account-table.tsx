@@ -157,20 +157,6 @@ export default function CreditAccountTable({
                                 required
                             />
                         </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="edit-credit-balance" className="small fw-semibold">Used (PHP)</label>
-                            <input
-                                id="edit-credit-balance"
-                                type="number"
-                                name="currentBalanceAmount"
-                                className="form-control"
-                                defaultValue={editState ? editState.currentBalanceAmount.toFixed(2) : ""}
-                                key={editState?.id ? `${editState.id}-balance` : "edit-credit-balance-empty"}
-                                min="0"
-                                step="0.01"
-                                required
-                            />
-                        </div>
                     </Modal.Body>
                     <Modal.Footer>
                         <Button type="button" variant="outline-secondary" onClick={() => setEditState(null)}>

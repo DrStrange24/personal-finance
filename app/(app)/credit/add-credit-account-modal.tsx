@@ -61,18 +61,6 @@ export default function AddCreditAccountModal({ createCreditAccountAction }: Add
                                 required
                             />
                         </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="credit-balance" className="small fw-semibold">Used (PHP)</label>
-                            <input
-                                id="credit-balance"
-                                type="number"
-                                name="currentBalanceAmount"
-                                className="form-control"
-                                min="0"
-                                step="0.01"
-                                required
-                            />
-                        </div>
                     </Modal.Body>
                     <Modal.Footer>
                         <Button type="button" variant="outline-secondary" onClick={() => setIsOpen(false)}>

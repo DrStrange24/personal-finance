@@ -1,12 +1,17 @@
 import {
+    AdjustmentReasonCode,
     LoanDirection,
     LoanStatus,
     Prisma,
-    TransactionKind,
     WalletAccountType,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
+import {
+    reconcileWalletBalanceWithAdjustment,
+    syncBudgetEnvelopeAvailableForImport,
+    syncLoanSnapshotForImport,
+} from "@/lib/finance/posting-engine";
 import type { ParsedWorkbook } from "@/lib/import/workbook";
 
 const inferWalletType = (name: string) => {
@@ -99,8 +104,16 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
                 where: { id: existing.id },
                 data: {
                     type,
-                    currentBalanceAmount: balance,
                 },
+            });
+            await reconcileWalletBalanceWithAdjustment({
+                userId,
+                entityId,
+                actorUserId: userId,
+                walletAccountId: existing.id,
+                targetBalancePhp: Number(balance),
+                reasonCode: AdjustmentReasonCode.IMPORT_BOOTSTRAP,
+                remarks: "Wallet balance synchronized from workbook import.",
             });
         } else {
             const wallet = await prisma.walletAccount.create({
@@ -109,20 +122,18 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
                     entityId,
                     name: entry.name,
                     type,
-                    currentBalanceAmount: balance,
+                    currentBalanceAmount: 0,
                 },
             });
 
-            await prisma.financeTransaction.create({
-                data: {
-                    userId,
-                    entityId,
-                    kind: TransactionKind.ADJUSTMENT,
-                    amountPhp: balance,
-                    walletAccountId: wallet.id,
-                    countsTowardBudget: false,
-                    remarks: "Opening balance imported from workbook.",
-                },
+            await reconcileWalletBalanceWithAdjustment({
+                userId,
+                entityId,
+                actorUserId: userId,
+                walletAccountId: wallet.id,
+                targetBalancePhp: Number(balance),
+                reasonCode: AdjustmentReasonCode.IMPORT_BOOTSTRAP,
+                remarks: "Opening balance imported from workbook.",
             });
         }
 
@@ -148,22 +159,33 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
                 where: { id: existing.id },
                 data: {
                     monthlyTargetPhp,
-                    availablePhp,
                     payTo: entry.payTo,
                     remarks,
                 },
             });
+            await syncBudgetEnvelopeAvailableForImport({
+                userId,
+                entityId,
+                budgetEnvelopeId: existing.id,
+                targetAvailablePhp: Number(availablePhp),
+            });
         } else {
-            await prisma.budgetEnvelope.create({
+            const createdEnvelope = await prisma.budgetEnvelope.create({
                 data: {
                     userId,
                     entityId,
                     name: entry.name,
                     monthlyTargetPhp,
-                    availablePhp,
+                    availablePhp: 0,
                     payTo: entry.payTo,
                     remarks,
                 },
+            });
+            await syncBudgetEnvelopeAvailableForImport({
+                userId,
+                entityId,
+                budgetEnvelopeId: createdEnvelope.id,
+                targetAvailablePhp: Number(availablePhp),
             });
         }
 
@@ -226,15 +248,20 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
             await prisma.loanRecord.update({
                 where: { id: existing.id },
                 data: {
-                    principalPhp,
-                    paidToDatePhp,
-                    remainingPhp,
                     monthlyDuePhp,
-                    status,
                 },
             });
+            await syncLoanSnapshotForImport({
+                userId,
+                entityId,
+                loanRecordId: existing.id,
+                principalPhp: Number(principalPhp),
+                paidToDatePhp: Number(paidToDatePhp),
+                remainingPhp: Number(remainingPhp),
+                status,
+            });
         } else {
-            await prisma.loanRecord.create({
+            const createdLoan = await prisma.loanRecord.create({
                 data: {
                     userId,
                     entityId,
@@ -243,10 +270,19 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
                     counterparty: entry.payTo,
                     principalPhp,
                     monthlyDuePhp,
-                    paidToDatePhp,
-                    remainingPhp,
-                    status,
+                    paidToDatePhp: 0,
+                    remainingPhp: principalPhp,
+                    status: principalPhp.lte(0) ? LoanStatus.PAID : LoanStatus.ACTIVE,
                 },
+            });
+            await syncLoanSnapshotForImport({
+                userId,
+                entityId,
+                loanRecordId: createdLoan.id,
+                principalPhp: Number(principalPhp),
+                paidToDatePhp: Number(paidToDatePhp),
+                remainingPhp: Number(remainingPhp),
+                status,
             });
         }
 

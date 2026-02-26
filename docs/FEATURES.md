@@ -19,7 +19,8 @@
   - `/transactions` unified transaction list.
   - Filters by kind, wallet, and remarks search.
   - Add/edit/delete transaction actions via icon buttons with modal flows.
-  - Transaction delete with automatic balance reversal.
+  - Transaction delete is reversal-based (reversal row + voided original, no hard delete).
+  - Active ledger views/KPIs exclude reversal rows and voided originals.
 
 - Wallet Accounts:
   - `/wallet` account management for:
@@ -32,6 +33,7 @@
   - `/credit` dedicated credit card account management page.
   - Add/edit/archive credit accounts via icon actions with modal flows.
   - Table view with current balance tracking.
+  - Used balance is no longer manually editable in credit forms (ledger-driven updates).
 
 - Investments:
   - `/investment` investment management.

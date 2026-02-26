@@ -152,6 +152,8 @@ export default async function IncomePage() {
     const sciTechWhere = {
         userId: session.userId,
         entityId: activeEntityId,
+        isReversal: false,
+        voidedAt: null,
         kind: TransactionKind.INCOME,
         incomeStream: {
             is: {

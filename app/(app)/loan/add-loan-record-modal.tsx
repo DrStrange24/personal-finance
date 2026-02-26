@@ -123,17 +123,6 @@ export default function AddLoanRecordModal({ createLoanAction }: AddLoanRecordMo
                             />
                         </div>
                         <div className="d-grid gap-1">
-                            <label htmlFor="loan-paid" className="small fw-semibold">Paid To Date (PHP)</label>
-                            <input
-                                id="loan-paid"
-                                type="number"
-                                name="paidToDatePhp"
-                                className="form-control"
-                                min="0"
-                                step="0.01"
-                            />
-                        </div>
-                        <div className="d-grid gap-1">
                             <label htmlFor="loan-remarks" className="small fw-semibold">Remarks</label>
                             <textarea id="loan-remarks" name="remarks" className="form-control" rows={2} />
                         </div>

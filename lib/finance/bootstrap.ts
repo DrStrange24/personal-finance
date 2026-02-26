@@ -1,6 +1,7 @@
-import { Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
+import { AdjustmentReasonCode, Prisma, WalletAccountType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SYSTEM_ENVELOPE_NAMES } from "@/lib/finance/constants";
+import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 
 const assertFinancePrismaDelegates = () => {
     const client = prisma as unknown as Record<string, unknown>;
@@ -125,22 +126,23 @@ export const ensureFinanceBootstrap = async (userId: string, entityId: string) =
                     entityId,
                     name: legacyEntry.name,
                     type: inferWalletAccountType(legacyEntry.name),
-                    currentBalanceAmount: currentBalance,
+                    currentBalanceAmount: 0,
                 },
             });
 
-            await prisma.financeTransaction.create({
-                data: {
+            if (!currentBalance.eq(0)) {
+                await postFinanceTransaction({
                     userId,
                     entityId,
+                    actorUserId: userId,
                     postedAt: new Date(),
-                    kind: TransactionKind.ADJUSTMENT,
-                    amountPhp: currentBalance,
+                    kind: "ADJUSTMENT",
+                    amountPhp: Number(currentBalance),
                     walletAccountId: walletAccount.id,
-                    countsTowardBudget: false,
+                    adjustmentReasonCode: AdjustmentReasonCode.IMPORT_BOOTSTRAP,
                     remarks: `Opening balance imported from legacy wallet entry${legacyEntry.groupName ? ` (${legacyEntry.groupName})` : ""}.`,
-                },
-            });
+                });
+            }
         }
     }
 

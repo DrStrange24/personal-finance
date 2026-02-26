@@ -8,10 +8,9 @@ import MetricCard from "@/app/components/finance/metric-card";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
-import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance/form-parsers";
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
-import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
+import { postTransactionFromFormData } from "@/lib/finance/transaction-orchestration";
 import { getDashboardSummary } from "@/lib/finance/queries";
 import type { FinanceActionResult } from "@/lib/finance/types";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
@@ -32,134 +31,14 @@ export default async function DashboardPage() {
         "use server";
 
         const actionSession = await getAuthenticatedEntitySession();
-        const parsed = parseTransactionForm(formData);
-
-        if (
-            !parsed.ok
-            || !parsed.kind
-            || !parsed.postedAt
-            || parsed.amountPhp === null
-            || !parsed.walletAccountId
-        ) {
-            return { ok: false, message: "Please provide valid transaction details." } satisfies FinanceActionResult;
-        }
-
-        try {
-            await ensureFinanceBootstrap(actionSession.userId, actionSession.activeEntity.id);
-            let sourceWalletAccountId = parsed.walletAccountId;
-            if (sourceWalletAccountId.startsWith("credit:")) {
-                const creditId = sourceWalletAccountId.slice("credit:".length);
-                const creditAccount = await prisma.creditAccount.findFirst({
-                    where: {
-                        id: creditId,
-                        userId: actionSession.userId,
-                        isArchived: false,
-                    },
-                });
-
-                if (!creditAccount) {
-                    return { ok: false, message: "Credit account not found." } satisfies FinanceActionResult;
-                }
-
-                const existingCreditWallet = await prisma.walletAccount.findFirst({
-                    where: {
-                        userId: actionSession.userId,
-                        entityId: actionSession.activeEntity.id,
-                        isArchived: false,
-                        type: "CREDIT_CARD",
-                        name: creditAccount.name,
-                    },
-                });
-
-                if (existingCreditWallet) {
-                    sourceWalletAccountId = existingCreditWallet.id;
-                } else {
-                    const createdWallet = await prisma.walletAccount.create({
-                        data: {
-                            userId: actionSession.userId,
-                            entityId: actionSession.activeEntity.id,
-                            name: creditAccount.name,
-                            type: "CREDIT_CARD",
-                            currentBalanceAmount: creditAccount.currentBalanceAmount,
-                        },
-                    });
-                    sourceWalletAccountId = createdWallet.id;
-                }
-            }
-
-            if (parsed.kind === TransactionKind.INCOME && !parsed.recordOnly) {
-                const distribution = parseIncomeDistributionForm(formData);
-                if (!distribution.ok) {
-                    return {
-                        ok: false,
-                        message: "Income distribution is invalid. Please provide unique budgets and valid amounts.",
-                    } satisfies FinanceActionResult;
-                }
-
-                if (Math.abs(distribution.totalAmountPhp - parsed.amountPhp) > 0.009) {
-                    return {
-                        ok: false,
-                        message: "Income distribution total must match the income amount.",
-                    } satisfies FinanceActionResult;
-                }
-
-                const createdIds: string[] = [];
-                try {
-                    for (const row of distribution.rows) {
-                        const created = await postFinanceTransaction({
-                            userId: actionSession.userId,
-                            entityId: actionSession.activeEntity.id,
-                            kind: parsed.kind,
-                            recordOnly: parsed.recordOnly,
-                            postedAt: parsed.postedAt,
-                            amountPhp: row.amountPhp,
-                            walletAccountId: sourceWalletAccountId,
-                            budgetEnvelopeId: row.budgetEnvelopeId,
-                            targetWalletAccountId: parsed.targetWalletAccountId,
-                            incomeStreamId: parsed.incomeStreamId,
-                            loanRecordId: parsed.loanRecordId,
-                            remarks: parsed.remarks,
-                        });
-                        createdIds.push(created.id);
-                    }
-                } catch (error) {
-                    for (const createdId of createdIds) {
-                        try {
-                            await deleteFinanceTransactionWithReversal(
-                                actionSession.userId,
-                                actionSession.activeEntity.id,
-                                createdId,
-                            );
-                        } catch {
-                            return {
-                                ok: false,
-                                message: "Income posting failed and could not fully roll back. Please review balances.",
-                            } satisfies FinanceActionResult;
-                        }
-                    }
-                    throw error;
-                }
-            } else {
-                await postFinanceTransaction({
-                    userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
-                    kind: parsed.kind,
-                    recordOnly: parsed.recordOnly,
-                    postedAt: parsed.postedAt,
-                    amountPhp: parsed.amountPhp,
-                    walletAccountId: sourceWalletAccountId,
-                    budgetEnvelopeId: parsed.budgetEnvelopeId,
-                    targetWalletAccountId: parsed.targetWalletAccountId,
-                    incomeStreamId: parsed.incomeStreamId,
-                    loanRecordId: parsed.loanRecordId,
-                    remarks: parsed.remarks,
-                });
-            }
-        } catch (error) {
-            return {
-                ok: false,
-                message: error instanceof Error ? error.message : "Could not post transaction.",
-            } satisfies FinanceActionResult;
+        const result = await postTransactionFromFormData({
+            userId: actionSession.userId,
+            entityId: actionSession.activeEntity.id,
+            actorUserId: actionSession.userId,
+            formData,
+        });
+        if (!result.ok) {
+            return result satisfies FinanceActionResult;
         }
 
         revalidatePath("/");
@@ -178,6 +57,8 @@ export default async function DashboardPage() {
             where: {
                 userId: session.userId,
                 entityId: activeEntityId,
+                isReversal: false,
+                voidedAt: null,
             },
             include: {
                 walletAccount: true,

@@ -100,8 +100,14 @@ npm run dev -- -p 3002
 
 ```bash
 npm run lint
+npm run test
 npm run build
 ```
+
+Test stack:
+
+- Vitest (`vitest.config.ts`)
+- Posting engine unit tests in `lib/finance/posting-engine.test.ts`
 
 ## Workbook Import Development Workflow
 
@@ -117,6 +123,9 @@ npm run build
 - Use `app/api/*` endpoints for browser file upload/import flows.
 - Keep Prisma access server-side only.
 - Financial reads/writes must be scoped by `activeEntityId` (never by `userId` alone for entity-scoped models).
+- For transaction-driven KPIs/lists, filter to active canonical rows only:
+  - `isReversal = false`
+  - `voidedAt = null`
 
 ## Reusable UI Placement
 

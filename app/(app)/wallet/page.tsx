@@ -1,4 +1,4 @@
-import { TransactionKind, WalletAccountType } from "@prisma/client";
+import { AdjustmentReasonCode, WalletAccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
@@ -7,6 +7,7 @@ import WalletAccountGrid from "./wallet-account-grid";
 import styles from "./page.module.scss";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
+import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { walletAccountTypeLabel } from "@/lib/finance/types";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -59,29 +60,31 @@ export default async function WalletPage() {
                     entityId: actionSession.activeEntity.id,
                     type,
                     name,
-                    currentBalanceAmount: balanceResult.value,
+                    currentBalanceAmount: 0,
                 },
             });
 
-            if (balanceResult.value > 0) {
-                await prisma.financeTransaction.create({
-                    data: {
-                        userId: actionSession.userId,
-                        entityId: actionSession.activeEntity.id,
-                        kind: TransactionKind.ADJUSTMENT,
-                        amountPhp: balanceResult.value,
-                        walletAccountId: account.id,
-                        countsTowardBudget: false,
-                        remarks: "Opening balance for new wallet account.",
-                    },
+            if (Math.abs(balanceResult.value) > 0.0001) {
+                await postFinanceTransaction({
+                    userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
+                    actorUserId: actionSession.userId,
+                    kind: "ADJUSTMENT",
+                    amountPhp: balanceResult.value,
+                    walletAccountId: account.id,
+                    adjustmentReasonCode: AdjustmentReasonCode.OPENING_BALANCE,
+                    remarks: "Opening balance for new wallet account.",
                 });
             }
 
             revalidatePath("/wallet");
             revalidatePath("/dashboard");
             return { ok: true, message: "Wallet account created successfully." };
-        } catch {
-            return { ok: false, message: "Could not create wallet account. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not create wallet account. Please try again.",
+            };
         }
     };
 
@@ -117,30 +120,31 @@ export default async function WalletPage() {
                 data: {
                     type,
                     name,
-                    currentBalanceAmount: balanceResult.value,
                 },
             });
 
             const delta = balanceResult.value - Number(existing.currentBalanceAmount);
             if (Math.abs(delta) > 0.0001) {
-                await prisma.financeTransaction.create({
-                    data: {
-                        userId: actionSession.userId,
-                        entityId: actionSession.activeEntity.id,
-                        kind: TransactionKind.ADJUSTMENT,
-                        amountPhp: Math.abs(delta),
-                        walletAccountId: existing.id,
-                        countsTowardBudget: false,
-                        remarks: `Balance override (${delta >= 0 ? "increase" : "decrease"}).`,
-                    },
+                await postFinanceTransaction({
+                    userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
+                    actorUserId: actionSession.userId,
+                    kind: "ADJUSTMENT",
+                    amountPhp: delta,
+                    walletAccountId: existing.id,
+                    adjustmentReasonCode: AdjustmentReasonCode.BALANCE_CORRECTION,
+                    remarks: `Balance override (${delta >= 0 ? "increase" : "decrease"}).`,
                 });
             }
 
             revalidatePath("/wallet");
             revalidatePath("/dashboard");
             return { ok: true, message: "Wallet account updated successfully." };
-        } catch {
-            return { ok: false, message: "Could not update wallet account. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not update wallet account. Please try again.",
+            };
         }
     };
 

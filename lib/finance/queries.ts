@@ -46,6 +46,8 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
             where: {
                 userId,
                 entityId,
+                isReversal: false,
+                voidedAt: null,
                 postedAt: {
                     gte: startOfMonth(),
                 },
@@ -59,6 +61,8 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
             where: {
                 userId,
                 entityId,
+                isReversal: false,
+                voidedAt: null,
                 postedAt: {
                     gte: startOfMonth(),
                 },
@@ -144,6 +148,8 @@ export const getBudgetStats = async (userId: string, entityId: string) => {
         where: {
             userId,
             entityId,
+            isReversal: false,
+            voidedAt: null,
             postedAt: { gte: start },
             kind: {
                 in: [TransactionKind.EXPENSE, TransactionKind.CREDIT_CARD_CHARGE],

@@ -45,7 +45,6 @@ export default async function LoanPage() {
         const counterpartyResult = parseOptionalText(formData.get("counterparty"), 120);
         const principalResult = parseMoneyInput(formData.get("principalPhp"), true);
         const monthlyDueResult = parseMoneyInput(formData.get("monthlyDuePhp"), false);
-        const paidToDateResult = parseMoneyInput(formData.get("paidToDatePhp"), false);
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
         if (
@@ -54,14 +53,13 @@ export default async function LoanPage() {
             || !principalResult.ok
             || principalResult.value === null
             || !monthlyDueResult.ok
-            || !paidToDateResult.ok
             || !remarksResult.ok
         ) {
             return { ok: false, message: "Please provide valid loan details." };
         }
 
-        const paidToDate = paidToDateResult.value ?? 0;
-        const remaining = Math.max(0, principalResult.value - paidToDate);
+        const paidToDate = 0;
+        const remaining = principalResult.value;
 
         try {
             await prisma.loanRecord.create({
@@ -233,6 +231,7 @@ export default async function LoanPage() {
                 const created = await postFinanceTransaction({
                     userId: actionSession.userId,
                     entityId: actionSession.activeEntity.id,
+                    actorUserId: actionSession.userId,
                     kind: "LOAN_REPAY",
                     postedAt,
                     amountPhp: item.amountPhp,
@@ -248,6 +247,7 @@ export default async function LoanPage() {
                     await deleteFinanceTransactionWithReversal(
                         actionSession.userId,
                         actionSession.activeEntity.id,
+                        actionSession.userId,
                         transactionId,
                     );
                 } catch {

@@ -92,7 +92,9 @@
     - form-parsers.ts
     - money.ts
     - posting-engine.ts
+    - posting-engine.test.ts
     - queries.ts
+    - transaction-orchestration.ts
     - types.ts
   - import/
     - workbook.ts
@@ -102,7 +104,11 @@
   - schema.prisma
   - migrate-finance-entities.ts (idempotent per-user backfill for nullable `entityId` columns)
   - migrations/
+    - 20260226223000_sprint1-posting-engine-hardening/migration.sql
+- docs/
+  - POSTING_ENGINE_MATRIX.md (Sprint 1 transaction validation matrix + reversal contract)
 - public/
+- vitest.config.ts
 
 Notes:
 

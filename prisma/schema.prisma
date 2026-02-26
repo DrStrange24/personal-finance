@@ -45,6 +45,14 @@ enum TransactionKind {
   ADJUSTMENT
 }
 
+enum AdjustmentReasonCode {
+  OPENING_BALANCE
+  BALANCE_CORRECTION
+  IMPORT_BOOTSTRAP
+  SYSTEM_RECONCILIATION
+  MANUAL_FIX
+}
+
 enum LoanDirection {
   YOU_OWE
   YOU_ARE_OWED
@@ -218,6 +226,7 @@ model LoanRecord {
 model FinanceTransaction {
   id                    String          @id @default(cuid())
   userId                String
+  actorUserId           String
   entityId              String?
   postedAt              DateTime        @default(now())
   kind                  TransactionKind
@@ -227,6 +236,11 @@ model FinanceTransaction {
   budgetEnvelopeId      String?
   incomeStreamId        String?
   loanRecordId          String?
+  adjustmentReasonCode  AdjustmentReasonCode?
+  isReversal            Boolean         @default(false)
+  reversedTransactionId String?         @unique
+  voidedAt              DateTime?
+  voidedByUserId        String?
   countsTowardBudget    Boolean         @default(true)
   remarks               String?
   createdAt             DateTime        @default(now())
@@ -238,6 +252,8 @@ model FinanceTransaction {
   budgetEnvelope        BudgetEnvelope? @relation(fields: [budgetEnvelopeId], references: [id], onDelete: SetNull)
   incomeStream          IncomeStream?   @relation(fields: [incomeStreamId], references: [id], onDelete: SetNull)
   loanRecord            LoanRecord?     @relation(fields: [loanRecordId], references: [id], onDelete: SetNull)
+  reversedTransaction   FinanceTransaction? @relation("TransactionReversal", fields: [reversedTransactionId], references: [id], onDelete: SetNull)
+  reversalTransaction   FinanceTransaction? @relation("TransactionReversal")
 
   @@index([userId, postedAt])
   @@index([userId, kind, postedAt])
@@ -247,5 +263,7 @@ model FinanceTransaction {
   @@index([entityId, kind, postedAt])
   @@index([entityId, budgetEnvelopeId, postedAt])
   @@index([entityId, walletAccountId, postedAt])
+  @@index([userId, isReversal, voidedAt, postedAt])
+  @@index([entityId, isReversal, voidedAt, postedAt])
 }
 

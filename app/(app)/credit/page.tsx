@@ -36,14 +36,11 @@ export default async function CreditPage() {
         const actionSession = await getAuthenticatedEntitySession();
         const name = parseRequiredName(formData.get("name"));
         const creditLimitResult = parseMoneyInput(formData.get("creditLimitAmount"), true);
-        const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
 
         if (
             !name
             || !creditLimitResult.ok
             || creditLimitResult.value === null
-            || !balanceResult.ok
-            || balanceResult.value === null
         ) {
             return { ok: false, message: "Please provide valid credit account details." };
         }
@@ -54,7 +51,7 @@ export default async function CreditPage() {
                     userId: actionSession.userId,
                     name,
                     creditLimitAmount: creditLimitResult.value,
-                    currentBalanceAmount: balanceResult.value,
+                    currentBalanceAmount: 0,
                 },
             });
 
@@ -72,15 +69,12 @@ export default async function CreditPage() {
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
         const creditLimitResult = parseMoneyInput(formData.get("creditLimitAmount"), true);
-        const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
 
         if (
             !id
             || !name
             || !creditLimitResult.ok
             || creditLimitResult.value === null
-            || !balanceResult.ok
-            || balanceResult.value === null
         ) {
             return { ok: false, message: "Please provide valid credit account details." };
         }
@@ -103,7 +97,6 @@ export default async function CreditPage() {
                 data: {
                     name,
                     creditLimitAmount: creditLimitResult.value,
-                    currentBalanceAmount: balanceResult.value,
                 },
             });
 

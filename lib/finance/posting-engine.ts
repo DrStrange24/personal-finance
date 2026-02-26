@@ -1,4 +1,5 @@
 import {
+    AdjustmentReasonCode,
     type BudgetEnvelope,
     type LoanRecord,
     LoanStatus,
@@ -15,17 +16,94 @@ type TxClient = Prisma.TransactionClient;
 type PostTransactionParams = Omit<TransactionFormInput, "kind"> & {
     userId: string;
     entityId: string;
+    actorUserId: string;
     kind: TransactionKind;
     recordOnly?: boolean;
+    adjustmentReasonCode?: AdjustmentReasonCode | null;
 };
 
-const ensureOwnedWallet = async (tx: TxClient, userId: string, entityId: string, walletId: string) => {
+type PostOptions = {
+    reverse?: boolean;
+    reversedTransactionId?: string;
+    includeArchivedReferences?: boolean;
+};
+
+type ResolvedPostingContext = {
+    sourceWallet: {
+        id: string;
+        type: WalletAccountType;
+        name: string;
+        currentBalanceAmount: Prisma.Decimal;
+    };
+    targetWallet: {
+        id: string;
+        type: WalletAccountType;
+        name: string;
+        currentBalanceAmount: Prisma.Decimal;
+    } | null;
+    budgetEnvelope: {
+        id: string;
+        availablePhp: Prisma.Decimal;
+    } | null;
+    loan: LoanRecord | null;
+    incomeStreamId: string | null;
+};
+
+const transactionRules: Record<TransactionKind, {
+    requiresBudget: boolean;
+    requiresTargetWallet: boolean;
+    requiresLoan: boolean;
+    supportsRecordOnly: boolean;
+}> = {
+    INCOME: { requiresBudget: true, requiresTargetWallet: false, requiresLoan: false, supportsRecordOnly: true },
+    EXPENSE: { requiresBudget: true, requiresTargetWallet: false, requiresLoan: false, supportsRecordOnly: true },
+    BUDGET_ALLOCATION: { requiresBudget: true, requiresTargetWallet: false, requiresLoan: false, supportsRecordOnly: true },
+    TRANSFER: { requiresBudget: false, requiresTargetWallet: true, requiresLoan: false, supportsRecordOnly: false },
+    CREDIT_CARD_CHARGE: { requiresBudget: true, requiresTargetWallet: false, requiresLoan: false, supportsRecordOnly: true },
+    CREDIT_CARD_PAYMENT: { requiresBudget: false, requiresTargetWallet: true, requiresLoan: false, supportsRecordOnly: false },
+    LOAN_BORROW: { requiresBudget: false, requiresTargetWallet: false, requiresLoan: true, supportsRecordOnly: false },
+    LOAN_REPAY: { requiresBudget: false, requiresTargetWallet: false, requiresLoan: true, supportsRecordOnly: false },
+    ADJUSTMENT: { requiresBudget: false, requiresTargetWallet: false, requiresLoan: false, supportsRecordOnly: true },
+};
+
+const ensureEntityId = (entityId: string | null | undefined) => {
+    if (!entityId || entityId.trim().length === 0) {
+        throw new Error("entityId is required.");
+    }
+    return entityId;
+};
+
+const ensureActorUserId = (actorUserId: string | null | undefined) => {
+    if (!actorUserId || actorUserId.trim().length === 0) {
+        throw new Error("actorUserId is required.");
+    }
+    return actorUserId;
+};
+
+const normalizeRemarks = (remarks: string | null | undefined) => {
+    const normalized = remarks?.trim() ?? "";
+    return normalized.length > 0 ? normalized : null;
+};
+
+const ensureOwnedWallet = async (
+    tx: TxClient,
+    userId: string,
+    entityId: string,
+    walletId: string,
+    includeArchived = false,
+) => {
     const wallet = await tx.walletAccount.findFirst({
         where: {
             id: walletId,
             userId,
             entityId,
-            isArchived: false,
+            ...(includeArchived ? {} : { isArchived: false }),
+        },
+        select: {
+            id: true,
+            type: true,
+            name: true,
+            currentBalanceAmount: true,
         },
     });
 
@@ -49,6 +127,10 @@ const ensureOwnedEnvelope = async (
             userId,
             entityId,
             ...(includeArchived ? {} : { isArchived: false }),
+        },
+        select: {
+            id: true,
+            availablePhp: true,
         },
     });
 
@@ -82,6 +164,9 @@ const ensureOwnedIncomeStream = async (tx: TxClient, userId: string, entityId: s
             userId,
             entityId,
         },
+        select: {
+            id: true,
+        },
     });
 
     if (!incomeStream) {
@@ -89,54 +174,6 @@ const ensureOwnedIncomeStream = async (tx: TxClient, userId: string, entityId: s
     }
 
     return incomeStream;
-};
-
-const updateWalletBalance = async (tx: TxClient, walletId: string, delta: Prisma.Decimal) => {
-    await tx.walletAccount.update({
-        where: { id: walletId },
-        data: {
-            currentBalanceAmount: {
-                increment: delta,
-            },
-        },
-    });
-};
-
-const updateEnvelopeBalance = async (tx: TxClient, envelopeId: string, delta: Prisma.Decimal) => {
-    await tx.budgetEnvelope.update({
-        where: { id: envelopeId },
-        data: {
-            availablePhp: {
-                increment: delta,
-            },
-        },
-    });
-};
-
-const updateLoanForRepayment = async (tx: TxClient, loan: LoanRecord, amount: Prisma.Decimal) => {
-    const nextPaid = new Prisma.Decimal(loan.paidToDatePhp).add(amount);
-    const nextRemaining = new Prisma.Decimal(loan.remainingPhp).sub(amount);
-    const normalizedRemaining = nextRemaining.lt(0) ? new Prisma.Decimal(0) : nextRemaining;
-
-    await tx.loanRecord.update({
-        where: { id: loan.id },
-        data: {
-            paidToDatePhp: nextPaid,
-            remainingPhp: normalizedRemaining,
-            status: normalizedRemaining.eq(0) ? LoanStatus.PAID : loan.status,
-        },
-    });
-};
-
-const updateLoanForBorrow = async (tx: TxClient, loan: LoanRecord, amount: Prisma.Decimal) => {
-    const nextRemaining = new Prisma.Decimal(loan.remainingPhp).add(amount);
-    await tx.loanRecord.update({
-        where: { id: loan.id },
-        data: {
-            remainingPhp: nextRemaining,
-            status: LoanStatus.ACTIVE,
-        },
-    });
 };
 
 const ensureSystemEnvelope = async (
@@ -181,6 +218,7 @@ const resolveBudgetEnvelope = async (
     entityId: string,
     kind: TransactionKind,
     budgetEnvelopeId: string | null | undefined,
+    includeArchived = false,
 ) => {
     if (kind === TransactionKind.TRANSFER) {
         return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.transfer);
@@ -197,7 +235,8 @@ const resolveBudgetEnvelope = async (
     if (!budgetEnvelopeId) {
         return null;
     }
-    return ensureOwnedEnvelope(tx, userId, entityId, budgetEnvelopeId);
+
+    return ensureOwnedEnvelope(tx, userId, entityId, budgetEnvelopeId, includeArchived);
 };
 
 const resolveCountsTowardBudget = (kind: TransactionKind) => {
@@ -208,152 +247,567 @@ const resolveCountsTowardBudget = (kind: TransactionKind) => {
     );
 };
 
-const ensureEntityId = (entityId: string | null | undefined) => {
-    if (!entityId || entityId.trim().length === 0) {
-        throw new Error("entityId is required.");
+const toDecimal = (value: number) => new Prisma.Decimal(value);
+
+const decimalAbs = (value: Prisma.Decimal) => (value.lt(0) ? value.mul(-1) : value);
+
+const assertNoNegativeForNonAdjustment = (kind: TransactionKind, amount: number) => {
+    if (kind !== TransactionKind.ADJUSTMENT && amount <= 0) {
+        throw new Error("Amount must be greater than 0.");
     }
-    return entityId;
+    if (kind === TransactionKind.ADJUSTMENT && amount === 0) {
+        throw new Error("Adjustment amount must not be 0.");
+    }
 };
 
-export const postFinanceTransaction = async (params: PostTransactionParams) => {
-    const entityId = ensureEntityId(params.entityId);
+const assertWalletCanDecrease = (
+    wallet: { currentBalanceAmount: Prisma.Decimal; type: WalletAccountType },
+    amount: Prisma.Decimal,
+    message: string,
+) => {
+    if (wallet.type === WalletAccountType.CREDIT_CARD) {
+        return;
+    }
+    if (new Prisma.Decimal(wallet.currentBalanceAmount).lt(amount)) {
+        throw new Error(message);
+    }
+};
+
+const assertEnvelopeCanDecrease = (
+    envelope: { availablePhp: Prisma.Decimal },
+    amount: Prisma.Decimal,
+    message: string,
+) => {
+    if (new Prisma.Decimal(envelope.availablePhp).lt(amount)) {
+        throw new Error(message);
+    }
+};
+
+const syncCreditAccountBalance = async (
+    tx: TxClient,
+    userId: string,
+    walletName: string,
+    nextBalance: Prisma.Decimal,
+) => {
+    await tx.creditAccount.updateMany({
+        where: {
+            userId,
+            isArchived: false,
+            name: walletName,
+        },
+        data: {
+            currentBalanceAmount: nextBalance,
+        },
+    });
+};
+
+const updateWalletBalance = async (
+    tx: TxClient,
+    userId: string,
+    wallet: { id: string; type: WalletAccountType; name: string },
+    delta: Prisma.Decimal,
+) => {
+    const updated = await tx.walletAccount.update({
+        where: { id: wallet.id },
+        data: {
+            currentBalanceAmount: {
+                increment: delta,
+            },
+        },
+        select: {
+            id: true,
+            currentBalanceAmount: true,
+            type: true,
+            name: true,
+        },
+    });
+
+    if (updated.type === WalletAccountType.CREDIT_CARD) {
+        await syncCreditAccountBalance(tx, userId, updated.name, updated.currentBalanceAmount);
+    }
+
+    return updated;
+};
+
+const updateEnvelopeBalance = async (tx: TxClient, envelopeId: string, delta: Prisma.Decimal) => {
+    return tx.budgetEnvelope.update({
+        where: { id: envelopeId },
+        data: {
+            availablePhp: {
+                increment: delta,
+            },
+        },
+        select: {
+            id: true,
+            availablePhp: true,
+        },
+    });
+};
+
+const updateLoan = async (
+    tx: TxClient,
+    loan: LoanRecord,
+    remainingDelta: Prisma.Decimal,
+    paidDelta: Prisma.Decimal,
+) => {
+    const nextRemainingRaw = new Prisma.Decimal(loan.remainingPhp).add(remainingDelta);
+    const nextPaidRaw = new Prisma.Decimal(loan.paidToDatePhp).add(paidDelta);
+    if (nextRemainingRaw.lt(0)) {
+        throw new Error("Loan remaining balance cannot go below 0.");
+    }
+    if (nextPaidRaw.lt(0)) {
+        throw new Error("Loan paid amount cannot go below 0.");
+    }
+
+    return tx.loanRecord.update({
+        where: { id: loan.id },
+        data: {
+            remainingPhp: nextRemainingRaw,
+            paidToDatePhp: nextPaidRaw,
+            status: nextRemainingRaw.eq(0) ? LoanStatus.PAID : LoanStatus.ACTIVE,
+        },
+    });
+};
+
+const resolveContext = async (
+    tx: TxClient,
+    params: PostTransactionParams,
+    options: PostOptions,
+): Promise<ResolvedPostingContext> => {
+    const includeArchived = options.includeArchivedReferences ?? false;
 
     if (!params.walletAccountId) {
         throw new Error("Wallet account is required.");
     }
-    if (!Number.isFinite(params.amountPhp) || params.amountPhp <= 0) {
-        throw new Error("Amount must be greater than 0.");
+
+    const sourceWallet = await ensureOwnedWallet(
+        tx,
+        params.userId,
+        params.entityId,
+        params.walletAccountId,
+        includeArchived,
+    );
+
+    const targetWallet = params.targetWalletAccountId
+        ? await ensureOwnedWallet(
+            tx,
+            params.userId,
+            params.entityId,
+            params.targetWalletAccountId,
+            includeArchived,
+        )
+        : null;
+
+    const budgetEnvelope = await resolveBudgetEnvelope(
+        tx,
+        params.userId,
+        params.entityId,
+        params.kind,
+        params.budgetEnvelopeId,
+        includeArchived,
+    );
+
+    const loan = params.loanRecordId
+        ? await ensureOwnedLoan(tx, params.userId, params.entityId, params.loanRecordId)
+        : null;
+
+    const incomeStreamId = params.incomeStreamId
+        ? (await ensureOwnedIncomeStream(tx, params.userId, params.entityId, params.incomeStreamId)).id
+        : null;
+
+    return {
+        sourceWallet,
+        targetWallet,
+        budgetEnvelope,
+        loan,
+        incomeStreamId,
+    };
+};
+
+const validateByRule = (
+    params: PostTransactionParams,
+    context: ResolvedPostingContext,
+) => {
+    const rule = transactionRules[params.kind];
+    if (!rule) {
+        throw new Error("Unsupported transaction kind.");
     }
 
-    return prisma.$transaction(async (tx) => {
-        const amount = new Prisma.Decimal(params.amountPhp);
-        const negativeAmount = amount.mul(-1);
-        const sourceWallet = await ensureOwnedWallet(tx, params.userId, entityId, params.walletAccountId);
+    if (params.recordOnly && !rule.supportsRecordOnly) {
+        throw new Error("Record-only mode is not supported for this transaction kind.");
+    }
 
-        if (params.recordOnly) {
-            const budgetEnvelope = params.budgetEnvelopeId
-                ? await ensureOwnedEnvelope(tx, params.userId, entityId, params.budgetEnvelopeId)
-                : null;
-            const incomeStream = params.incomeStreamId
-                ? await ensureOwnedIncomeStream(tx, params.userId, entityId, params.incomeStreamId)
-                : null;
+    if (rule.requiresBudget && !context.budgetEnvelope) {
+        throw new Error("Budget envelope is required.");
+    }
 
-            return tx.financeTransaction.create({
-                data: {
-                    userId: params.userId,
-                    entityId,
-                    postedAt: params.postedAt ?? new Date(),
-                    kind: params.kind,
-                    amountPhp: amount,
-                    walletAccountId: sourceWallet.id,
-                    targetWalletAccountId: null,
-                    budgetEnvelopeId: budgetEnvelope?.id ?? null,
-                    incomeStreamId: incomeStream?.id ?? null,
-                    loanRecordId: null,
-                    countsTowardBudget: false,
-                    remarks: params.remarks?.trim() || null,
-                },
-            });
-        }
+    if (rule.requiresTargetWallet && !context.targetWallet) {
+        throw new Error("Target wallet is required for this transaction kind.");
+    }
 
-        const targetWallet = params.targetWalletAccountId
-            ? await ensureOwnedWallet(tx, params.userId, entityId, params.targetWalletAccountId)
-            : null;
-        const budgetEnvelope = await resolveBudgetEnvelope(tx, params.userId, entityId, params.kind, params.budgetEnvelopeId);
-        const loan = params.loanRecordId
-            ? await ensureOwnedLoan(tx, params.userId, entityId, params.loanRecordId)
-            : null;
-        const incomeStream = params.incomeStreamId
-            ? await ensureOwnedIncomeStream(tx, params.userId, entityId, params.incomeStreamId)
-            : null;
+    if (rule.requiresLoan && !context.loan) {
+        throw new Error("Loan record is required for this transaction kind.");
+    }
 
-        if (
-            (params.kind === TransactionKind.INCOME
-                || params.kind === TransactionKind.EXPENSE
-                || params.kind === TransactionKind.BUDGET_ALLOCATION
-                || params.kind === TransactionKind.CREDIT_CARD_CHARGE)
-            && !budgetEnvelope
-        ) {
-            throw new Error("Budget envelope is required.");
-        }
+    if (params.kind === TransactionKind.TRANSFER && context.targetWallet && context.targetWallet.id === context.sourceWallet.id) {
+        throw new Error("Source and target wallets must be different.");
+    }
 
-        if (params.kind === TransactionKind.TRANSFER && !targetWallet) {
-            throw new Error("Target wallet is required for transfers.");
-        }
+    if (params.kind === TransactionKind.CREDIT_CARD_CHARGE && context.sourceWallet.type !== WalletAccountType.CREDIT_CARD) {
+        throw new Error("Credit card charge must use a credit card wallet.");
+    }
 
-        if (params.kind === TransactionKind.CREDIT_CARD_PAYMENT && !targetWallet) {
+    if (params.kind === TransactionKind.CREDIT_CARD_PAYMENT) {
+        if (!context.targetWallet) {
             throw new Error("Credit card wallet is required for payment.");
         }
 
-        if (
-            (params.kind === TransactionKind.CREDIT_CARD_CHARGE || params.kind === TransactionKind.CREDIT_CARD_PAYMENT)
-            && sourceWallet.type !== WalletAccountType.CREDIT_CARD
-            && (!targetWallet || targetWallet.type !== WalletAccountType.CREDIT_CARD)
-        ) {
-            throw new Error("Credit card transactions require a credit card wallet.");
+        const sourceIsCredit = context.sourceWallet.type === WalletAccountType.CREDIT_CARD;
+        const targetIsCredit = context.targetWallet.type === WalletAccountType.CREDIT_CARD;
+        if (!sourceIsCredit && !targetIsCredit) {
+            throw new Error("Credit card payment requires one credit card wallet.");
         }
 
-        if ((params.kind === TransactionKind.LOAN_BORROW || params.kind === TransactionKind.LOAN_REPAY) && !loan) {
-            throw new Error("Loan record is required for this transaction.");
+        if (context.sourceWallet.id === context.targetWallet.id) {
+            throw new Error("Source and target wallets must be different.");
         }
+    }
 
-        switch (params.kind) {
-            case TransactionKind.INCOME:
-                await updateWalletBalance(tx, sourceWallet.id, amount);
-                await updateEnvelopeBalance(tx, budgetEnvelope!.id, amount);
-                break;
-            case TransactionKind.EXPENSE:
-                await updateWalletBalance(tx, sourceWallet.id, negativeAmount);
-                await updateEnvelopeBalance(tx, budgetEnvelope!.id, negativeAmount);
-                break;
-            case TransactionKind.BUDGET_ALLOCATION:
-                await updateWalletBalance(tx, sourceWallet.id, negativeAmount);
-                await updateEnvelopeBalance(tx, budgetEnvelope!.id, amount);
-                break;
-            case TransactionKind.TRANSFER:
-                await updateWalletBalance(tx, sourceWallet.id, negativeAmount);
-                await updateWalletBalance(tx, targetWallet!.id, amount);
-                break;
-            case TransactionKind.CREDIT_CARD_CHARGE:
-                await updateWalletBalance(tx, sourceWallet.id, amount);
-                await updateEnvelopeBalance(tx, budgetEnvelope!.id, negativeAmount);
-                break;
-            case TransactionKind.CREDIT_CARD_PAYMENT: {
-                const creditWallet = sourceWallet.type === WalletAccountType.CREDIT_CARD ? sourceWallet : targetWallet!;
-                const cashWallet = sourceWallet.type === WalletAccountType.CREDIT_CARD ? targetWallet! : sourceWallet;
-                await updateWalletBalance(tx, cashWallet.id, negativeAmount);
-                await updateWalletBalance(tx, creditWallet.id, negativeAmount);
-                break;
+    if (params.kind === TransactionKind.ADJUSTMENT) {
+        if (!params.adjustmentReasonCode) {
+            throw new Error("Adjustment reason code is required.");
+        }
+        if (!normalizeRemarks(params.remarks)) {
+            throw new Error("Adjustment remarks are required.");
+        }
+    }
+};
+
+const applyPostingEffects = async (
+    tx: TxClient,
+    params: PostTransactionParams,
+    context: ResolvedPostingContext,
+    amount: Prisma.Decimal,
+    reverse: boolean,
+) => {
+    const direction = reverse ? -1 : 1;
+    const amountAbs = decimalAbs(amount);
+    const positive = amountAbs;
+    const negative = amountAbs.mul(-1);
+
+    switch (params.kind) {
+        case TransactionKind.INCOME:
+            if (!context.budgetEnvelope) {
+                throw new Error("Budget envelope is required.");
             }
-            case TransactionKind.LOAN_BORROW:
-                await updateWalletBalance(tx, sourceWallet.id, amount);
-                await updateLoanForBorrow(tx, loan!, amount);
-                break;
-            case TransactionKind.LOAN_REPAY:
-                await updateWalletBalance(tx, sourceWallet.id, negativeAmount);
-                await updateLoanForRepayment(tx, loan!, amount);
-                break;
-            case TransactionKind.ADJUSTMENT:
-                await updateWalletBalance(tx, sourceWallet.id, amount);
-                break;
-            default:
-                throw new Error("Unsupported transaction kind.");
+            if (reverse) {
+                assertWalletCanDecrease(context.sourceWallet, positive, "Cannot reverse income because wallet balance would go negative.");
+                assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Cannot reverse income because budget envelope would go negative.");
+            }
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? positive : negative);
+            await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? positive : negative);
+            break;
+        case TransactionKind.EXPENSE:
+            if (!context.budgetEnvelope) {
+                throw new Error("Budget envelope is required.");
+            }
+            if (!reverse) {
+                assertWalletCanDecrease(context.sourceWallet, positive, "Insufficient wallet funds for expense.");
+                assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Budget envelope cannot go below 0.");
+            }
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? negative : positive);
+            break;
+        case TransactionKind.BUDGET_ALLOCATION:
+            if (!context.budgetEnvelope) {
+                throw new Error("Budget envelope is required.");
+            }
+            if (!reverse) {
+                assertWalletCanDecrease(context.sourceWallet, positive, "Insufficient wallet funds for budget allocation.");
+            } else {
+                assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Cannot reverse allocation because budget envelope would go negative.");
+            }
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? positive : negative);
+            break;
+        case TransactionKind.TRANSFER:
+            if (!context.targetWallet) {
+                throw new Error("Target wallet is required for transfer.");
+            }
+            if (!reverse) {
+                assertWalletCanDecrease(context.sourceWallet, positive, "Insufficient wallet funds for transfer.");
+            } else {
+                assertWalletCanDecrease(context.targetWallet, positive, "Cannot reverse transfer because target wallet would go negative.");
+            }
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, context.targetWallet, direction === 1 ? positive : negative);
+            break;
+        case TransactionKind.CREDIT_CARD_CHARGE: {
+            if (!context.budgetEnvelope) {
+                throw new Error("Budget envelope is required.");
+            }
+
+            if (!reverse) {
+                assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Budget envelope cannot go below 0.");
+                const linkedCard = await tx.creditAccount.findFirst({
+                    where: {
+                        userId: params.userId,
+                        isArchived: false,
+                        name: context.sourceWallet.name,
+                    },
+                    select: {
+                        creditLimitAmount: true,
+                        currentBalanceAmount: true,
+                    },
+                });
+                if (linkedCard) {
+                    const projected = new Prisma.Decimal(linkedCard.currentBalanceAmount).add(positive);
+                    if (projected.gt(linkedCard.creditLimitAmount)) {
+                        throw new Error("Credit card charge exceeds credit limit.");
+                    }
+                }
+            } else {
+                if (new Prisma.Decimal(context.sourceWallet.currentBalanceAmount).lt(positive)) {
+                    throw new Error("Cannot reverse charge because credit card debt would go below 0.");
+                }
+            }
+
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? positive : negative);
+            await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? negative : positive);
+            break;
+        }
+        case TransactionKind.CREDIT_CARD_PAYMENT: {
+            if (!context.targetWallet) {
+                throw new Error("Credit card wallet is required for payment.");
+            }
+
+            const sourceIsCredit = context.sourceWallet.type === WalletAccountType.CREDIT_CARD;
+            const creditWallet = sourceIsCredit ? context.sourceWallet : context.targetWallet;
+            const cashWallet = sourceIsCredit ? context.targetWallet : context.sourceWallet;
+
+            if (!reverse) {
+                assertWalletCanDecrease(cashWallet, positive, "Insufficient cash wallet funds for credit card payment.");
+                if (new Prisma.Decimal(creditWallet.currentBalanceAmount).lt(positive)) {
+                    throw new Error("Credit card payment cannot exceed outstanding debt.");
+                }
+            } else {
+                const linkedCard = await tx.creditAccount.findFirst({
+                    where: {
+                        userId: params.userId,
+                        isArchived: false,
+                        name: creditWallet.name,
+                    },
+                    select: {
+                        creditLimitAmount: true,
+                        currentBalanceAmount: true,
+                    },
+                });
+                if (linkedCard) {
+                    const projected = new Prisma.Decimal(linkedCard.currentBalanceAmount).add(positive);
+                    if (projected.gt(linkedCard.creditLimitAmount)) {
+                        throw new Error("Cannot reverse payment because credit limit would be exceeded.");
+                    }
+                }
+            }
+
+            await updateWalletBalance(tx, params.userId, cashWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, creditWallet, direction === 1 ? negative : positive);
+            break;
+        }
+        case TransactionKind.LOAN_BORROW:
+            if (!context.loan) {
+                throw new Error("Loan record is required for borrow.");
+            }
+            if (context.loan.status === LoanStatus.WRITTEN_OFF) {
+                throw new Error("Cannot borrow against a written-off loan.");
+            }
+            if (reverse && new Prisma.Decimal(context.loan.remainingPhp).lt(positive)) {
+                throw new Error("Cannot reverse borrow because remaining principal would go below 0.");
+            }
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? positive : negative);
+            await updateLoan(tx, context.loan, direction === 1 ? positive : negative, new Prisma.Decimal(0));
+            break;
+        case TransactionKind.LOAN_REPAY:
+            if (!context.loan) {
+                throw new Error("Loan record is required for repayment.");
+            }
+            if (context.loan.status === LoanStatus.INACTIVE || context.loan.status === LoanStatus.WRITTEN_OFF) {
+                throw new Error("Cannot repay an inactive or written-off loan.");
+            }
+            if (!reverse) {
+                assertWalletCanDecrease(context.sourceWallet, positive, "Insufficient wallet funds for loan repayment.");
+                if (new Prisma.Decimal(context.loan.remainingPhp).lt(positive)) {
+                    throw new Error("Loan repayment cannot exceed remaining principal.");
+                }
+            } else if (new Prisma.Decimal(context.loan.paidToDatePhp).lt(positive)) {
+                throw new Error("Cannot reverse repayment because paid amount would go below 0.");
+            }
+
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateLoan(tx, context.loan, direction === 1 ? negative : positive, direction === 1 ? positive : negative);
+            break;
+        case TransactionKind.ADJUSTMENT: {
+            const effectiveDelta = reverse ? amount.mul(-1) : amount;
+            if (effectiveDelta.lt(0)) {
+                assertWalletCanDecrease(
+                    context.sourceWallet,
+                    decimalAbs(effectiveDelta),
+                    "Adjustment would make wallet balance negative.",
+                );
+            }
+            await updateWalletBalance(tx, params.userId, context.sourceWallet, effectiveDelta);
+            break;
+        }
+        default:
+            throw new Error("Unsupported transaction kind.");
+    }
+};
+
+const postFinanceTransactionInTx = async (
+    tx: TxClient,
+    params: PostTransactionParams,
+    options: PostOptions = {},
+) => {
+    const entityId = ensureEntityId(params.entityId);
+    const actorUserId = ensureActorUserId(params.actorUserId);
+
+    if (!Number.isFinite(params.amountPhp)) {
+        throw new Error("Amount must be a valid number.");
+    }
+
+    assertNoNegativeForNonAdjustment(params.kind, params.amountPhp);
+
+    const amount = toDecimal(params.amountPhp);
+    const context = await resolveContext(tx, { ...params, entityId, actorUserId }, options);
+    validateByRule(params, context);
+
+    if (!params.recordOnly) {
+        await applyPostingEffects(tx, params, context, amount, Boolean(options.reverse));
+    }
+
+    return tx.financeTransaction.create({
+        data: {
+            userId: params.userId,
+            actorUserId,
+            entityId,
+            postedAt: params.postedAt ?? new Date(),
+            kind: params.kind,
+            amountPhp: amount,
+            walletAccountId: context.sourceWallet.id,
+            targetWalletAccountId: context.targetWallet?.id ?? null,
+            budgetEnvelopeId: context.budgetEnvelope?.id ?? null,
+            incomeStreamId: context.incomeStreamId,
+            loanRecordId: context.loan?.id ?? null,
+            adjustmentReasonCode: params.kind === TransactionKind.ADJUSTMENT ? params.adjustmentReasonCode ?? null : null,
+            isReversal: Boolean(options.reverse),
+            reversedTransactionId: options.reversedTransactionId ?? null,
+            countsTowardBudget: params.recordOnly || options.reverse ? false : resolveCountsTowardBudget(params.kind),
+            remarks: normalizeRemarks(params.remarks),
+        },
+    });
+};
+
+export const postFinanceTransaction = async (params: PostTransactionParams) => {
+    return prisma.$transaction((tx) => postFinanceTransactionInTx(tx, params));
+};
+
+export const postFinanceTransactionsBatch = async (paramsList: PostTransactionParams[]) => {
+    if (paramsList.length === 0) {
+        return [];
+    }
+
+    return prisma.$transaction(async (tx) => {
+        const created = [];
+        for (const params of paramsList) {
+            created.push(await postFinanceTransactionInTx(tx, params));
+        }
+        return created;
+    });
+};
+
+export const reconcileWalletBalanceWithAdjustment = async (params: {
+    userId: string;
+    entityId: string;
+    actorUserId: string;
+    walletAccountId: string;
+    targetBalancePhp: number;
+    remarks: string;
+    reasonCode: AdjustmentReasonCode;
+}) => {
+    return prisma.$transaction(async (tx) => {
+        const wallet = await ensureOwnedWallet(tx, params.userId, params.entityId, params.walletAccountId);
+        const targetBalance = toDecimal(params.targetBalancePhp);
+        const delta = targetBalance.sub(new Prisma.Decimal(wallet.currentBalanceAmount));
+
+        if (delta.eq(0)) {
+            return wallet;
         }
 
-        return tx.financeTransaction.create({
+        await postFinanceTransactionInTx(tx, {
+            userId: params.userId,
+            entityId: params.entityId,
+            actorUserId: params.actorUserId,
+            kind: TransactionKind.ADJUSTMENT,
+            amountPhp: Number(delta),
+            walletAccountId: wallet.id,
+            adjustmentReasonCode: params.reasonCode,
+            remarks: params.remarks,
+        });
+
+        return tx.walletAccount.findUnique({
+            where: { id: wallet.id },
+        });
+    });
+};
+
+export const syncBudgetEnvelopeAvailableForImport = async (params: {
+    userId: string;
+    entityId: string;
+    budgetEnvelopeId: string;
+    targetAvailablePhp: number;
+}) => {
+    return prisma.$transaction(async (tx) => {
+        if (!Number.isFinite(params.targetAvailablePhp) || params.targetAvailablePhp < 0) {
+            throw new Error("Target budget available amount must be greater than or equal to 0.");
+        }
+
+        const envelope = await ensureOwnedEnvelope(tx, params.userId, params.entityId, params.budgetEnvelopeId, true);
+        const targetAvailable = toDecimal(params.targetAvailablePhp);
+        const delta = targetAvailable.sub(new Prisma.Decimal(envelope.availablePhp));
+        if (delta.eq(0)) {
+            return envelope;
+        }
+
+        return updateEnvelopeBalance(tx, envelope.id, delta);
+    });
+};
+
+export const syncLoanSnapshotForImport = async (params: {
+    userId: string;
+    entityId: string;
+    loanRecordId: string;
+    principalPhp: number;
+    paidToDatePhp: number;
+    remainingPhp: number;
+    status: LoanStatus;
+}) => {
+    return prisma.$transaction(async (tx) => {
+        const loan = await ensureOwnedLoan(tx, params.userId, params.entityId, params.loanRecordId);
+        const principalPhp = toDecimal(params.principalPhp);
+        const paidToDatePhp = toDecimal(params.paidToDatePhp);
+        const remainingPhp = toDecimal(params.remainingPhp);
+
+        if (principalPhp.lt(0) || paidToDatePhp.lt(0) || remainingPhp.lt(0)) {
+            throw new Error("Loan amounts cannot be negative.");
+        }
+
+        return tx.loanRecord.update({
+            where: { id: loan.id },
             data: {
-                userId: params.userId,
-                entityId,
-                postedAt: params.postedAt ?? new Date(),
-                kind: params.kind,
-                amountPhp: amount,
-                walletAccountId: sourceWallet.id,
-                targetWalletAccountId: targetWallet?.id ?? null,
-                budgetEnvelopeId: budgetEnvelope?.id ?? null,
-                incomeStreamId: incomeStream?.id ?? null,
-                loanRecordId: loan?.id ?? null,
-                countsTowardBudget: resolveCountsTowardBudget(params.kind),
-                remarks: params.remarks?.trim() || null,
+                principalPhp,
+                paidToDatePhp,
+                remainingPhp,
+                status: params.status,
             },
         });
     });
@@ -362,17 +816,26 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
 export const deleteFinanceTransactionWithReversal = async (
     userId: string,
     entityId: string,
+    actorUserId: string,
     transactionId: string,
 ) => {
+    const safeEntityId = ensureEntityId(entityId);
+    const safeActorUserId = ensureActorUserId(actorUserId);
+
     return prisma.$transaction(async (tx) => {
         const transaction = await tx.financeTransaction.findFirst({
             where: {
                 id: transactionId,
                 userId,
-                entityId,
+                entityId: safeEntityId,
+                isReversal: false,
             },
             include: {
-                loanRecord: true,
+                reversalTransaction: {
+                    select: {
+                        id: true,
+                    },
+                },
             },
         });
 
@@ -380,90 +843,55 @@ export const deleteFinanceTransactionWithReversal = async (
             throw new Error("Transaction not found.");
         }
 
-        if (isRecordOnlyTransaction(transaction)) {
-            await tx.financeTransaction.delete({
-                where: { id: transaction.id },
-            });
-            return;
+        if (transaction.voidedAt) {
+            throw new Error("Transaction is already voided.");
         }
 
-        const amount = new Prisma.Decimal(transaction.amountPhp);
-        const negativeAmount = amount.mul(-1);
-
-        switch (transaction.kind) {
-            case TransactionKind.INCOME:
-                await updateWalletBalance(tx, transaction.walletAccountId, negativeAmount);
-                if (transaction.budgetEnvelopeId) {
-                    await updateEnvelopeBalance(tx, transaction.budgetEnvelopeId, negativeAmount);
-                }
-                break;
-            case TransactionKind.EXPENSE:
-                await updateWalletBalance(tx, transaction.walletAccountId, amount);
-                if (transaction.budgetEnvelopeId) {
-                    await updateEnvelopeBalance(tx, transaction.budgetEnvelopeId, amount);
-                }
-                break;
-            case TransactionKind.BUDGET_ALLOCATION:
-                await updateWalletBalance(tx, transaction.walletAccountId, amount);
-                if (transaction.budgetEnvelopeId) {
-                    await updateEnvelopeBalance(tx, transaction.budgetEnvelopeId, negativeAmount);
-                }
-                break;
-            case TransactionKind.TRANSFER:
-                await updateWalletBalance(tx, transaction.walletAccountId, amount);
-                if (transaction.targetWalletAccountId) {
-                    await updateWalletBalance(tx, transaction.targetWalletAccountId, negativeAmount);
-                }
-                break;
-            case TransactionKind.CREDIT_CARD_CHARGE:
-                await updateWalletBalance(tx, transaction.walletAccountId, negativeAmount);
-                if (transaction.budgetEnvelopeId) {
-                    await updateEnvelopeBalance(tx, transaction.budgetEnvelopeId, amount);
-                }
-                break;
-            case TransactionKind.CREDIT_CARD_PAYMENT:
-                await updateWalletBalance(tx, transaction.walletAccountId, amount);
-                if (transaction.targetWalletAccountId) {
-                    await updateWalletBalance(tx, transaction.targetWalletAccountId, amount);
-                }
-                break;
-            case TransactionKind.LOAN_BORROW:
-                await updateWalletBalance(tx, transaction.walletAccountId, negativeAmount);
-                if (transaction.loanRecordId && transaction.loanRecord) {
-                    const nextRemaining = new Prisma.Decimal(transaction.loanRecord.remainingPhp).sub(amount);
-                    await tx.loanRecord.update({
-                        where: { id: transaction.loanRecordId },
-                        data: {
-                            remainingPhp: nextRemaining.lt(0) ? new Prisma.Decimal(0) : nextRemaining,
-                            status: nextRemaining.lte(0) ? LoanStatus.PAID : LoanStatus.ACTIVE,
-                        },
-                    });
-                }
-                break;
-            case TransactionKind.LOAN_REPAY:
-                await updateWalletBalance(tx, transaction.walletAccountId, amount);
-                if (transaction.loanRecordId && transaction.loanRecord) {
-                    const nextPaid = new Prisma.Decimal(transaction.loanRecord.paidToDatePhp).sub(amount);
-                    const nextRemaining = new Prisma.Decimal(transaction.loanRecord.remainingPhp).add(amount);
-                    await tx.loanRecord.update({
-                        where: { id: transaction.loanRecordId },
-                        data: {
-                            paidToDatePhp: nextPaid.lt(0) ? new Prisma.Decimal(0) : nextPaid,
-                            remainingPhp: nextRemaining,
-                            status: LoanStatus.ACTIVE,
-                        },
-                    });
-                }
-                break;
-            case TransactionKind.ADJUSTMENT:
-                await updateWalletBalance(tx, transaction.walletAccountId, negativeAmount);
-                break;
-            default:
-                throw new Error("Unsupported transaction kind.");
+        if (transaction.reversalTransaction) {
+            throw new Error("Transaction already has a reversal entry.");
         }
 
-        await tx.financeTransaction.delete({
-            where: { id: transaction.id },
+        const remarksPrefix = normalizeRemarks(transaction.remarks);
+        const reversalRemarks = remarksPrefix
+            ? `Reversal of transaction ${transaction.id}: ${remarksPrefix}`
+            : `Reversal of transaction ${transaction.id}.`;
+
+        const reversalInput: PostTransactionParams = {
+            userId,
+            entityId: safeEntityId,
+            actorUserId: safeActorUserId,
+            kind: transaction.kind,
+            recordOnly: isRecordOnlyTransaction(transaction),
+            postedAt: transaction.postedAt,
+            amountPhp: Number(transaction.amountPhp),
+            walletAccountId: transaction.walletAccountId,
+            budgetEnvelopeId: transaction.budgetEnvelopeId,
+            targetWalletAccountId: transaction.targetWalletAccountId,
+            incomeStreamId: transaction.incomeStreamId,
+            loanRecordId: transaction.loanRecordId,
+            remarks: reversalRemarks,
+            adjustmentReasonCode:
+                transaction.kind === TransactionKind.ADJUSTMENT
+                    ? (transaction.adjustmentReasonCode ?? AdjustmentReasonCode.MANUAL_FIX)
+                    : null,
+        };
+
+        const reversal = await postFinanceTransactionInTx(tx, reversalInput, {
+            reverse: true,
+            reversedTransactionId: transaction.id,
+            includeArchivedReferences: true,
         });
+
+        await tx.financeTransaction.update({
+            where: {
+                id: transaction.id,
+            },
+            data: {
+                voidedAt: new Date(),
+                voidedByUserId: safeActorUserId,
+            },
+        });
+
+        return reversal;
     });
 };

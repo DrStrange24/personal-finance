@@ -38,6 +38,7 @@ This document lists the technologies currently used in this project.
 
 - ESLint `9.x`
 - `eslint-config-next` `16.1.6`
+- Vitest `4.x`
 - Type definitions: `@types/node`, `@types/react`, `@types/react-dom`, `@types/jsonwebtoken`, `@types/bcryptjs`
 
 ## Runtime and Package Management

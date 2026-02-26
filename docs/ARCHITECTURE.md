@@ -42,7 +42,10 @@ Enums:
 ## Transaction Posting Engine
 
 Central posting logic lives in `lib/finance/posting-engine.ts`.
-The same module also handles transaction delete with balance reversal.
+Create-flow orchestration shared by Dashboard and Transactions routes lives in
+`lib/finance/transaction-orchestration.ts`.
+
+Delete behavior is reversal-based (no hard delete).
 
 Implemented behavior:
 
@@ -54,7 +57,21 @@ Implemented behavior:
 - `CREDIT_CARD_PAYMENT`: cash wallet -, credit-card wallet debt -, uses system envelope
 - `LOAN_BORROW`: wallet +, loan remaining +, uses system envelope
 - `LOAN_REPAY`: wallet -, loan paid + and remaining -, uses system envelope
-- `ADJUSTMENT`: wallet +
+- `ADJUSTMENT`: wallet +/- (requires reason code + remarks)
+
+Audit fields on `FinanceTransaction`:
+
+- `actorUserId`
+- `adjustmentReasonCode`
+- `isReversal`
+- `reversedTransactionId`
+- `voidedAt`
+- `voidedByUserId`
+
+Active query contract for KPI/list views:
+
+- `isReversal = false`
+- `voidedAt IS NULL`
 
 System envelopes are auto-created in bootstrap:
 
@@ -84,6 +101,7 @@ Two-step import flow:
 2. `POST /api/imports/commit`
    - reads staged import by `importId`
    - commits into wallet accounts, investments, income streams, budgets, loans, and monthly overview compatibility rows
+   - wallet balance reconciliation uses posting-engine adjustment flows
 
 ## Styling
 

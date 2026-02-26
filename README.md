@@ -9,6 +9,7 @@ Project documentation lives in `docs/`.
 - Folder placement policy: `AGENTS.md` and `docs/FOLDER_STRUCTURE_CONVENTIONS.md`
 - Technology inventory: `docs/TECH_STACK.md`
 - Data access convention: prefer Server Components for page data; use `app/api/*` from Client Components for browser-driven operations
+- Posting engine rule matrix: `docs/POSTING_ENGINE_MATRIX.md`
 
 ## Current App Routes
 
@@ -83,6 +84,12 @@ Run development server:
 npm run dev
 ```
 
+Run tests:
+
+```bash
+npm run test
+```
+
 Open [http://localhost:3000](http://localhost:3000).
 
 ## Workbook Import Flow
@@ -107,7 +114,9 @@ Supported workbook sheets:
 - PHP-only currency model.
 - `FinanceEntity` is the accounting boundary for `WalletAccount`, `BudgetEnvelope`, `LoanRecord`, `IncomeStream`, and `FinanceTransaction`.
 - Posting engine strictly validates entity consistency across linked records (wallet/budget/loan/income/target wallet).
-- Every manual add/deduct flow records a ledger transaction.
+- Every manual add/deduct flow records a ledger transaction with `actorUserId`.
+- Transaction delete is reversal-based (no hard delete): reversal row + voided original linkage.
+- Active KPI/list queries exclude reversal rows and voided originals (`isReversal = false`, `voidedAt IS NULL`).
 - Investments are managed in `Investment` records with unit value tracking and estimated PHP valuation in UI.
 - Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.
 - Credit accounts are managed in dedicated `CreditAccount` records via `/credit`.

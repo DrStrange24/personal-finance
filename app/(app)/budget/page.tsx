@@ -40,7 +40,6 @@ export default async function BudgetPage() {
         const actionSession = await getAuthenticatedEntitySession();
         const name = parseRequiredName(formData.get("name"));
         const monthlyTargetResult = parseMoneyInput(formData.get("monthlyTargetPhp"), true);
-        const availableResult = parseMoneyInput(formData.get("availablePhp"), true);
         const payToResult = parseOptionalText(formData.get("payTo"), 80);
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
@@ -48,8 +47,6 @@ export default async function BudgetPage() {
             !name
             || !monthlyTargetResult.ok
             || monthlyTargetResult.value === null
-            || !availableResult.ok
-            || availableResult.value === null
             || !payToResult.ok
             || !remarksResult.ok
         ) {
@@ -74,7 +71,7 @@ export default async function BudgetPage() {
                     entityId: actionSession.activeEntity.id,
                     name,
                     monthlyTargetPhp: monthlyTargetResult.value,
-                    availablePhp: availableResult.value,
+                    availablePhp: 0,
                     payTo: payToResult.value,
                     remarks: remarksResult.value,
                     sortOrder: (maxSortOrder._max.sortOrder ?? 0) + 1,
@@ -208,6 +205,7 @@ export default async function BudgetPage() {
             await postFinanceTransaction({
                 userId: actionSession.userId,
                 entityId: actionSession.activeEntity.id,
+                actorUserId: actionSession.userId,
                 kind: "BUDGET_ALLOCATION",
                 postedAt,
                 amountPhp: amountResult.value,
