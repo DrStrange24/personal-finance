@@ -186,6 +186,7 @@ export default async function DashboardPage() {
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
+        plainLabel: wallet.name,
         label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
         type: wallet.type,
     }));

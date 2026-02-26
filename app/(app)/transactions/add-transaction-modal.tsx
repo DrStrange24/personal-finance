@@ -10,12 +10,14 @@ import { transactionKindLabel } from "@/lib/finance/types";
 
 type FormOption = {
     id: string;
+    plainLabel?: string;
     label: string;
     type?: WalletAccountType;
 };
 
 type BudgetOption = {
     id: string;
+    plainLabel?: string;
     label: string;
     targetLabel?: string;
     targetAmountPhp?: number;
@@ -271,7 +273,7 @@ export default function AddTransactionModal({
                                 </option>
                                 {sourceWallets.map((wallet) => (
                                     <option key={wallet.id} value={wallet.id}>
-                                        {wallet.label}
+                                        {recordOnly ? (wallet.plainLabel ?? wallet.label) : wallet.label}
                                     </option>
                                 ))}
                             </select>
@@ -307,7 +309,7 @@ export default function AddTransactionModal({
                                     <option value="">{recordOnly ? "Optional" : "Select budget envelope"}</option>
                                     {budgets.map((budget) => (
                                         <option key={budget.id} value={budget.id}>
-                                            {budget.label}
+                                            {recordOnly ? (budget.plainLabel ?? budget.label) : budget.label}
                                         </option>
                                     ))}
                                 </select>
