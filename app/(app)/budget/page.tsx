@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { BudgetEnvelopeSystemType, WalletAccountType } from "@prisma/client";
+import { WalletAccountType } from "@prisma/client";
 import AddBudgetEnvelopeModal from "./add-budget-envelope-modal";
 import AllocateBudgetModal from "./allocate-budget-modal";
 import BudgetEnvelopeTable from "./budget-envelope-table";
@@ -9,7 +9,7 @@ import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { formatPhp } from "@/lib/finance/money";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
-import { getBudgetStatsAcrossEntities } from "@/lib/finance/queries";
+import { calculateUnallocatedBudgetPhp, getBudgetStatsAcrossEntities } from "@/lib/finance/queries";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -294,24 +294,31 @@ export default async function BudgetPage() {
         remarks: budget.remarks,
         rolloverEnabled: budget.rolloverEnabled,
     }));
-    const liquidWalletBalancePhp = context.wallets.reduce((total, wallet) => {
-        if (
-            wallet.type !== WalletAccountType.CASH
-            && wallet.type !== WalletAccountType.BANK
-            && wallet.type !== WalletAccountType.E_WALLET
-        ) {
+    const totalWalletBalancePhp = context.wallets.reduce((total, wallet) => {
+        if (wallet.type === WalletAccountType.CREDIT_CARD || wallet.type === WalletAccountType.ASSET) {
             return total;
         }
         return total + Number(wallet.currentBalanceAmount);
     }, 0);
-    const allocatedBudgetPhp = budgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
-    const totalCreditPaymentReservePhp = context.budgets.reduce((total, budget) => {
-        if (!budget.isSystem || budget.systemType !== BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT) {
-            return total;
-        }
-        return total + Number(budget.availablePhp);
-    }, 0);
-    const unallocatedCashPhp = liquidWalletBalancePhp - (allocatedBudgetPhp + totalCreditPaymentReservePhp);
+    const budgetAvailablePhp = budgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
+    const creditCardDebtAggregate = await prisma.creditAccount.aggregate({
+        where: {
+            userId: session.userId,
+            isArchived: false,
+            entity: {
+                isArchived: false,
+            },
+        },
+        _sum: {
+            currentBalanceAmount: true,
+        },
+    });
+    const totalCreditCardDebtPhp = Number(creditCardDebtAggregate._sum.currentBalanceAmount ?? 0);
+    const unallocatedCashPhp = calculateUnallocatedBudgetPhp(
+        totalWalletBalancePhp,
+        budgetAvailablePhp,
+        totalCreditCardDebtPhp,
+    );
 
     return (
         <section className="d-grid gap-4">
@@ -336,7 +343,7 @@ export default async function BudgetPage() {
                 <MetricCard
                     label="Unallocated Cash"
                     value={formatPhp(unallocatedCashPhp)}
-                    helper="Liquid wallets minus (allocated budget plus credit payment reserves)."
+                    helper="Wallet balance minus (allocated budget plus credit card debt)."
                 />
             </div>
 

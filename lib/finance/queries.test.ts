@@ -82,7 +82,7 @@ describe("queries", () => {
         expect(summary.totalAssetsPhp).toBe(1400);
         expect(summary.netPositionPhp).toBe(800);
         expect(summary.budgetAvailablePhp).toBe(300);
-        expect(summary.unallocatedCashPhp).toBe(-200);
+        expect(summary.unallocatedCashPhp).toBe(500);
         expect(summary.monthIncomePhp).toBe(500);
         expect(summary.monthExpensePhp).toBe(200);
         expect(summary.monthNetCashflowPhp).toBe(300);

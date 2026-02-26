@@ -52,6 +52,14 @@ const sumTransactionKind = (
     return Number(row?._sum.amountPhp ?? 0);
 };
 
+export const calculateUnallocatedBudgetPhp = (
+    totalWalletBalancePhp: number,
+    budgetAvailablePhp: number,
+    totalCreditCardDebtPhp: number,
+) => {
+    return totalWalletBalancePhp - (budgetAvailablePhp + totalCreditCardDebtPhp);
+};
+
 export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
     return getDashboardSummaryWithScope(userId, entityId);
 };
@@ -203,7 +211,11 @@ const getDashboardSummaryWithScope = async (userId: string, entityId?: string): 
             totalInvestmentPhp: totalEstimatedInvestmentsPhp,
             netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
             budgetAvailablePhp,
-            unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditCardDebtPhp),
+            unallocatedCashPhp: calculateUnallocatedBudgetPhp(
+                totalWalletBalancePhp,
+                budgetAvailablePhp,
+                totalCreditCardDebtPhp,
+            ),
             monthlyTotalIncomePhp,
             monthIncomePhp,
             monthExpensePhp,
