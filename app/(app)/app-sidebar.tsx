@@ -6,10 +6,8 @@ import { type SVGProps, useEffect, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
-import Modal from "react-bootstrap/Modal";
 import Nav from "react-bootstrap/Nav";
 import NavLink from "react-bootstrap/NavLink";
-import ConfirmationModal from "@/app/components/confirmation-modal";
 import { ACTIVE_FINANCE_ENTITY_STORAGE_KEY } from "@/lib/finance/constants";
 
 type IconProps = SVGProps<SVGSVGElement>;
@@ -25,9 +23,6 @@ type AppSidebarProps = {
     entities: SidebarEntity[];
     activeEntityId: string;
     setActiveEntityAction: (entityId: string) => Promise<void>;
-    createEntityAction: (name: string, type: EntityType) => Promise<void>;
-    updateEntityAction: (entityId: string, name: string, type: EntityType) => Promise<void>;
-    deleteEntityAction: (entityId: string) => Promise<void>;
 };
 
 const WalletIcon = (props: IconProps) => (
@@ -99,6 +94,14 @@ const CreditIcon = (props: IconProps) => (
     </svg>
 );
 
+const EntityIcon = (props: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <rect x="3.5" y="4" width="7" height="7" rx="1.5" />
+        <rect x="13.5" y="4" width="7" height="7" rx="1.5" />
+        <rect x="8.5" y="13" width="7" height="7" rx="1.5" />
+    </svg>
+);
+
 const CalendarIcon = (props: IconProps) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
         <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
@@ -136,6 +139,7 @@ const links = [
     { href: "/loan", label: "Loan", Icon: LoanIcon },
     { href: "/credit", label: "Credit", Icon: CreditIcon },
     { href: "/wallet", label: "Wallet", Icon: WalletIcon },
+    { href: "/entity", label: "Entity", Icon: EntityIcon },
     { href: "/monthly-overview", label: "Monthly Overview", Icon: CalendarIcon },
 ];
 
@@ -148,9 +152,6 @@ export default function AppSidebar({
     entities,
     activeEntityId,
     setActiveEntityAction,
-    createEntityAction,
-    updateEntityAction,
-    deleteEntityAction,
 }: AppSidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
@@ -158,15 +159,6 @@ export default function AppSidebar({
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [selectedEntityId, setSelectedEntityId] = useState(activeEntityId);
     const [isSwitchingEntity, setIsSwitchingEntity] = useState(false);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [isEditOpen, setIsEditOpen] = useState(false);
-    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-    const [createName, setCreateName] = useState("");
-    const [createType, setCreateType] = useState<EntityType>("PERSONAL");
-    const [editName, setEditName] = useState("");
-    const [editType, setEditType] = useState<EntityType>("PERSONAL");
-    const [entityError, setEntityError] = useState<string | null>(null);
-    const [isMutatingEntity, setIsMutatingEntity] = useState(false);
 
     useEffect(() => {
         setSelectedEntityId(activeEntityId);
@@ -196,63 +188,6 @@ export default function AppSidebar({
             setSelectedEntityId(previousEntityId);
         } finally {
             setIsSwitchingEntity(false);
-        }
-    };
-
-    const handleCreateEntity = async () => {
-        if (isMutatingEntity) return;
-        setEntityError(null);
-        setIsMutatingEntity(true);
-        try {
-            await createEntityAction(createName, createType);
-            setCreateName("");
-            setCreateType("PERSONAL");
-            setIsCreateOpen(false);
-            router.refresh();
-        } catch (error) {
-            setEntityError(error instanceof Error ? error.message : "Could not create entity.");
-        } finally {
-            setIsMutatingEntity(false);
-        }
-    };
-
-    const openEditModal = () => {
-        if (!selectedEntity) {
-            return;
-        }
-        setEntityError(null);
-        setEditName(selectedEntity.name);
-        setEditType(selectedEntity.type);
-        setIsEditOpen(true);
-    };
-
-    const handleUpdateEntity = async () => {
-        if (!selectedEntity || isMutatingEntity) return;
-        setEntityError(null);
-        setIsMutatingEntity(true);
-        try {
-            await updateEntityAction(selectedEntity.id, editName, editType);
-            setIsEditOpen(false);
-            router.refresh();
-        } catch (error) {
-            setEntityError(error instanceof Error ? error.message : "Could not update entity.");
-        } finally {
-            setIsMutatingEntity(false);
-        }
-    };
-
-    const handleDeleteEntity = async () => {
-        if (!selectedEntity || isMutatingEntity) return;
-        setEntityError(null);
-        setIsMutatingEntity(true);
-        try {
-            await deleteEntityAction(selectedEntity.id);
-            setIsDeleteOpen(false);
-            router.refresh();
-        } catch (error) {
-            setEntityError(error instanceof Error ? error.message : "Could not delete entity.");
-        } finally {
-            setIsMutatingEntity(false);
         }
     };
 
@@ -321,47 +256,14 @@ export default function AppSidebar({
                                 </option>
                             ))}
                         </select>
+                        {selectedEntity && (
+                            <small className="d-block mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                Active: {selectedEntity.name} ({entityTypeLabel[selectedEntity.type]})
+                            </small>
+                        )}
                         {isSwitchingEntity && (
                             <small className="d-block mt-1" style={{ color: "var(--color-text-muted)" }}>
                                 Switching entity...
-                            </small>
-                        )}
-                        <div className="d-flex flex-wrap gap-2 mt-2">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() => {
-                                    setEntityError(null);
-                                    setCreateName("");
-                                    setCreateType("PERSONAL");
-                                    setIsCreateOpen(true);
-                                }}
-                            >
-                                Add
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline-secondary"
-                                onClick={openEditModal}
-                                disabled={!selectedEntity}
-                            >
-                                Edit
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => setIsDeleteOpen(true)}
-                                disabled={!selectedEntity}
-                            >
-                                Delete
-                            </Button>
-                        </div>
-                        {entityError && (
-                            <small className="d-block mt-2 text-danger">
-                                {entityError}
                             </small>
                         )}
                     </div>
@@ -409,91 +311,6 @@ export default function AppSidebar({
                     {!isCollapsed && (isLoggingOut ? "Logging out..." : "Logout")}
                 </Button>
             </CardBody>
-
-            <Modal show={isCreateOpen} onHide={() => setIsCreateOpen(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Add Entity</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="d-grid gap-2">
-                    <label className="small fw-semibold" htmlFor="entity-create-name">Name</label>
-                    <input
-                        id="entity-create-name"
-                        className="form-control"
-                        value={createName}
-                        onChange={(event) => setCreateName(event.target.value)}
-                        maxLength={80}
-                        placeholder="Entity name"
-                    />
-                    <label className="small fw-semibold mt-2" htmlFor="entity-create-type">Type</label>
-                    <select
-                        id="entity-create-type"
-                        className="form-control"
-                        value={createType}
-                        onChange={(event) => setCreateType(event.target.value as EntityType)}
-                    >
-                        <option value="PERSONAL">Personal</option>
-                        <option value="BUSINESS">Business</option>
-                    </select>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="outline-secondary" onClick={() => setIsCreateOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleCreateEntity} disabled={isMutatingEntity}>
-                        {isMutatingEntity ? "Saving..." : "Create"}
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-
-            <Modal show={isEditOpen} onHide={() => setIsEditOpen(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Edit Entity</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="d-grid gap-2">
-                    <label className="small fw-semibold" htmlFor="entity-edit-name">Name</label>
-                    <input
-                        id="entity-edit-name"
-                        className="form-control"
-                        value={editName}
-                        onChange={(event) => setEditName(event.target.value)}
-                        maxLength={80}
-                        placeholder="Entity name"
-                    />
-                    <label className="small fw-semibold mt-2" htmlFor="entity-edit-type">Type</label>
-                    <select
-                        id="entity-edit-type"
-                        className="form-control"
-                        value={editType}
-                        onChange={(event) => setEditType(event.target.value as EntityType)}
-                    >
-                        <option value="PERSONAL">Personal</option>
-                        <option value="BUSINESS">Business</option>
-                    </select>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="outline-secondary" onClick={() => setIsEditOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleUpdateEntity} disabled={isMutatingEntity || !selectedEntity}>
-                        {isMutatingEntity ? "Saving..." : "Save"}
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-
-            <ConfirmationModal
-                isOpen={isDeleteOpen}
-                title="Delete Entity"
-                message={selectedEntity
-                    ? `Delete "${selectedEntity.name}"? Related financial records will be deleted by cascade.`
-                    : "Delete selected entity?"}
-                confirmLabel={isMutatingEntity ? "Deleting..." : "Delete"}
-                onCancel={() => {
-                    if (!isMutatingEntity) {
-                        setIsDeleteOpen(false);
-                    }
-                }}
-                onConfirm={handleDeleteEntity}
-            />
         </Card>
     );
 }

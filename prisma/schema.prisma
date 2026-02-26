@@ -66,6 +66,7 @@ model FinanceEntity {
   userId      String
   name        String
   type        EntityType
+  isArchived  Boolean              @default(false)
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -77,6 +78,7 @@ model FinanceEntity {
 
   @@index([userId, createdAt])
   @@index([userId, type])
+  @@index([userId, isArchived, createdAt])
 }
 
 model MonthlyOverviewEntry {

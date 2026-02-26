@@ -33,6 +33,10 @@
       - page.tsx (credit card account management page shell + server actions)
       - add-credit-account-modal.tsx (credit account create modal trigger/form with icon action)
       - credit-account-table.tsx (credit account table + edit modal + icon edit/archive actions)
+    - entity/
+      - page.tsx (finance entity management page shell + server actions)
+      - add-entity-modal.tsx (icon-triggered entity create modal)
+      - entity-table.tsx (entity table with icon edit/delete actions + edit modal)
     - wallet/
       - page.tsx (wallet account management page shell + server actions)
       - add-wallet-account-modal.tsx (wallet account create modal trigger/form)

@@ -30,6 +30,7 @@ const migrateUser = async (userId: string): Promise<PerUserMigrationResult> => {
                 userId,
                 name: DEFAULT_ENTITY_NAME,
                 type: EntityType.PERSONAL,
+                isArchived: false,
             },
             orderBy: [{ createdAt: "asc" }],
             select: { id: true },
@@ -41,6 +42,7 @@ const migrateUser = async (userId: string): Promise<PerUserMigrationResult> => {
                     userId,
                     name: DEFAULT_ENTITY_NAME,
                     type: EntityType.PERSONAL,
+                    isArchived: false,
                 },
                 select: { id: true },
             })

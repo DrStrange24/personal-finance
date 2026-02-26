@@ -25,6 +25,7 @@ Project documentation lives in `docs/`.
   - `/loan` loan register (`you owe` and `you are owed`) + modal actions for repayment, borrow, and loan record creation
   - `/credit` credit card account CRUD table with modal add/edit and archive actions
   - `/wallet` wallet account management (cash/bank/e-wallet) with grouped cards and modal add/edit flows
+  - `/entity` finance entity management (create/edit/delete/set active)
   - `/monthly-overview` historical wallet snapshot table/chart (legacy-compatible page)
 
 Entity scope:

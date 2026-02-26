@@ -46,6 +46,7 @@ const createDefaultEntityForUser = async (db: PrismaClientLike, userId: string):
             userId,
             name: DEFAULT_FINANCE_ENTITY_NAME,
             type: EntityType.PERSONAL,
+            isArchived: false,
         },
         select: {
             id: true,
@@ -57,7 +58,10 @@ const createDefaultEntityForUser = async (db: PrismaClientLike, userId: string):
 
 const fetchEntitiesForUser = async (db: PrismaClientLike, userId: string): Promise<FinanceEntitySummary[]> => {
     return db.financeEntity.findMany({
-        where: { userId },
+        where: {
+            userId,
+            isArchived: false,
+        },
         orderBy: financeEntityOrder,
         select: {
             id: true,
@@ -113,11 +117,13 @@ export const requireOwnedFinanceEntity = async (
     db: PrismaClientLike,
     userId: string,
     entityId: string,
+    includeArchived = false,
 ): Promise<FinanceEntitySummary> => {
     const entity = await db.financeEntity.findFirst({
         where: {
             id: entityId,
             userId,
+            ...(includeArchived ? {} : { isArchived: false }),
         },
         select: {
             id: true,
@@ -160,6 +166,7 @@ export const createFinanceEntityForUser = async (
     const existing = await prisma.financeEntity.findFirst({
         where: {
             userId,
+            isArchived: false,
             name,
             type: input.type,
         },
@@ -175,6 +182,7 @@ export const createFinanceEntityForUser = async (
             userId,
             name,
             type: input.type,
+            isArchived: false,
         },
         select: {
             id: true,
@@ -194,6 +202,7 @@ export const updateFinanceEntityForUser = async (
     const existing = await prisma.financeEntity.findFirst({
         where: {
             userId,
+            isArchived: false,
             id: { not: entityId },
             name,
             type: input.type,
@@ -252,13 +261,26 @@ export const getFinanceEntityRecordCounts = async (
     };
 };
 
-export const deleteFinanceEntityForUser = async (userId: string, entityId: string) => {
+export const archiveFinanceEntityForUser = async (userId: string, entityId: string) => {
     return prisma.$transaction(async (tx) => {
         await requireOwnedFinanceEntity(tx, userId, entityId);
 
-        await tx.financeEntity.delete({
+        const activeEntityCount = await tx.financeEntity.count({
+            where: {
+                userId,
+                isArchived: false,
+            },
+        });
+        if (activeEntityCount <= 1) {
+            throw new Error("Cannot archive the last active entity.");
+        }
+
+        await tx.financeEntity.update({
             where: {
                 id: entityId,
+            },
+            data: {
+                isArchived: true,
             },
         });
     });
