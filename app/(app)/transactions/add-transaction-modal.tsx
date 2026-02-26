@@ -18,6 +18,7 @@ type BudgetOption = {
     id: string;
     label: string;
     targetLabel?: string;
+    targetAmountPhp?: number;
 };
 
 type AddTransactionModalProps = {
@@ -89,6 +90,10 @@ export default function AddTransactionModal({
         }
         return wallets.filter((wallet) => wallet.type !== "CREDIT_CARD");
     }, [creditAccounts, expenseFunding, isExpense, wallets]);
+    const budgetTargetById = useMemo(
+        () => new Map(budgets.map((budget) => [budget.id, budget.targetAmountPhp ?? null])),
+        [budgets],
+    );
 
     const submitTransaction = async (formData: FormData) => {
         if (kind === "EXPENSE" && expenseFunding === "credit") {
@@ -285,9 +290,19 @@ export default function AddTransactionModal({
                                         <select
                                             className="form-control"
                                             value={row.budgetEnvelopeId}
-                                            onChange={(event) => setIncomeDistributionRows((rows) => rows.map((entry, entryIndex) => (
-                                                entryIndex === index ? { ...entry, budgetEnvelopeId: event.target.value } : entry
-                                            )))}
+                                            onChange={(event) => {
+                                                const nextBudgetId = event.target.value;
+                                                const nextTargetAmount = nextBudgetId ? budgetTargetById.get(nextBudgetId) ?? null : null;
+                                                setIncomeDistributionRows((rows) => rows.map((entry, entryIndex) => (
+                                                    entryIndex === index
+                                                        ? {
+                                                            ...entry,
+                                                            budgetEnvelopeId: nextBudgetId,
+                                                            amountPhp: nextTargetAmount && nextTargetAmount > 0 ? nextTargetAmount.toFixed(2) : "",
+                                                        }
+                                                        : entry
+                                                )));
+                                            }}
                                         >
                                             <option value="">Select budget envelope</option>
                                             {budgets.map((budget) => (

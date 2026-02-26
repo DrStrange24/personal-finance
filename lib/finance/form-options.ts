@@ -5,6 +5,7 @@ export type BudgetFormOption = {
     id: string;
     label: string;
     targetLabel: string;
+    targetAmountPhp: number;
 };
 
 export const mapBudgetFormOptions = (budgets: BudgetEnvelopeSummary[]): BudgetFormOption[] => {
@@ -14,5 +15,6 @@ export const mapBudgetFormOptions = (budgets: BudgetEnvelopeSummary[]): BudgetFo
             id: budget.id,
             label: `${budget.name} (${formatPhp(Number(budget.availablePhp))})`,
             targetLabel: `${budget.name} (${formatPhp(Number(budget.monthlyTargetPhp))})`,
+            targetAmountPhp: Number(budget.monthlyTargetPhp),
         }));
 };
