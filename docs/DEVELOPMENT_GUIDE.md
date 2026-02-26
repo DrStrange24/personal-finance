@@ -106,29 +106,10 @@ Test stack:
 - Vitest (`vitest.config.ts`)
 - Posting engine unit tests in `lib/finance/posting-engine.test.ts`
 
-## Workbook Import Development Workflow
-
-1. Start app and log in.
-2. Open `/dashboard`.
-3. Use **Workbook Import (.xlsx)** card.
-4. Choose import mode (`BALANCE_BOOTSTRAP` or `FULL_LEDGER`).
-5. Parse workbook (`/api/imports/workbook`) to create durable DB staging rows.
-6. Commit staged import (`/api/imports/commit`) with returned `batchId`.
-7. Use status endpoint (`/api/imports/{batchId}`) to inspect row failures/counts.
-
-Sprint 4 import guarantees:
-
-- Durable staging via DB-backed `ImportBatch` and `ImportRow` (not in-memory).
-- Deterministic row idempotency keys prevent duplicate row staging.
-- Commit is atomic per batch (single Prisma transaction).
-- Re-committing an already committed batch is a no-op.
-- Row-level commit errors include `sheetName` + `rowIndex`.
-- `FULL_LEDGER` mode stages `Transactions` rows and posts them through posting-engine validation.
-
 ## Data Access Rules
 
 - Prefer Server Components for page data.
-- Use `app/api/*` endpoints for browser file upload/import flows.
+- Use `app/api/*` endpoints for browser-driven operations.
 - Keep Prisma access server-side only.
 - Financial reads/writes must be scoped by `activeEntityId` (never by `userId` alone for entity-scoped models).
 - `CreditAccount` and `Investment` are entity-scoped in Sprint 2 and must always include `entityId`.

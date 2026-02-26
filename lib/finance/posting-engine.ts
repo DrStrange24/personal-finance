@@ -24,7 +24,6 @@ type PostTransactionParams = Omit<TransactionFormInput, "kind"> & {
     adjustmentReasonCode?: AdjustmentReasonCode | null;
     ccPaymentEnvelopeId?: string | null;
     externalId?: string | null;
-    importBatchId?: string | null;
 };
 
 type PostOptions = {
@@ -883,7 +882,6 @@ export const postFinanceTransactionInTx = async (
             loanRecordId: context.loan?.id ?? null,
             adjustmentReasonCode: params.kind === TransactionKind.ADJUSTMENT ? params.adjustmentReasonCode ?? null : null,
             externalId: normalizeExternalId(params.externalId),
-            importBatchId: params.importBatchId ?? null,
             isReversal: Boolean(options.reverse),
             reversedTransactionId: options.reversedTransactionId ?? null,
             countsTowardBudget: params.recordOnly || options.reverse ? false : resolveCountsTowardBudget(params.kind),
@@ -943,7 +941,6 @@ export const reconcileWalletBalanceWithAdjustmentInTx = async (
         remarks: string;
         reasonCode: AdjustmentReasonCode;
         externalId?: string | null;
-        importBatchId?: string | null;
     },
 ) => {
     const wallet = await ensureOwnedWallet(tx, params.userId, params.entityId, params.walletAccountId);
@@ -964,107 +961,10 @@ export const reconcileWalletBalanceWithAdjustmentInTx = async (
         adjustmentReasonCode: params.reasonCode,
         remarks: params.remarks,
         externalId: params.externalId,
-        importBatchId: params.importBatchId,
     });
 
     return tx.walletAccount.findUnique({
         where: { id: wallet.id },
-    });
-};
-
-export const syncBudgetEnvelopeAvailableForImport = async (params: {
-    userId: string;
-    entityId: string;
-    budgetEnvelopeId: string;
-    targetAvailablePhp: number;
-}) => {
-    try {
-        return await prisma.$transaction(async (tx) => {
-            return syncBudgetEnvelopeAvailableForImportInTx(tx, params);
-        });
-    } catch (error) {
-        logPostingEngineError("sync-budget-envelope-available", {
-            entityId: params.entityId,
-            budgetEnvelopeId: params.budgetEnvelopeId,
-        }, error);
-        throw error;
-    }
-};
-
-export const syncBudgetEnvelopeAvailableForImportInTx = async (
-    tx: TxClient,
-    params: {
-        userId: string;
-        entityId: string;
-        budgetEnvelopeId: string;
-        targetAvailablePhp: number;
-    },
-) => {
-    if (!Number.isFinite(params.targetAvailablePhp) || params.targetAvailablePhp < 0) {
-        throw new Error("Target budget available amount must be greater than or equal to 0.");
-    }
-
-    const envelope = await ensureOwnedEnvelope(tx, params.userId, params.entityId, params.budgetEnvelopeId, true);
-    const targetAvailable = toDecimal(params.targetAvailablePhp);
-    const delta = targetAvailable.sub(new Prisma.Decimal(envelope.availablePhp));
-    if (delta.eq(0)) {
-        return envelope;
-    }
-
-    return updateEnvelopeBalance(tx, envelope.id, delta);
-};
-
-export const syncLoanSnapshotForImport = async (params: {
-    userId: string;
-    entityId: string;
-    loanRecordId: string;
-    principalPhp: number;
-    paidToDatePhp: number;
-    remainingPhp: number;
-    status: LoanStatus;
-}) => {
-    try {
-        return await prisma.$transaction(async (tx) => {
-            return syncLoanSnapshotForImportInTx(tx, params);
-        });
-    } catch (error) {
-        logPostingEngineError("sync-loan-snapshot", {
-            entityId: params.entityId,
-            loanRecordId: params.loanRecordId,
-        }, error);
-        throw error;
-    }
-};
-
-export const syncLoanSnapshotForImportInTx = async (
-    tx: TxClient,
-    params: {
-        userId: string;
-        entityId: string;
-        loanRecordId: string;
-        principalPhp: number;
-        paidToDatePhp: number;
-        remainingPhp: number;
-        status: LoanStatus;
-    },
-) => {
-    const loan = await ensureOwnedLoan(tx, params.userId, params.entityId, params.loanRecordId);
-    const principalPhp = toDecimal(params.principalPhp);
-    const paidToDatePhp = toDecimal(params.paidToDatePhp);
-    const remainingPhp = toDecimal(params.remainingPhp);
-
-    if (principalPhp.lt(0) || paidToDatePhp.lt(0) || remainingPhp.lt(0)) {
-        throw new Error("Loan amounts cannot be negative.");
-    }
-
-    return tx.loanRecord.update({
-        where: { id: loan.id },
-        data: {
-            principalPhp,
-            paidToDatePhp,
-            remainingPhp,
-            status: params.status,
-        },
     });
 };
 

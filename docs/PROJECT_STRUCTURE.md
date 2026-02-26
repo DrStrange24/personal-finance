@@ -6,7 +6,7 @@
     - layout.module.scss
     - app-sidebar.tsx (route nav + active finance entity selector)
     - dashboard/
-      - page.tsx (main transaction-first dashboard + import card + quick posting)
+      - page.tsx (main transaction-first dashboard + quick posting)
     - transactions/
       - page.tsx (transactions page shell + server actions + indexed filters + server pagination)
       - add-transaction-modal.tsx (transaction create modal trigger/form with icon action)
@@ -56,10 +56,6 @@
       - login/route.ts
       - logout/route.ts
       - signup/route.ts
-    - imports/
-      - [batchId]/route.ts (import batch status + row-level errors)
-      - workbook/route.ts (parse workbook upload and create durable ImportBatch/ImportRow records)
-      - commit/route.ts (commit staged import batch into DB models)
   - components/
     - action-icon-button.tsx
     - confirmation-modal.tsx
@@ -70,7 +66,6 @@
       - metric-card.tsx
       - transaction-kind-badge.tsx
       - transaction-form.tsx
-      - import-workbook-card.tsx
   - styles/
     - _theme-tokens.scss
     - _base.scss
@@ -103,13 +98,6 @@
     - queries.test.ts
     - transaction-orchestration.ts
     - types.ts
-  - import/
-    - workbook.ts
-    - workbook.test.ts
-    - staging-store.ts
-    - staging-store.test.ts
-    - commit.ts
-    - commit.test.ts
 - prisma/
   - schema.prisma
   - verify-sprint2-entity-scope.ts (read-only manual verifier for Sprint 2 entity-scope migration)
@@ -118,7 +106,8 @@
     - 20260226150750_sprint2_entity_scope_refactor/migration.sql
     - 20260226152651_sprint3_debt_aware_credit_card_logic/migration.sql
     - 20260226174508_sprint4/migration.sql
-    - 20260227031500_sprint5_performance_reporting_readiness/migration.sql
+    - 20260226181053_sprint5_performance_reporting_readiness/migration.sql
+    - 20260227040000_remove-import-staging-feature/migration.sql
 - docs/
   - POSTING_ENGINE_MATRIX.md (posting validation matrix + reversal/debt-aware credit reserve contract)
 - public/
@@ -130,6 +119,4 @@ Notes:
 - New finance domain models are in Prisma (`WalletAccount`, `CreditAccount`, `Investment`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
 - Multi-entity isolation uses `FinanceEntity` as the primary boundary for all entity-scoped financial models.
 - Legacy model (`MonthlyOverviewEntry`) remains user-scoped for migration compatibility.
-- Workbook import uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) by `batchId`, with status diagnostics at `/api/imports/{batchId}`.
-- Import modes are explicit: bootstrap snapshot sheets vs ledger `Transactions` sheet posting rows.
 - Sprint 5 adds entity/reporting-focused index coverage and paginated ledger browsing.

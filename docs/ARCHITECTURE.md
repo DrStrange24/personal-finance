@@ -28,8 +28,6 @@ Primary models:
 - `BudgetEnvelope` (including hidden system envelopes)
 - `LoanRecord`
 - `FinanceTransaction` (ledger)
-- `ImportBatch` (durable import staging header)
-- `ImportRow` (durable staged rows with idempotency key + status)
 
 Legacy compatibility models:
 
@@ -71,7 +69,6 @@ Audit fields on `FinanceTransaction`:
 - `reversedTransactionId`
 - `ccPaymentEnvelopeId`
 - `externalId`
-- `importBatchId`
 - `voidedAt`
 - `voidedByUserId`
 
@@ -127,28 +124,6 @@ Unallocated cash semantics:
   - `Investment(userId, entityId, name) WHERE isArchived = false`
 - One-time manual verification script:
   - `prisma/verify-sprint2-entity-scope.ts`
-
-## Workbook Import
-
-Two-step import flow:
-
-1. `POST /api/imports/workbook`
-   - accepts `.xlsx`
-   - parses workbook with `xlsx` package (`lib/import/workbook.ts`)
-   - creates durable `ImportBatch` + `ImportRow` records in DB
-   - each row has deterministic `idempotencyKey` (`{entityId}:{sheet}:{rowIndex}:{rowHash}`)
-   - supports explicit `importMode` (`BALANCE_BOOTSTRAP`, `FULL_LEDGER`)
-   - mode behavior:
-     - `BALANCE_BOOTSTRAP`: stages snapshot rows (`Wallet`, `Statistics`, `Income`, `Budget`, `Loan`)
-     - `FULL_LEDGER`: stages `Transactions` sheet rows only
-2. `POST /api/imports/commit`
-   - commits by `batchId`
-   - executes all row writes in one Prisma transaction (all-or-nothing)
-   - updates row status (`STAGED` / `COMMITTED` / `FAILED`) and batch status (`STAGED` / `COMMITTING` / `COMMITTED` / `FAILED`)
-   - `FULL_LEDGER` rows are posted via posting engine with external traceability (`externalId`, `importBatchId`)
-   - wallet balance reconciliation in bootstrap uses posting-engine adjustment flows
-3. `GET /api/imports/{batchId}` (debug/status endpoint)
-   - returns batch status, row counts, and row-level errors for troubleshooting
 
 ## Styling
 

@@ -21,7 +21,6 @@ model User {
   budgetEnvelopes        BudgetEnvelope[]
   loanRecords            LoanRecord[]
   financeTransactions    FinanceTransaction[]
-  importBatches          ImportBatch[]
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
 }
@@ -78,24 +77,6 @@ enum BudgetEnvelopeSystemType {
   LOAN_PAYMENT
 }
 
-enum ImportMode {
-  BALANCE_BOOTSTRAP
-  FULL_LEDGER
-}
-
-enum ImportBatchStatus {
-  STAGED
-  COMMITTING
-  COMMITTED
-  FAILED
-}
-
-enum ImportRowStatus {
-  STAGED
-  COMMITTED
-  FAILED
-}
-
 model FinanceEntity {
   id             String               @id @default(cuid())
   userId         String
@@ -112,7 +93,6 @@ model FinanceEntity {
   loans          LoanRecord[]
   incomeStreams  IncomeStream[]
   transactions   FinanceTransaction[]
-  importBatches  ImportBatch[]
 
   @@index([userId, createdAt])
   @@index([userId, type])
@@ -277,54 +257,12 @@ model LoanRecord {
   @@index([entityId, status])
 }
 
-model ImportBatch {
-  id             String               @id @default(cuid())
-  userId         String
-  entityId       String
-  sourceFileName String
-  sourceFileHash String
-  importMode     ImportMode
-  status         ImportBatchStatus    @default(STAGED)
-  errorMessage   String?
-  committedAt    DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entity         FinanceEntity        @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  rows           ImportRow[]
-  transactions   FinanceTransaction[]
-
-  @@index([userId, entityId, createdAt])
-  @@index([entityId, status, createdAt])
-  @@index([userId, sourceFileHash, createdAt])
-}
-
-model ImportRow {
-  id             String          @id @default(cuid())
-  batchId        String
-  sheetName      String
-  rowIndex       Int
-  rowHash        String
-  idempotencyKey String          @unique
-  payloadJson    Json
-  status         ImportRowStatus @default(STAGED)
-  errorMessage   String?
-  committedAt    DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  batch          ImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([batchId, status, rowIndex])
-  @@index([sheetName, rowIndex])
-}
-
 model FinanceTransaction {
   id                    String                @id @default(cuid())
   userId                String
   actorUserId           String
   entityId              String?
   externalId            String?
-  importBatchId         String?
   postedAt              DateTime              @default(now())
   kind                  TransactionKind
   amountPhp             Decimal
@@ -351,7 +289,6 @@ model FinanceTransaction {
   ccPaymentEnvelope     BudgetEnvelope?       @relation("TransactionCcPaymentEnvelope", fields: [ccPaymentEnvelopeId], references: [id], onDelete: SetNull)
   incomeStream          IncomeStream?         @relation(fields: [incomeStreamId], references: [id], onDelete: SetNull)
   loanRecord            LoanRecord?           @relation(fields: [loanRecordId], references: [id], onDelete: SetNull)
-  importBatch           ImportBatch?          @relation(fields: [importBatchId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   reversedTransaction   FinanceTransaction?   @relation("TransactionReversal", fields: [reversedTransactionId], references: [id], onDelete: SetNull)
   reversalTransaction   FinanceTransaction?   @relation("TransactionReversal")
 
@@ -367,7 +304,6 @@ model FinanceTransaction {
   @@index([entityId, postedAt])
   @@index([entityId, kind, postedAt])
   @@index([entityId, externalId])
-  @@index([importBatchId, postedAt])
   @@index([entityId, budgetEnvelopeId, postedAt])
   @@index([entityId, ccPaymentEnvelopeId, postedAt])
   @@index([entityId, walletAccountId, postedAt])

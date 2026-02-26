@@ -18,7 +18,7 @@ Project documentation lives in `docs/`.
   - `/login`
   - `/signup`
 - Authenticated (requires `pf_session` cookie):
-  - `/dashboard` quick actions + key finance metrics + workbook import
+  - `/dashboard` quick actions + key finance metrics
   - `/transactions` unified ledger with filters and modal add/edit/delete actions
   - `/income` income stream setup and management
   - `/investment` investment register with unit value + PHP value CRUD
@@ -92,36 +92,6 @@ npm run test
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Workbook Import Flow
-
-1. Go to `/dashboard`.
-2. In **Workbook Import (.xlsx)**, upload your `Finance - Personal.xlsx`.
-3. Choose import mode (`Balance Bootstrap` or `Full Ledger`).
-4. Click **Parse Workbook**.
-5. Review staged row counts (including skipped duplicates).
-6. Click **Commit Import**.
-
-Import API contract (Sprint 4):
-
-- `POST /api/imports/workbook` creates durable `ImportBatch` + `ImportRow` records in DB and returns `batchId`.
-- `POST /api/imports/commit` commits by `batchId` inside one Prisma transaction.
-- `GET /api/imports/{batchId}` returns status, row counters, and row-level errors.
-
-Import modes:
-
-- `BALANCE_BOOTSTRAP`: parses snapshot sheets (`Wallet`, `Statistics`, `Income`, `Budget`, `Loan`).
-- `FULL_LEDGER`: parses `Transactions` sheet rows and posts each row through the posting engine.
-
-Supported workbook sheets:
-
-- `Wallet`
-- `Statistics`
-- `Income`
-- `Budget`
-- `Loan`
-- `Transactions` (used by `FULL_LEDGER` mode)
-- `Net Worth` (currently parsed but not used for active module pages)
-
 ## Finance Model (Phase)
 
 - PHP-only currency model.
@@ -139,11 +109,6 @@ Supported workbook sheets:
 - Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.
 - Credit accounts are managed in entity-scoped `CreditAccount` records via `/credit` and display linked reserve balances.
 - `BudgetEnvelope` supports system typing (`TRANSFER`, `CREDIT_CARD_PAYMENT`, `LOAN_INFLOW`, `LOAN_PAYMENT`) and optional per-card linkage.
-- Sprint 4 import reliability is enabled:
-  - durable staging via `ImportBatch` and `ImportRow`
-  - deterministic row idempotency keys
-  - atomic commit (all-or-nothing per batch)
-  - finance transaction traceability via `externalId` and `importBatchId`
 - Sprint 5 performance/reporting readiness is enabled:
   - dashboard KPI queries use grouped aggregates with entity scoping
   - `/transactions` uses server-side pagination (`50` rows/page)
