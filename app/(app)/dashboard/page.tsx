@@ -14,7 +14,7 @@ import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getDashboardSummary } from "@/lib/finance/queries";
 import type { FinanceActionResult } from "@/lib/finance/types";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -24,13 +24,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default async function DashboardPage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createTransactionAction = async (formData: FormData) => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const parsed = parseTransactionForm(formData);
 
         if (
@@ -44,7 +45,7 @@ export default async function DashboardPage() {
         }
 
         try {
-            await ensureFinanceBootstrap(actionSession.userId);
+            await ensureFinanceBootstrap(actionSession.userId, actionSession.activeEntity.id);
             let sourceWalletAccountId = parsed.walletAccountId;
             if (sourceWalletAccountId.startsWith("credit:")) {
                 const creditId = sourceWalletAccountId.slice("credit:".length);
@@ -63,6 +64,7 @@ export default async function DashboardPage() {
                 const existingCreditWallet = await prisma.walletAccount.findFirst({
                     where: {
                         userId: actionSession.userId,
+                        entityId: actionSession.activeEntity.id,
                         isArchived: false,
                         type: "CREDIT_CARD",
                         name: creditAccount.name,
@@ -75,6 +77,7 @@ export default async function DashboardPage() {
                     const createdWallet = await prisma.walletAccount.create({
                         data: {
                             userId: actionSession.userId,
+                            entityId: actionSession.activeEntity.id,
                             name: creditAccount.name,
                             type: "CREDIT_CARD",
                             currentBalanceAmount: creditAccount.currentBalanceAmount,
@@ -105,6 +108,7 @@ export default async function DashboardPage() {
                     for (const row of distribution.rows) {
                         const created = await postFinanceTransaction({
                             userId: actionSession.userId,
+                            entityId: actionSession.activeEntity.id,
                             kind: parsed.kind,
                             recordOnly: parsed.recordOnly,
                             postedAt: parsed.postedAt,
@@ -121,7 +125,11 @@ export default async function DashboardPage() {
                 } catch (error) {
                     for (const createdId of createdIds) {
                         try {
-                            await deleteFinanceTransactionWithReversal(actionSession.userId, createdId);
+                            await deleteFinanceTransactionWithReversal(
+                                actionSession.userId,
+                                actionSession.activeEntity.id,
+                                createdId,
+                            );
                         } catch {
                             return {
                                 ok: false,
@@ -134,6 +142,7 @@ export default async function DashboardPage() {
             } else {
                 await postFinanceTransaction({
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     kind: parsed.kind,
                     recordOnly: parsed.recordOnly,
                     postedAt: parsed.postedAt,
@@ -163,10 +172,13 @@ export default async function DashboardPage() {
     };
 
     const [summary, context, recentTransactions, creditAccounts] = await Promise.all([
-        getDashboardSummary(session.userId),
-        getFinanceContextData(session.userId),
+        getDashboardSummary(session.userId, activeEntityId),
+        getFinanceContextData(session.userId, activeEntityId),
         prisma.financeTransaction.findMany({
-            where: { userId: session.userId },
+            where: {
+                userId: session.userId,
+                entityId: activeEntityId,
+            },
             include: {
                 walletAccount: true,
                 targetWalletAccount: true,

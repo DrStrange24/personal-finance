@@ -23,8 +23,8 @@ const inferWalletType = (name: string) => {
     return WalletAccountType.CASH;
 };
 
-export const commitWorkbookForUser = async (userId: string, workbook: ParsedWorkbook) => {
-    await ensureFinanceBootstrap(userId);
+export const commitWorkbookForUser = async (userId: string, entityId: string, workbook: ParsedWorkbook) => {
+    await ensureFinanceBootstrap(userId, entityId);
 
     const result = {
         walletAccountsUpserted: 0,
@@ -38,6 +38,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
         const existing = await prisma.walletAccount.findFirst({
             where: {
                 userId,
+                entityId,
                 name: entry.name,
                 isArchived: false,
             },
@@ -105,6 +106,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
             const wallet = await prisma.walletAccount.create({
                 data: {
                     userId,
+                    entityId,
                     name: entry.name,
                     type,
                     currentBalanceAmount: balance,
@@ -114,6 +116,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
             await prisma.financeTransaction.create({
                 data: {
                     userId,
+                    entityId,
                     kind: TransactionKind.ADJUSTMENT,
                     amountPhp: balance,
                     walletAccountId: wallet.id,
@@ -130,6 +133,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
         const existing = await prisma.budgetEnvelope.findFirst({
             where: {
                 userId,
+                entityId,
                 name: entry.name,
                 isArchived: false,
             },
@@ -153,6 +157,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
             await prisma.budgetEnvelope.create({
                 data: {
                     userId,
+                    entityId,
                     name: entry.name,
                     monthlyTargetPhp,
                     availablePhp,
@@ -169,6 +174,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
         const existing = await prisma.incomeStream.findFirst({
             where: {
                 userId,
+                entityId,
                 name: entry.name,
             },
         });
@@ -186,6 +192,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
             await prisma.incomeStream.create({
                 data: {
                     userId,
+                    entityId,
                     name: entry.name,
                     defaultAmountPhp: entry.amountPhp,
                     remarks: entry.remarks,
@@ -201,6 +208,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
         const existing = await prisma.loanRecord.findFirst({
             where: {
                 userId,
+                entityId,
                 itemName: entry.itemName,
                 counterparty: entry.payTo,
             },
@@ -229,6 +237,7 @@ export const commitWorkbookForUser = async (userId: string, workbook: ParsedWork
             await prisma.loanRecord.create({
                 data: {
                     userId,
+                    entityId,
                     direction: LoanDirection.YOU_OWE,
                     itemName: entry.itemName,
                     counterparty: entry.payTo,

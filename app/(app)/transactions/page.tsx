@@ -12,7 +12,7 @@ import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { isRecordOnlyTransaction, type FinanceActionResult } from "@/lib/finance/types";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 type TransactionsPageProps = {
@@ -24,8 +24,9 @@ type TransactionsPageProps = {
 };
 
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
     const params = (await searchParams) ?? {};
     const selectedKind = typeof params.kind === "string" ? params.kind.trim() : "";
     const selectedWalletId = typeof params.wallet === "string" ? params.wallet.trim() : "";
@@ -34,7 +35,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     const postTransactionAction = async (formData: FormData): Promise<FinanceActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const parsed = parseTransactionForm(formData);
 
         if (
@@ -66,6 +67,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 const existingCreditWallet = await prisma.walletAccount.findFirst({
                     where: {
                         userId: actionSession.userId,
+                        entityId: actionSession.activeEntity.id,
                         isArchived: false,
                         type: "CREDIT_CARD",
                         name: creditAccount.name,
@@ -78,6 +80,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                     const createdWallet = await prisma.walletAccount.create({
                         data: {
                             userId: actionSession.userId,
+                            entityId: actionSession.activeEntity.id,
                             name: creditAccount.name,
                             type: "CREDIT_CARD",
                             currentBalanceAmount: creditAccount.currentBalanceAmount,
@@ -108,6 +111,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                     for (const row of distribution.rows) {
                         const created = await postFinanceTransaction({
                             userId: actionSession.userId,
+                            entityId: actionSession.activeEntity.id,
                             kind: parsed.kind,
                             recordOnly: parsed.recordOnly,
                             postedAt: parsed.postedAt,
@@ -124,7 +128,11 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 } catch (error) {
                     for (const createdId of createdIds) {
                         try {
-                            await deleteFinanceTransactionWithReversal(actionSession.userId, createdId);
+                            await deleteFinanceTransactionWithReversal(
+                                actionSession.userId,
+                                actionSession.activeEntity.id,
+                                createdId,
+                            );
                         } catch {
                             return { ok: false, message: "Income posting failed and could not fully roll back. Please review balances." };
                         }
@@ -134,6 +142,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             } else {
                 await postFinanceTransaction({
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     kind: parsed.kind,
                     recordOnly: parsed.recordOnly,
                     postedAt: parsed.postedAt,
@@ -162,7 +171,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     const updateTransactionAction = async (formData: FormData): Promise<FinanceActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const oldTransactionId = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         if (!oldTransactionId) {
             return { ok: false, message: "Missing transaction id." };
@@ -171,6 +180,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             where: {
                 id: oldTransactionId,
                 userId: actionSession.userId,
+                entityId: actionSession.activeEntity.id,
             },
             select: {
                 kind: true,
@@ -216,6 +226,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 const existingCreditWallet = await prisma.walletAccount.findFirst({
                     where: {
                         userId: actionSession.userId,
+                        entityId: actionSession.activeEntity.id,
                         isArchived: false,
                         type: "CREDIT_CARD",
                         name: creditAccount.name,
@@ -228,6 +239,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                     const createdWallet = await prisma.walletAccount.create({
                         data: {
                             userId: actionSession.userId,
+                            entityId: actionSession.activeEntity.id,
                             name: creditAccount.name,
                             type: "CREDIT_CARD",
                             currentBalanceAmount: creditAccount.currentBalanceAmount,
@@ -239,6 +251,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
             const created = await postFinanceTransaction({
                 userId: actionSession.userId,
+                entityId: actionSession.activeEntity.id,
                 kind: parsed.kind,
                 recordOnly: parsed.recordOnly || isRecordOnlyTransaction(previousTransaction),
                 postedAt: parsed.postedAt,
@@ -252,11 +265,19 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             });
             createdTransactionId = created.id;
 
-            await deleteFinanceTransactionWithReversal(actionSession.userId, oldTransactionId);
+            await deleteFinanceTransactionWithReversal(
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                oldTransactionId,
+            );
         } catch (error) {
             if (createdTransactionId) {
                 try {
-                    await deleteFinanceTransactionWithReversal(actionSession.userId, createdTransactionId);
+                    await deleteFinanceTransactionWithReversal(
+                        actionSession.userId,
+                        actionSession.activeEntity.id,
+                        createdTransactionId,
+                    );
                 } catch {
                     return { ok: false, message: "Update failed and could not fully roll back. Please review balances." };
                 }
@@ -278,14 +299,14 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     const deleteTransactionAction = async (formData: FormData): Promise<FinanceActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         if (!id) {
             return { ok: false, message: "Missing transaction id." };
         }
 
         try {
-            await deleteFinanceTransactionWithReversal(actionSession.userId, id);
+            await deleteFinanceTransactionWithReversal(actionSession.userId, actionSession.activeEntity.id, id);
         } catch (error) {
             return {
                 ok: false,
@@ -302,10 +323,11 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     };
 
     const [context, transactions, creditAccounts] = await Promise.all([
-        getFinanceContextData(session.userId),
+        getFinanceContextData(session.userId, activeEntityId),
         prisma.financeTransaction.findMany({
             where: {
                 userId: session.userId,
+                entityId: activeEntityId,
                 ...(selectedKind ? { kind: selectedKind as TransactionKind } : {}),
                 ...(selectedWalletId ? { walletAccountId: selectedWalletId } : {}),
                 ...(searchText

@@ -5,7 +5,7 @@ import AddIncomeStreamModal from "./add-income-stream-modal";
 import IncomeStreamTable from "./income-stream-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 const parseRequiredName = (value: FormDataEntryValue | null) => {
@@ -25,12 +25,13 @@ type IncomeStreamActionResult = {
 };
 
 export default async function IncomePage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createIncomeStreamAction = async (formData: FormData): Promise<IncomeStreamActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const name = parseRequiredName(formData.get("name"));
         const defaultAmountResult = parseMoneyInput(formData.get("defaultAmountPhp"), true);
@@ -44,6 +45,7 @@ export default async function IncomePage() {
             await prisma.incomeStream.create({
                 data: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     name,
                     defaultAmountPhp: defaultAmountResult.value,
                     remarks: remarksResult.value,
@@ -60,7 +62,7 @@ export default async function IncomePage() {
 
     const updateIncomeStreamAction = async (formData: FormData): Promise<IncomeStreamActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const defaultAmountResult = parseMoneyInput(formData.get("defaultAmountPhp"), true);
@@ -76,6 +78,7 @@ export default async function IncomePage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                 },
                 data: {
                     defaultAmountPhp: defaultAmountResult.value,
@@ -101,7 +104,7 @@ export default async function IncomePage() {
 
     const deleteIncomeStreamAction = async (formData: FormData): Promise<IncomeStreamActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         if (!id) {
@@ -113,6 +116,7 @@ export default async function IncomePage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                 },
             });
 
@@ -132,6 +136,7 @@ export default async function IncomePage() {
     const streams = await prisma.incomeStream.findMany({
         where: {
             userId: session.userId,
+            entityId: activeEntityId,
         },
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
     });
@@ -146,6 +151,7 @@ export default async function IncomePage() {
 
     const sciTechWhere = {
         userId: session.userId,
+        entityId: activeEntityId,
         kind: TransactionKind.INCOME,
         incomeStream: {
             is: {

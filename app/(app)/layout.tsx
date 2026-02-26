@@ -1,18 +1,28 @@
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { Container } from "react-bootstrap";
 import AppSidebar from "./app-sidebar";
-import { verifySessionToken } from "@/lib/auth";
+import { setActiveFinanceEntityForUser } from "@/lib/finance/entity-context";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import styles from "./layout.module.scss";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("pf_session")?.value;
+    const session = await getAuthenticatedEntitySession();
 
-    if (!token || !verifySessionToken(token)) {
-        redirect("/login");
-    }
+    const setActiveEntityAction = async (entityId: string) => {
+        "use server";
+
+        const actionSession = await getAuthenticatedEntitySession();
+        await setActiveFinanceEntityForUser(actionSession.userId, entityId);
+
+        revalidatePath("/dashboard");
+        revalidatePath("/transactions");
+        revalidatePath("/income");
+        revalidatePath("/budget");
+        revalidatePath("/loan");
+        revalidatePath("/wallet");
+        revalidatePath("/monthly-overview");
+    };
 
     return (
         <div className={styles.layout}>
@@ -25,7 +35,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <Container fluid className={styles.container}>
                 <div className={styles.shellRow}>
                     <div className={styles.sidebarWrapper}>
-                        <AppSidebar />
+                        <AppSidebar
+                            entities={session.entities}
+                            activeEntityId={session.activeEntity.id}
+                            setActiveEntityAction={setActiveEntityAction}
+                        />
                     </div>
                     <div className={styles.mainColumn}>
                         <main className={`${styles.main} pf-surface-panel`}>

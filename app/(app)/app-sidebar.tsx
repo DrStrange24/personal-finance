@@ -2,14 +2,28 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type SVGProps, useState } from "react";
+import { type SVGProps, useEffect, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Nav from "react-bootstrap/Nav";
 import NavLink from "react-bootstrap/NavLink";
+import { ACTIVE_FINANCE_ENTITY_STORAGE_KEY } from "@/lib/finance/constants";
 
 type IconProps = SVGProps<SVGSVGElement>;
+type EntityType = "PERSONAL" | "BUSINESS";
+
+type SidebarEntity = {
+    id: string;
+    name: string;
+    type: EntityType;
+};
+
+type AppSidebarProps = {
+    entities: SidebarEntity[];
+    activeEntityId: string;
+    setActiveEntityAction: (entityId: string) => Promise<void>;
+};
 
 const WalletIcon = (props: IconProps) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
@@ -120,11 +134,47 @@ const links = [
     { href: "/monthly-overview", label: "Monthly Overview", Icon: CalendarIcon },
 ];
 
-export default function AppSidebar() {
+const entityTypeLabel: Record<EntityType, string> = {
+    PERSONAL: "Personal",
+    BUSINESS: "Business",
+};
+
+export default function AppSidebar({ entities, activeEntityId, setActiveEntityAction }: AppSidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [selectedEntityId, setSelectedEntityId] = useState(activeEntityId);
+    const [isSwitchingEntity, setIsSwitchingEntity] = useState(false);
+
+    useEffect(() => {
+        setSelectedEntityId(activeEntityId);
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem(ACTIVE_FINANCE_ENTITY_STORAGE_KEY, activeEntityId);
+        }
+    }, [activeEntityId]);
+
+    const handleEntityChange = async (entityId: string) => {
+        if (!entityId || entityId === activeEntityId || isSwitchingEntity) {
+            return;
+        }
+
+        const previousEntityId = selectedEntityId;
+        setSelectedEntityId(entityId);
+        setIsSwitchingEntity(true);
+
+        try {
+            await setActiveEntityAction(entityId);
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(ACTIVE_FINANCE_ENTITY_STORAGE_KEY, entityId);
+            }
+            router.refresh();
+        } catch {
+            setSelectedEntityId(previousEntityId);
+        } finally {
+            setIsSwitchingEntity(false);
+        }
+    };
 
     const handleLogout = async () => {
         if (isLoggingOut) return;
@@ -172,6 +222,32 @@ export default function AppSidebar() {
                     </div>
                     {!isCollapsed && <h1 className="mt-2 mb-0 fs-4 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h1>}
                 </div>
+
+                {!isCollapsed && (
+                    <div className="mb-3">
+                        <label htmlFor="sidebar-entity" className="form-label small fw-semibold mb-1">
+                            Entity
+                        </label>
+                        <select
+                            id="sidebar-entity"
+                            className="form-control form-control-sm"
+                            value={selectedEntityId}
+                            onChange={(event) => handleEntityChange(event.target.value)}
+                            disabled={entities.length === 0 || isSwitchingEntity}
+                        >
+                            {entities.map((entity) => (
+                                <option key={entity.id} value={entity.id}>
+                                    {entity.name} ({entityTypeLabel[entity.type]})
+                                </option>
+                            ))}
+                        </select>
+                        {isSwitchingEntity && (
+                            <small className="d-block mt-1" style={{ color: "var(--color-text-muted)" }}>
+                                Switching entity...
+                            </small>
+                        )}
+                    </div>
+                )}
 
                 <Nav className="flex-column gap-2 pb-1">
                     {links.map((link) => {

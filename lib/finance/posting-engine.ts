@@ -14,15 +14,17 @@ type TxClient = Prisma.TransactionClient;
 
 type PostTransactionParams = Omit<TransactionFormInput, "kind"> & {
     userId: string;
+    entityId: string;
     kind: TransactionKind;
     recordOnly?: boolean;
 };
 
-const ensureOwnedWallet = async (tx: TxClient, userId: string, walletId: string) => {
+const ensureOwnedWallet = async (tx: TxClient, userId: string, entityId: string, walletId: string) => {
     const wallet = await tx.walletAccount.findFirst({
         where: {
             id: walletId,
             userId,
+            entityId,
             isArchived: false,
         },
     });
@@ -37,6 +39,7 @@ const ensureOwnedWallet = async (tx: TxClient, userId: string, walletId: string)
 const ensureOwnedEnvelope = async (
     tx: TxClient,
     userId: string,
+    entityId: string,
     envelopeId: string,
     includeArchived = false,
 ) => {
@@ -44,6 +47,7 @@ const ensureOwnedEnvelope = async (
         where: {
             id: envelopeId,
             userId,
+            entityId,
             ...(includeArchived ? {} : { isArchived: false }),
         },
     });
@@ -55,11 +59,12 @@ const ensureOwnedEnvelope = async (
     return envelope;
 };
 
-const ensureOwnedLoan = async (tx: TxClient, userId: string, loanId: string) => {
+const ensureOwnedLoan = async (tx: TxClient, userId: string, entityId: string, loanId: string) => {
     const loan = await tx.loanRecord.findFirst({
         where: {
             id: loanId,
             userId,
+            entityId,
         },
     });
 
@@ -68,6 +73,22 @@ const ensureOwnedLoan = async (tx: TxClient, userId: string, loanId: string) => 
     }
 
     return loan;
+};
+
+const ensureOwnedIncomeStream = async (tx: TxClient, userId: string, entityId: string, incomeStreamId: string) => {
+    const incomeStream = await tx.incomeStream.findFirst({
+        where: {
+            id: incomeStreamId,
+            userId,
+            entityId,
+        },
+    });
+
+    if (!incomeStream) {
+        throw new Error("Income stream not found.");
+    }
+
+    return incomeStream;
 };
 
 const updateWalletBalance = async (tx: TxClient, walletId: string, delta: Prisma.Decimal) => {
@@ -118,10 +139,16 @@ const updateLoanForBorrow = async (tx: TxClient, loan: LoanRecord, amount: Prism
     });
 };
 
-const ensureSystemEnvelope = async (tx: TxClient, userId: string, name: string): Promise<BudgetEnvelope> => {
+const ensureSystemEnvelope = async (
+    tx: TxClient,
+    userId: string,
+    entityId: string,
+    name: string,
+): Promise<BudgetEnvelope> => {
     const existing = await tx.budgetEnvelope.findFirst({
         where: {
             userId,
+            entityId,
             name,
             isSystem: true,
             isArchived: false,
@@ -135,6 +162,7 @@ const ensureSystemEnvelope = async (tx: TxClient, userId: string, name: string):
     return tx.budgetEnvelope.create({
         data: {
             userId,
+            entityId,
             name,
             isSystem: true,
             isArchived: false,
@@ -150,25 +178,26 @@ const ensureSystemEnvelope = async (tx: TxClient, userId: string, name: string):
 const resolveBudgetEnvelope = async (
     tx: TxClient,
     userId: string,
+    entityId: string,
     kind: TransactionKind,
     budgetEnvelopeId: string | null | undefined,
 ) => {
     if (kind === TransactionKind.TRANSFER) {
-        return ensureSystemEnvelope(tx, userId, SYSTEM_ENVELOPES.transfer);
+        return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.transfer);
     }
     if (kind === TransactionKind.CREDIT_CARD_PAYMENT) {
-        return ensureSystemEnvelope(tx, userId, SYSTEM_ENVELOPES.creditPayment);
+        return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.creditPayment);
     }
     if (kind === TransactionKind.LOAN_BORROW) {
-        return ensureSystemEnvelope(tx, userId, SYSTEM_ENVELOPES.loanInflow);
+        return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.loanInflow);
     }
     if (kind === TransactionKind.LOAN_REPAY) {
-        return ensureSystemEnvelope(tx, userId, SYSTEM_ENVELOPES.loanPayment);
+        return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.loanPayment);
     }
     if (!budgetEnvelopeId) {
         return null;
     }
-    return ensureOwnedEnvelope(tx, userId, budgetEnvelopeId);
+    return ensureOwnedEnvelope(tx, userId, entityId, budgetEnvelopeId);
 };
 
 const resolveCountsTowardBudget = (kind: TransactionKind) => {
@@ -179,7 +208,16 @@ const resolveCountsTowardBudget = (kind: TransactionKind) => {
     );
 };
 
+const ensureEntityId = (entityId: string | null | undefined) => {
+    if (!entityId || entityId.trim().length === 0) {
+        throw new Error("entityId is required.");
+    }
+    return entityId;
+};
+
 export const postFinanceTransaction = async (params: PostTransactionParams) => {
+    const entityId = ensureEntityId(params.entityId);
+
     if (!params.walletAccountId) {
         throw new Error("Wallet account is required.");
     }
@@ -190,23 +228,27 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
     return prisma.$transaction(async (tx) => {
         const amount = new Prisma.Decimal(params.amountPhp);
         const negativeAmount = amount.mul(-1);
-        const sourceWallet = await ensureOwnedWallet(tx, params.userId, params.walletAccountId);
+        const sourceWallet = await ensureOwnedWallet(tx, params.userId, entityId, params.walletAccountId);
 
         if (params.recordOnly) {
             const budgetEnvelope = params.budgetEnvelopeId
-                ? await ensureOwnedEnvelope(tx, params.userId, params.budgetEnvelopeId)
+                ? await ensureOwnedEnvelope(tx, params.userId, entityId, params.budgetEnvelopeId)
+                : null;
+            const incomeStream = params.incomeStreamId
+                ? await ensureOwnedIncomeStream(tx, params.userId, entityId, params.incomeStreamId)
                 : null;
 
             return tx.financeTransaction.create({
                 data: {
                     userId: params.userId,
+                    entityId,
                     postedAt: params.postedAt ?? new Date(),
                     kind: params.kind,
                     amountPhp: amount,
                     walletAccountId: sourceWallet.id,
                     targetWalletAccountId: null,
                     budgetEnvelopeId: budgetEnvelope?.id ?? null,
-                    incomeStreamId: params.incomeStreamId ?? null,
+                    incomeStreamId: incomeStream?.id ?? null,
                     loanRecordId: null,
                     countsTowardBudget: false,
                     remarks: params.remarks?.trim() || null,
@@ -215,10 +257,15 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
         }
 
         const targetWallet = params.targetWalletAccountId
-            ? await ensureOwnedWallet(tx, params.userId, params.targetWalletAccountId)
+            ? await ensureOwnedWallet(tx, params.userId, entityId, params.targetWalletAccountId)
             : null;
-        const budgetEnvelope = await resolveBudgetEnvelope(tx, params.userId, params.kind, params.budgetEnvelopeId);
-        const loan = params.loanRecordId ? await ensureOwnedLoan(tx, params.userId, params.loanRecordId) : null;
+        const budgetEnvelope = await resolveBudgetEnvelope(tx, params.userId, entityId, params.kind, params.budgetEnvelopeId);
+        const loan = params.loanRecordId
+            ? await ensureOwnedLoan(tx, params.userId, entityId, params.loanRecordId)
+            : null;
+        const incomeStream = params.incomeStreamId
+            ? await ensureOwnedIncomeStream(tx, params.userId, entityId, params.incomeStreamId)
+            : null;
 
         if (
             (params.kind === TransactionKind.INCOME
@@ -244,6 +291,10 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
             && (!targetWallet || targetWallet.type !== WalletAccountType.CREDIT_CARD)
         ) {
             throw new Error("Credit card transactions require a credit card wallet.");
+        }
+
+        if ((params.kind === TransactionKind.LOAN_BORROW || params.kind === TransactionKind.LOAN_REPAY) && !loan) {
+            throw new Error("Loan record is required for this transaction.");
         }
 
         switch (params.kind) {
@@ -276,15 +327,11 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
             }
             case TransactionKind.LOAN_BORROW:
                 await updateWalletBalance(tx, sourceWallet.id, amount);
-                if (loan) {
-                    await updateLoanForBorrow(tx, loan, amount);
-                }
+                await updateLoanForBorrow(tx, loan!, amount);
                 break;
             case TransactionKind.LOAN_REPAY:
                 await updateWalletBalance(tx, sourceWallet.id, negativeAmount);
-                if (loan) {
-                    await updateLoanForRepayment(tx, loan, amount);
-                }
+                await updateLoanForRepayment(tx, loan!, amount);
                 break;
             case TransactionKind.ADJUSTMENT:
                 await updateWalletBalance(tx, sourceWallet.id, amount);
@@ -296,13 +343,14 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
         return tx.financeTransaction.create({
             data: {
                 userId: params.userId,
+                entityId,
                 postedAt: params.postedAt ?? new Date(),
                 kind: params.kind,
                 amountPhp: amount,
                 walletAccountId: sourceWallet.id,
                 targetWalletAccountId: targetWallet?.id ?? null,
                 budgetEnvelopeId: budgetEnvelope?.id ?? null,
-                incomeStreamId: params.incomeStreamId ?? null,
+                incomeStreamId: incomeStream?.id ?? null,
                 loanRecordId: loan?.id ?? null,
                 countsTowardBudget: resolveCountsTowardBudget(params.kind),
                 remarks: params.remarks?.trim() || null,
@@ -311,12 +359,17 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
     });
 };
 
-export const deleteFinanceTransactionWithReversal = async (userId: string, transactionId: string) => {
+export const deleteFinanceTransactionWithReversal = async (
+    userId: string,
+    entityId: string,
+    transactionId: string,
+) => {
     return prisma.$transaction(async (tx) => {
         const transaction = await tx.financeTransaction.findFirst({
             where: {
                 id: transactionId,
                 userId,
+                entityId,
             },
             include: {
                 loanRecord: true,
@@ -414,4 +467,3 @@ export const deleteFinanceTransactionWithReversal = async (userId: string, trans
         });
     });
 };
-

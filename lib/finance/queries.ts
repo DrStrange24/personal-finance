@@ -8,11 +8,12 @@ const startOfMonth = () => {
     return new Date(now.getFullYear(), now.getMonth(), 1);
 };
 
-export const getDashboardSummary = async (userId: string): Promise<DashboardSummary> => {
-    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate, creditAggregate] = await Promise.all([
+export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
+    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate] = await Promise.all([
         prisma.walletAccount.findMany({
             where: {
                 userId,
+                entityId,
                 isArchived: false,
             },
             select: {
@@ -33,6 +34,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         prisma.budgetEnvelope.aggregate({
             where: {
                 userId,
+                entityId,
                 isArchived: false,
                 isSystem: false,
             },
@@ -43,6 +45,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         prisma.financeTransaction.aggregate({
             where: {
                 userId,
+                entityId,
                 postedAt: {
                     gte: startOfMonth(),
                 },
@@ -55,6 +58,7 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         prisma.financeTransaction.aggregate({
             where: {
                 userId,
+                entityId,
                 postedAt: {
                     gte: startOfMonth(),
                 },
@@ -69,19 +73,11 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
         prisma.incomeStream.aggregate({
             where: {
                 userId,
+                entityId,
                 isActive: true,
             },
             _sum: {
                 defaultAmountPhp: true,
-            },
-        }),
-        prisma.creditAccount.aggregate({
-            where: {
-                userId,
-                isArchived: false,
-            },
-            _sum: {
-                currentBalanceAmount: true,
             },
         }),
     ]);
@@ -95,10 +91,14 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
 
     let totalWalletBalancePhp = 0;
     let totalAllWalletsPhp = 0;
+    let totalCreditCardDebtPhp = 0;
 
     for (const wallet of walletAccounts) {
         const amount = Number(wallet.currentBalanceAmount);
         totalAllWalletsPhp += amount;
+        if (wallet.type === WalletAccountType.CREDIT_CARD) {
+            totalCreditCardDebtPhp += amount;
+        }
         if (wallet.type !== WalletAccountType.CREDIT_CARD && wallet.type !== WalletAccountType.ASSET) {
             totalWalletBalancePhp += amount;
         }
@@ -111,7 +111,6 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
     const monthExpensePhp = Number(expenseAggregate._sum.amountPhp ?? 0);
     const monthlyTotalIncomePhp = Number(incomeStreamAggregate._sum.defaultAmountPhp ?? 0);
-    const totalCreditCardDebtPhp = Number(creditAggregate._sum.currentBalanceAmount ?? 0);
 
     return {
         totalWalletBalancePhp,
@@ -128,11 +127,12 @@ export const getDashboardSummary = async (userId: string): Promise<DashboardSumm
     };
 };
 
-export const getBudgetStats = async (userId: string) => {
+export const getBudgetStats = async (userId: string, entityId: string) => {
     const start = startOfMonth();
     const envelopes = await prisma.budgetEnvelope.findMany({
         where: {
             userId,
+            entityId,
             isArchived: false,
             isSystem: false,
         },
@@ -143,6 +143,7 @@ export const getBudgetStats = async (userId: string) => {
         by: ["budgetEnvelopeId"],
         where: {
             userId,
+            entityId,
             postedAt: { gte: start },
             kind: {
                 in: [TransactionKind.EXPENSE, TransactionKind.CREDIT_CARD_CHARGE],
@@ -179,10 +180,11 @@ export const getBudgetStats = async (userId: string) => {
     });
 };
 
-export const getCreditCardStatus = async (userId: string) => {
+export const getCreditCardStatus = async (userId: string, entityId: string) => {
     const creditCards = await prisma.walletAccount.findMany({
         where: {
             userId,
+            entityId,
             isArchived: false,
             type: WalletAccountType.CREDIT_CARD,
         },

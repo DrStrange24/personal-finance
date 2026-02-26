@@ -11,6 +11,7 @@ const assertFinancePrismaDelegates = () => {
         "budgetEnvelope",
         "loanRecord",
         "financeTransaction",
+        "financeEntity",
     ];
     const missing = requiredDelegates.filter((delegate) => typeof client[delegate] === "undefined");
 
@@ -34,13 +35,14 @@ const inferWalletAccountType = (name: string) => {
     return WalletAccountType.CASH;
 };
 
-export const ensureSystemEnvelopesForUser = async (userId: string) => {
+export const ensureSystemEnvelopesForEntity = async (userId: string, entityId: string) => {
     assertFinancePrismaDelegates();
 
     for (const name of SYSTEM_ENVELOPE_NAMES) {
         const existing = await prisma.budgetEnvelope.findFirst({
             where: {
                 userId,
+                entityId,
                 name,
                 isSystem: true,
                 isArchived: false,
@@ -51,6 +53,7 @@ export const ensureSystemEnvelopesForUser = async (userId: string) => {
             await prisma.budgetEnvelope.create({
                 data: {
                     userId,
+                    entityId,
                     name,
                     isSystem: true,
                     monthlyTargetPhp: 0,
@@ -64,9 +67,9 @@ export const ensureSystemEnvelopesForUser = async (userId: string) => {
     }
 };
 
-export const ensureFinanceBootstrap = async (userId: string) => {
+export const ensureFinanceBootstrap = async (userId: string, entityId: string) => {
     assertFinancePrismaDelegates();
-    await ensureSystemEnvelopesForUser(userId);
+    await ensureSystemEnvelopesForEntity(userId, entityId);
     const prismaClient = prisma as Prisma.TransactionClient & {
         walletEntry?: {
             findMany: (args: {
@@ -82,11 +85,15 @@ export const ensureFinanceBootstrap = async (userId: string) => {
     };
 
     const walletAccountCount = await prisma.walletAccount.count({
-        where: { userId },
+        where: { userId, entityId },
     });
 
     if (walletAccountCount === 0) {
-        const legacyWalletEntries = prismaClient.walletEntry
+        const totalWalletCountForUser = await prisma.walletAccount.count({
+            where: { userId },
+        });
+        const shouldImportLegacyWallets = totalWalletCountForUser === 0;
+        const legacyWalletEntries = shouldImportLegacyWallets && prismaClient.walletEntry
             ? await prismaClient.walletEntry.findMany({
                 where: {
                     userId,
@@ -115,6 +122,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
             const walletAccount = await prisma.walletAccount.create({
                 data: {
                     userId,
+                    entityId,
                     name: legacyEntry.name,
                     type: inferWalletAccountType(legacyEntry.name),
                     currentBalanceAmount: currentBalance,
@@ -124,6 +132,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
             await prisma.financeTransaction.create({
                 data: {
                     userId,
+                    entityId,
                     postedAt: new Date(),
                     kind: TransactionKind.ADJUSTMENT,
                     amountPhp: currentBalance,
@@ -138,6 +147,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
     const budgetEnvelopeCount = await prisma.budgetEnvelope.count({
         where: {
             userId,
+            entityId,
             isArchived: false,
             isSystem: false,
         },
@@ -147,6 +157,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
         await prisma.budgetEnvelope.create({
             data: {
                 userId,
+                entityId,
                 name: "General",
                 monthlyTargetPhp: 0,
                 availablePhp: 0,
@@ -157,7 +168,7 @@ export const ensureFinanceBootstrap = async (userId: string) => {
     }
 
     const incomeStreamCount = await prisma.incomeStream.count({
-        where: { userId },
+        where: { userId, entityId },
     });
 
     if (incomeStreamCount === 0) {
@@ -165,12 +176,14 @@ export const ensureFinanceBootstrap = async (userId: string) => {
             data: [
                 {
                     userId,
+                    entityId,
                     name: "Income Stream 1",
                     defaultAmountPhp: 0,
                     remarks: "Default stream created during finance bootstrap.",
                 },
                 {
                     userId,
+                    entityId,
                     name: "Income Stream 2",
                     defaultAmountPhp: 0,
                     remarks: "Default stream created during finance bootstrap.",

@@ -2,9 +2,9 @@
 
 - app/
   - (app)/
-    - layout.tsx (protected app shell)
+    - layout.tsx (protected app shell + active finance entity server action wiring)
     - layout.module.scss
-    - app-sidebar.tsx
+    - app-sidebar.tsx (route nav + active finance entity selector)
     - dashboard/
       - page.tsx (main transaction-first dashboard + import card + quick posting)
     - transactions/
@@ -84,6 +84,7 @@
     - coins-ph.ts
     - constants.ts
     - context.ts
+    - entity-context.ts (active entity resolution, ownership checks, entity cookie, delete guardrails)
     - form-parsers.ts
     - money.ts
     - posting-engine.ts
@@ -95,6 +96,7 @@
     - commit.ts
 - prisma/
   - schema.prisma
+  - migrate-finance-entities.ts (idempotent per-user backfill for nullable `entityId` columns)
   - migrations/
 - public/
 
@@ -102,5 +104,6 @@ Notes:
 
 - Protected pages are under `app/(app)`.
 - New finance domain models are in Prisma (`WalletAccount`, `CreditAccount`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
+- Multi-entity isolation uses `FinanceEntity` as the primary boundary for all entity-scoped financial models.
 - Legacy model (`MonthlyOverviewEntry`) remains for migration compatibility.
 - Workbook import currently uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) workflow.

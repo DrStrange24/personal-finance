@@ -1,4 +1,4 @@
-import { LoanDirection, LoanStatus } from "@prisma/client";
+﻿import { LoanDirection, LoanStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
@@ -9,7 +9,7 @@ import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 type LoanActionResult = {
@@ -29,13 +29,14 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
 };
 
 export default async function LoanPage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createLoanAction = async (formData: FormData): Promise<LoanActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const directionRaw = formData.get("direction");
         const direction = directionRaw === "YOU_ARE_OWED" ? LoanDirection.YOU_ARE_OWED : LoanDirection.YOU_OWE;
         const itemName = parseRequiredName(formData.get("itemName"));
@@ -64,6 +65,7 @@ export default async function LoanPage() {
             await prisma.loanRecord.create({
                 data: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     direction,
                     itemName,
                     counterparty: counterpartyResult.value,
@@ -86,7 +88,7 @@ export default async function LoanPage() {
     const updateLoanStatusAction = async (formData: FormData): Promise<LoanActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const statusRaw = typeof formData.get("status") === "string" ? String(formData.get("status")).trim() : "";
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
@@ -106,6 +108,7 @@ export default async function LoanPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                 },
                 data: {
                     status,
@@ -127,7 +130,7 @@ export default async function LoanPage() {
     const deleteLoanAction = async (formData: FormData): Promise<LoanActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
 
         if (!id) {
@@ -139,6 +142,7 @@ export default async function LoanPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                 },
             });
 
@@ -156,7 +160,7 @@ export default async function LoanPage() {
     const postLoanRepaymentAction = async (formData: FormData) => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const postedAtRaw = formData.get("postedAt");
         const walletAccountId = typeof formData.get("walletAccountId") === "string"
             ? String(formData.get("walletAccountId")).trim()
@@ -224,6 +228,7 @@ export default async function LoanPage() {
             for (const item of repaymentItems) {
                 const created = await postFinanceTransaction({
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     kind: "LOAN_REPAY",
                     postedAt,
                     amountPhp: item.amountPhp,
@@ -236,7 +241,11 @@ export default async function LoanPage() {
         } catch (error) {
             for (const transactionId of createdTransactionIds) {
                 try {
-                    await deleteFinanceTransactionWithReversal(actionSession.userId, transactionId);
+                    await deleteFinanceTransactionWithReversal(
+                        actionSession.userId,
+                        actionSession.activeEntity.id,
+                        transactionId,
+                    );
                 } catch {
                     // Best effort rollback if one of the batch items fails.
                 }
@@ -260,10 +269,11 @@ export default async function LoanPage() {
     };
 
     const [context, loans] = await Promise.all([
-        getFinanceContextData(session.userId),
+        getFinanceContextData(session.userId, activeEntityId),
         prisma.loanRecord.findMany({
             where: {
                 userId: session.userId,
+                entityId: activeEntityId,
             },
             orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         }),

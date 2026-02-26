@@ -10,7 +10,7 @@ import { formatPhp } from "@/lib/finance/money";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getBudgetStats } from "@/lib/finance/queries";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 const parseRequiredName = (value: FormDataEntryValue | null) => {
@@ -30,13 +30,14 @@ type BudgetActionResult = {
 };
 
 export default async function BudgetPage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const name = parseRequiredName(formData.get("name"));
         const monthlyTargetResult = parseMoneyInput(formData.get("monthlyTargetPhp"), true);
         const availableResult = parseMoneyInput(formData.get("availablePhp"), true);
@@ -59,6 +60,7 @@ export default async function BudgetPage() {
             const maxSortOrder = await prisma.budgetEnvelope.aggregate({
                 where: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isSystem: false,
                 },
                 _max: {
@@ -69,6 +71,7 @@ export default async function BudgetPage() {
             await prisma.budgetEnvelope.create({
                 data: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     name,
                     monthlyTargetPhp: monthlyTargetResult.value,
                     availablePhp: availableResult.value,
@@ -89,7 +92,7 @@ export default async function BudgetPage() {
     const updateBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const monthlyTargetResult = parseMoneyInput(formData.get("monthlyTargetPhp"), true);
         const payToResult = parseOptionalText(formData.get("payTo"), 80);
@@ -111,6 +114,7 @@ export default async function BudgetPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isSystem: false,
                 },
                 data: {
@@ -136,7 +140,7 @@ export default async function BudgetPage() {
     const deleteBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
 
         if (!id) {
@@ -148,6 +152,7 @@ export default async function BudgetPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isSystem: false,
                     isArchived: false,
                 },
@@ -171,7 +176,7 @@ export default async function BudgetPage() {
 
     const postBudgetAllocationAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const postedAtRaw = formData.get("postedAt");
         const amountResult = parseMoneyInput(formData.get("amountPhp"), true);
@@ -202,6 +207,7 @@ export default async function BudgetPage() {
         try {
             await postFinanceTransaction({
                 userId: actionSession.userId,
+                entityId: actionSession.activeEntity.id,
                 kind: "BUDGET_ALLOCATION",
                 postedAt,
                 amountPhp: amountResult.value,
@@ -222,18 +228,9 @@ export default async function BudgetPage() {
         return { ok: true, message: "Budget allocation posted successfully." };
     };
 
-    const [context, budgetStats, creditAggregate] = await Promise.all([
-        getFinanceContextData(session.userId),
-        getBudgetStats(session.userId),
-        prisma.creditAccount.aggregate({
-            where: {
-                userId: session.userId,
-                isArchived: false,
-            },
-            _sum: {
-                currentBalanceAmount: true,
-            },
-        }),
+    const [context, budgetStats] = await Promise.all([
+        getFinanceContextData(session.userId, activeEntityId),
+        getBudgetStats(session.userId, activeEntityId),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({
@@ -268,7 +265,12 @@ export default async function BudgetPage() {
         return total + Number(wallet.currentBalanceAmount);
     }, 0);
     const allocatedBudgetPhp = budgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
-    const totalCreditCardDebtPhp = Number(creditAggregate._sum.currentBalanceAmount ?? 0);
+    const totalCreditCardDebtPhp = context.wallets.reduce((total, wallet) => {
+        if (wallet.type !== WalletAccountType.CREDIT_CARD) {
+            return total;
+        }
+        return total + Number(wallet.currentBalanceAmount);
+    }, 0);
     const unallocatedCashPhp = liquidWalletBalancePhp - (allocatedBudgetPhp + totalCreditCardDebtPhp);
 
     return (

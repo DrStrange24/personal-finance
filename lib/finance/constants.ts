@@ -6,3 +6,6 @@ export const SYSTEM_ENVELOPES = {
 } as const;
 
 export const SYSTEM_ENVELOPE_NAMES = Object.values(SYSTEM_ENVELOPES);
+
+export const ACTIVE_FINANCE_ENTITY_COOKIE = "pf_entity";
+export const ACTIVE_FINANCE_ENTITY_STORAGE_KEY = "pf-active-entity";

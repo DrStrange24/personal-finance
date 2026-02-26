@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifySessionToken } from "@/lib/auth";
+import { getFinanceEntityContextFromCookie } from "@/lib/finance/entity-context";
 import { commitWorkbookForUser } from "@/lib/import/commit";
 import { getStagedWorkbook, removeStagedWorkbook } from "@/lib/import/staging-store";
 
@@ -32,11 +33,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Import session not found or expired." }, { status: 404 });
     }
 
-    const result = await commitWorkbookForUser(session.userId, staged);
+    const entityContext = await getFinanceEntityContextFromCookie(session.userId);
+    const result = await commitWorkbookForUser(session.userId, entityContext.activeEntity.id, staged);
     removeStagedWorkbook(importId);
 
     return NextResponse.json({
         ok: true,
+        entityId: entityContext.activeEntity.id,
         result,
     });
 }

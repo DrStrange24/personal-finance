@@ -5,7 +5,7 @@ import AddCreditAccountModal from "./add-credit-account-modal";
 import CreditAccountTable from "./credit-account-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 type CreditAccountActionResult = {
@@ -27,13 +27,13 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
 };
 
 export default async function CreditPage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    await ensureFinanceBootstrap(session.userId, session.activeEntity.id);
 
     const createCreditAccountAction = async (formData: FormData): Promise<CreditAccountActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const name = parseRequiredName(formData.get("name"));
         const creditLimitResult = parseMoneyInput(formData.get("creditLimitAmount"), true);
         const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
@@ -68,7 +68,7 @@ export default async function CreditPage() {
     const updateCreditAccountAction = async (formData: FormData): Promise<CreditAccountActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
         const creditLimitResult = parseMoneyInput(formData.get("creditLimitAmount"), true);
@@ -117,7 +117,7 @@ export default async function CreditPage() {
     const archiveCreditAccountAction = async (formData: FormData): Promise<CreditAccountActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
 
         if (!id) {

@@ -8,7 +8,7 @@ import styles from "./page.module.scss";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { walletAccountTypeLabel } from "@/lib/finance/types";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 type WalletAccountActionResult = {
@@ -36,13 +36,14 @@ const parseAccountType = (value: FormDataEntryValue | null): WalletAccountType |
 };
 
 export default async function WalletPage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
         const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
@@ -55,6 +56,7 @@ export default async function WalletPage() {
             const account = await prisma.walletAccount.create({
                 data: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     type,
                     name,
                     currentBalanceAmount: balanceResult.value,
@@ -65,6 +67,7 @@ export default async function WalletPage() {
                 await prisma.financeTransaction.create({
                     data: {
                         userId: actionSession.userId,
+                        entityId: actionSession.activeEntity.id,
                         kind: TransactionKind.ADJUSTMENT,
                         amountPhp: balanceResult.value,
                         walletAccountId: account.id,
@@ -85,7 +88,7 @@ export default async function WalletPage() {
     const updateWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
@@ -99,6 +102,7 @@ export default async function WalletPage() {
             where: {
                 id,
                 userId: actionSession.userId,
+                entityId: actionSession.activeEntity.id,
                 isArchived: false,
             },
         });
@@ -122,6 +126,7 @@ export default async function WalletPage() {
                 await prisma.financeTransaction.create({
                     data: {
                         userId: actionSession.userId,
+                        entityId: actionSession.activeEntity.id,
                         kind: TransactionKind.ADJUSTMENT,
                         amountPhp: Math.abs(delta),
                         walletAccountId: existing.id,
@@ -141,7 +146,7 @@ export default async function WalletPage() {
 
     const archiveWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
 
         if (!id) {
@@ -153,6 +158,7 @@ export default async function WalletPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isArchived: false,
                 },
                 data: {
@@ -175,6 +181,7 @@ export default async function WalletPage() {
     const accounts = await prisma.walletAccount.findMany({
         where: {
             userId: session.userId,
+            entityId: activeEntityId,
             isArchived: false,
             type: {
                 in: [WalletAccountType.CASH, WalletAccountType.BANK, WalletAccountType.E_WALLET],

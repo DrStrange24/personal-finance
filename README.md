@@ -27,6 +27,11 @@ Project documentation lives in `docs/`.
   - `/wallet` wallet account management (cash/bank/e-wallet) with grouped cards and modal add/edit flows
   - `/monthly-overview` historical wallet snapshot table/chart (legacy-compatible page)
 
+Entity scope:
+
+- The authenticated shell includes an entity selector (Personal/Business).
+- Entity-scoped financial pages and posting operations resolve `activeEntityId` from session cookie (`pf_entity`) and local storage fallback UX state.
+
 ## Getting Started
 
 Install dependencies:
@@ -54,11 +59,20 @@ Migration rule:
 - Make further DB changes by creating a new migration manually after schema updates.
 - When creating migrations, always provide a clear initiative/feature name:
   - `npx prisma migrate dev --name <initiative-name>`
+- For data-migration SQL steps, use guarded/idempotent patterns:
+  - insert/create rows with `IF NOT EXISTS` semantics
+  - delete rows with `IF EXISTS` semantics
 
 Generate Prisma client (if needed):
 
 ```bash
 npx prisma generate
+```
+
+Backfill existing rows into default entity after adding nullable `entityId` columns:
+
+```bash
+npx tsx prisma/migrate-finance-entities.ts
 ```
 
 Run development server:
@@ -89,6 +103,8 @@ Supported workbook sheets:
 ## Finance Model (Phase)
 
 - PHP-only currency model.
+- `FinanceEntity` is the accounting boundary for `WalletAccount`, `BudgetEnvelope`, `LoanRecord`, `IncomeStream`, and `FinanceTransaction`.
+- Posting engine strictly validates entity consistency across linked records (wallet/budget/loan/income/target wallet).
 - Every manual add/deduct flow records a ledger transaction.
 - Investments are managed in `Investment` records with unit value tracking and estimated PHP valuation in UI.
 - Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.

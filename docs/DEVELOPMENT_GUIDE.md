@@ -42,6 +42,22 @@ Generate Prisma client:
 npx prisma generate
 ```
 
+Run the entity backfill script after introducing nullable `entityId` columns:
+
+```bash
+npx tsx prisma/migrate-finance-entities.ts
+```
+
+The script is idempotent and runs per-user transactions. It creates a default `FinanceEntity` (`Personal`) and fills `entityId` for:
+
+- `WalletAccount`
+- `BudgetEnvelope`
+- `LoanRecord`
+- `IncomeStream`
+- `FinanceTransaction`
+
+It also verifies no remaining NULL `entityId` values and prints a migration summary.
+
 ## Prisma Migration Safety
 
 - Do not edit `prisma/migrations/*/migration.sql` after that migration has been applied to any database.
@@ -55,6 +71,13 @@ npx prisma migrate dev --name your-change-name
 - Use kebab-case and clear intent for migration names (example: `wallet-balance-precision-fix`, `add-income-stream-indexes`).
 
 - If a previously applied migration file was accidentally edited, restore that file content to the original version instead of rewriting migration history.
+
+### SQL Guardrail For Migration Updates
+
+- When writing or updating migration SQL data steps, make operations idempotent with existence checks.
+- Insert/create data rows with `IF NOT EXISTS` semantics (for example, `INSERT ... SELECT ... WHERE NOT EXISTS (...)`).
+- Delete/remove data rows with `IF EXISTS` semantics (for example, `DELETE ... WHERE EXISTS (...)` or scoped `DELETE` predicates that only run when matching rows exist).
+- Prefer guarded updates over blind writes so re-running migration logic does not corrupt or duplicate data.
 
 ## Run
 
@@ -88,6 +111,7 @@ npm run build
 - Prefer Server Components for page data.
 - Use `app/api/*` endpoints for browser file upload/import flows.
 - Keep Prisma access server-side only.
+- Financial reads/writes must be scoped by `activeEntityId` (never by `userId` alone for entity-scoped models).
 
 ## Reusable UI Placement
 

@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 
-export const getFinanceContextData = async (userId: string) => {
+export const getFinanceContextData = async (userId: string, entityId: string) => {
     const [wallets, budgets, incomes, loans] = await Promise.all([
         prisma.walletAccount.findMany({
             where: {
                 userId,
+                entityId,
                 isArchived: false,
             },
             orderBy: [{ type: "asc" }, { name: "asc" }],
@@ -12,6 +13,7 @@ export const getFinanceContextData = async (userId: string) => {
         prisma.budgetEnvelope.findMany({
             where: {
                 userId,
+                entityId,
                 isArchived: false,
             },
             orderBy: [{ isSystem: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
@@ -19,6 +21,7 @@ export const getFinanceContextData = async (userId: string) => {
         prisma.incomeStream.findMany({
             where: {
                 userId,
+                entityId,
                 isActive: true,
             },
             orderBy: { name: "asc" },
@@ -26,6 +29,7 @@ export const getFinanceContextData = async (userId: string) => {
         prisma.loanRecord.findMany({
             where: {
                 userId,
+                entityId,
             },
             orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         }),

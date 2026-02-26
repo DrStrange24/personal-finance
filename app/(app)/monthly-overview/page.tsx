@@ -1,11 +1,9 @@
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import type { Decimal } from "@prisma/client/runtime/library";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { verifySessionToken } from "@/lib/auth";
 import { getDashboardSummary } from "@/lib/finance/queries";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 import MonthlyOverviewChartModal from "./chart-modal";
 import MonthlyOverviewEntryTable from "./entry-table";
@@ -30,18 +28,6 @@ type MonthlyOverviewRow = {
 type EntryActionResult = {
     ok: boolean;
     message: string;
-};
-
-const getAuthenticatedSession = async () => {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("pf_session")?.value;
-    const session = token ? verifySessionToken(token) : null;
-
-    if (!session) {
-        redirect("/login");
-    }
-
-    return session;
 };
 
 const parseEntryDate = (value: FormDataEntryValue | null) => {
@@ -80,12 +66,12 @@ const parseRemarks = (value: FormDataEntryValue | null) => {
 };
 
 export default async function MonthlyOverviewPage() {
-    const session = await getAuthenticatedSession();
+    const session = await getAuthenticatedEntitySession();
 
     const createEntryAction = async (formData: FormData) => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const entryDate = parseEntryDate(formData.get("entryDate"));
         const walletAmount = parseWalletAmount(formData.get("walletAmount"));
         const remarks = parseRemarks(formData.get("remarks"));
@@ -121,7 +107,7 @@ export default async function MonthlyOverviewPage() {
     const updateEntryAction = async (formData: FormData) => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const entryId = formData.get("id");
         const entryDate = parseEntryDate(formData.get("entryDate"));
         const walletAmount = parseWalletAmount(formData.get("walletAmount"));
@@ -169,7 +155,7 @@ export default async function MonthlyOverviewPage() {
     const deleteEntryAction = async (formData: FormData) => {
         "use server";
 
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
         const entryId = formData.get("id");
 
         if (typeof entryId !== "string" || entryId.trim().length === 0) {
@@ -216,7 +202,7 @@ export default async function MonthlyOverviewPage() {
             WHERE "userId" = ${session.userId}
             ORDER BY "entryDate" DESC, "createdAt" DESC
         `;
-    const summary = await getDashboardSummary(session.userId);
+    const summary = await getDashboardSummary(session.userId, session.activeEntity.id);
 
     const chartEntries = [...entries].reverse();
     const chartData = chartEntries.map((entry) => ({

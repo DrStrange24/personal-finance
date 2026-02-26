@@ -6,7 +6,7 @@ import InvestmentTable from "./investment-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
-import { getAuthenticatedSession } from "@/lib/server-session";
+import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
 type InvestmentActionResult = {
@@ -49,12 +49,12 @@ const inferAssetSymbol = (name: string) => {
 };
 
 export default async function InvestmentPage() {
-    const session = await getAuthenticatedSession();
-    await ensureFinanceBootstrap(session.userId);
+    const session = await getAuthenticatedEntitySession();
+    await ensureFinanceBootstrap(session.userId, session.activeEntity.id);
 
     const createInvestmentAction = async (formData: FormData): Promise<InvestmentActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
@@ -92,7 +92,7 @@ export default async function InvestmentPage() {
 
     const updateInvestmentAction = async (formData: FormData): Promise<InvestmentActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
@@ -140,7 +140,7 @@ export default async function InvestmentPage() {
 
     const deleteInvestmentAction = async (formData: FormData): Promise<InvestmentActionResult> => {
         "use server";
-        const actionSession = await getAuthenticatedSession();
+        const actionSession = await getAuthenticatedEntitySession();
 
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         if (!id) {
