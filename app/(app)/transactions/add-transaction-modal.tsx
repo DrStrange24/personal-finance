@@ -80,6 +80,14 @@ export default function AddTransactionModal({
     const [incomeDistributionRows, setIncomeDistributionRows] = useState([getEmptyDistributionRow()]);
     const [selectAllBudgets, setSelectAllBudgets] = useState(false);
     const [recordOnly, setRecordOnly] = useState(false);
+    const [postedAt, setPostedAt] = useState(todayIso());
+    const [amountPhp, setAmountPhp] = useState("");
+    const [walletAccountId, setWalletAccountId] = useState("");
+    const [targetWalletAccountId, setTargetWalletAccountId] = useState("");
+    const [budgetEnvelopeId, setBudgetEnvelopeId] = useState("");
+    const [incomeStreamId, setIncomeStreamId] = useState("");
+    const [loanRecordId, setLoanRecordId] = useState("");
+    const [remarks, setRemarks] = useState("");
     const { showSuccess, showError } = useAppToast();
 
     const requiresBudget = !recordOnly && kindsRequiringBudget.has(kind);
@@ -107,6 +115,10 @@ export default function AddTransactionModal({
     );
 
     const submitTransaction = async (formData: FormData) => {
+        const submitMode = typeof formData.get("submitMode") === "string"
+            ? String(formData.get("submitMode"))
+            : "post";
+
         if (!recordOnly && kind === "EXPENSE" && expenseFunding === "credit") {
             formData.set("kind", "CREDIT_CARD_CHARGE");
         }
@@ -170,13 +182,16 @@ export default function AddTransactionModal({
             const result = await postTransactionAction(formData);
             if (result.ok) {
                 showSuccess("Transaction Posted", result.message);
+                if (submitMode === "post-and-add-another") {
+                    setAmountPhp("");
+                    return;
+                }
+                setIsOpen(false);
             } else {
                 showError("Post Failed", result.message);
             }
         } catch {
             showError("Post Failed", "Could not post transaction.");
-        } finally {
-            setIsOpen(false);
         }
     };
 
@@ -219,12 +234,30 @@ export default function AddTransactionModal({
 
                         <div className="d-grid gap-1">
                             <label htmlFor="tx-posted-at" className="small fw-semibold">Date</label>
-                            <input id="tx-posted-at" type="date" name="postedAt" className="form-control" defaultValue={todayIso()} required />
+                            <input
+                                id="tx-posted-at"
+                                type="date"
+                                name="postedAt"
+                                className="form-control"
+                                value={postedAt}
+                                onChange={(event) => setPostedAt(event.target.value)}
+                                required
+                            />
                         </div>
 
                         <div className="d-grid gap-1">
                             <label htmlFor="tx-amount" className="small fw-semibold">Amount (PHP)</label>
-                            <input id="tx-amount" type="number" name="amountPhp" className="form-control" min="0.01" step="0.01" required />
+                            <input
+                                id="tx-amount"
+                                type="number"
+                                name="amountPhp"
+                                className="form-control"
+                                min="0.01"
+                                step="0.01"
+                                value={amountPhp}
+                                onChange={(event) => setAmountPhp(event.target.value)}
+                                required
+                            />
                         </div>
 
                         <div className="form-check">
@@ -267,7 +300,14 @@ export default function AddTransactionModal({
                             <label htmlFor="tx-wallet" className="small fw-semibold">
                                 {isExpense && expenseFunding === "credit" ? "Credit Account" : "Wallet"}
                             </label>
-                            <select id="tx-wallet" name="walletAccountId" className="form-control" required>
+                            <select
+                                id="tx-wallet"
+                                name="walletAccountId"
+                                className="form-control"
+                                value={walletAccountId}
+                                onChange={(event) => setWalletAccountId(event.target.value)}
+                                required
+                            >
                                 <option value="">
                                     {isExpense && expenseFunding === "credit" ? "Select credit account" : "Select wallet"}
                                 </option>
@@ -287,7 +327,14 @@ export default function AddTransactionModal({
                         {requiresTargetWallet ? (
                             <div className="d-grid gap-1">
                                 <label htmlFor="tx-target-wallet" className="small fw-semibold">Target Wallet</label>
-                                <select id="tx-target-wallet" name="targetWalletAccountId" className="form-control" required>
+                                <select
+                                    id="tx-target-wallet"
+                                    name="targetWalletAccountId"
+                                    className="form-control"
+                                    value={targetWalletAccountId}
+                                    onChange={(event) => setTargetWalletAccountId(event.target.value)}
+                                    required
+                                >
                                     <option value="">Select target wallet</option>
                                     {wallets.map((wallet) => (
                                         <option key={wallet.id} value={wallet.id}>
@@ -305,7 +352,14 @@ export default function AddTransactionModal({
                                 <label htmlFor="tx-budget" className="small fw-semibold">
                                     {recordOnly ? "Budget Envelope (Optional)" : "Budget Envelope"}
                                 </label>
-                                <select id="tx-budget" name="budgetEnvelopeId" className="form-control" required={requiresBudget}>
+                                <select
+                                    id="tx-budget"
+                                    name="budgetEnvelopeId"
+                                    className="form-control"
+                                    value={budgetEnvelopeId}
+                                    onChange={(event) => setBudgetEnvelopeId(event.target.value)}
+                                    required={requiresBudget}
+                                >
                                     <option value="">{recordOnly ? "Optional" : "Select budget envelope"}</option>
                                     {budgets.map((budget) => (
                                         <option key={budget.id} value={budget.id}>
@@ -409,7 +463,13 @@ export default function AddTransactionModal({
                         {supportsIncomeStream && (
                             <div className="d-grid gap-1">
                                 <label htmlFor="tx-income-stream" className="small fw-semibold">Income Stream</label>
-                                <select id="tx-income-stream" name="incomeStreamId" className="form-control">
+                                <select
+                                    id="tx-income-stream"
+                                    name="incomeStreamId"
+                                    className="form-control"
+                                    value={incomeStreamId}
+                                    onChange={(event) => setIncomeStreamId(event.target.value)}
+                                >
                                     <option value="">Optional</option>
                                     {incomeStreams.map((stream) => (
                                         <option key={stream.id} value={stream.id}>
@@ -423,7 +483,13 @@ export default function AddTransactionModal({
                         {supportsLoan && (
                             <div className="d-grid gap-1">
                                 <label htmlFor="tx-loan" className="small fw-semibold">Loan Record</label>
-                                <select id="tx-loan" name="loanRecordId" className="form-control">
+                                <select
+                                    id="tx-loan"
+                                    name="loanRecordId"
+                                    className="form-control"
+                                    value={loanRecordId}
+                                    onChange={(event) => setLoanRecordId(event.target.value)}
+                                >
                                     <option value="">Optional</option>
                                     {loanRecords.map((loan) => (
                                         <option key={loan.id} value={loan.id}>
@@ -436,14 +502,25 @@ export default function AddTransactionModal({
 
                         <div className="d-grid gap-1">
                             <label htmlFor="tx-remarks" className="small fw-semibold">Remarks</label>
-                            <textarea id="tx-remarks" name="remarks" className="form-control" rows={2} placeholder="Optional" />
+                            <textarea
+                                id="tx-remarks"
+                                name="remarks"
+                                className="form-control"
+                                rows={2}
+                                placeholder="Optional"
+                                value={remarks}
+                                onChange={(event) => setRemarks(event.target.value)}
+                            />
                         </div>
                     </Modal.Body>
                     <Modal.Footer>
                         <Button type="button" variant="outline-secondary" onClick={() => setIsOpen(false)}>
                             Cancel
                         </Button>
-                        <Button type="submit">Post Entry</Button>
+                        <Button type="submit" name="submitMode" value="post-and-add-another" variant="outline-primary">
+                            Post &amp; Add Another
+                        </Button>
+                        <Button type="submit" name="submitMode" value="post">Post Entry</Button>
                     </Modal.Footer>
                 </form>
             </Modal>
