@@ -5,10 +5,12 @@ import CardBody from "react-bootstrap/CardBody";
 import AddLoanRecordModal from "./add-loan-record-modal";
 import LoanRecordTable from "./loan-record-table";
 import LoanTransactionModal from "./loan-transaction-modal";
+import MetricCard from "@/app/components/finance/metric-card";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
+import { getOutstandingLoanTotals } from "@/lib/finance/queries";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -101,6 +103,8 @@ export default async function LoanPage() {
             ? LoanStatus.WRITTEN_OFF
             : statusRaw === LoanStatus.PAID
                 ? LoanStatus.PAID
+                : statusRaw === LoanStatus.INACTIVE
+                    ? LoanStatus.INACTIVE
                 : LoanStatus.ACTIVE;
 
         try {
@@ -268,7 +272,7 @@ export default async function LoanPage() {
         };
     };
 
-    const [context, loans] = await Promise.all([
+    const [context, loans, loanTotals] = await Promise.all([
         getFinanceContextData(session.userId, activeEntityId),
         prisma.loanRecord.findMany({
             where: {
@@ -277,6 +281,7 @@ export default async function LoanPage() {
             },
             orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         }),
+        getOutstandingLoanTotals(session.userId, activeEntityId),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({
@@ -284,7 +289,7 @@ export default async function LoanPage() {
         label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
     }));
     const loanOptions = loans
-        .filter((loan) => loan.status !== LoanStatus.PAID)
+        .filter((loan) => loan.status === LoanStatus.ACTIVE)
         .map((loan) => ({
             id: loan.id,
             label: `${loan.itemName} (${formatPhp(Number(loan.remainingPhp))})`,
@@ -338,6 +343,19 @@ export default async function LoanPage() {
                     submitLabel="Post Repayment"
                 />
                 <AddLoanRecordModal createLoanAction={createLoanAction} />
+            </div>
+
+            <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                <MetricCard
+                    label="Total Loan (All Entities)"
+                    value={formatPhp(loanTotals.allEntitiesOutstandingPhp)}
+                    helper="Outstanding amount you owe"
+                />
+                <MetricCard
+                    label="Total Loan (Active Entity)"
+                    value={formatPhp(loanTotals.activeEntityOutstandingPhp)}
+                    helper="Outstanding amount in this entity"
+                />
             </div>
 
             <Card className="pf-surface-panel">

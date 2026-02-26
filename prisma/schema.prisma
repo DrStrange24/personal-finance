@@ -52,6 +52,7 @@ enum LoanDirection {
 
 enum LoanStatus {
   ACTIVE
+  INACTIVE
   PAID
   WRITTEN_OFF
 }

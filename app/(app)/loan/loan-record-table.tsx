@@ -14,7 +14,7 @@ type LoanRecordActionResult = {
     message: string;
 };
 
-type LoanStatusValue = "ACTIVE" | "PAID" | "WRITTEN_OFF";
+type LoanStatusValue = "ACTIVE" | "INACTIVE" | "PAID" | "WRITTEN_OFF";
 
 type LoanRow = {
     id: string;
@@ -97,6 +97,7 @@ export default function LoanRecordTable({
                         >
                             <option value="NON_PAID">ALL (NO PAID)</option>
                             <option value="ACTIVE">ACTIVE</option>
+                            <option value="INACTIVE">INACTIVE</option>
                             <option value="ALL">ALL</option>
                             <option value="PAID">PAID</option>
                             <option value="WRITTEN_OFF">WRITTEN_OFF</option>
@@ -180,6 +181,7 @@ export default function LoanRecordTable({
                                 key={editState?.id ? `${editState.id}-status` : "edit-loan-status-empty"}
                             >
                                 <option value="ACTIVE">ACTIVE</option>
+                                <option value="INACTIVE">INACTIVE</option>
                                 <option value="PAID">PAID</option>
                                 <option value="WRITTEN_OFF">WRITTEN_OFF</option>
                             </select>

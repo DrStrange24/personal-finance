@@ -1,3 +1,4 @@
+import { LoanStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const getFinanceContextData = async (userId: string, entityId: string) => {
@@ -30,6 +31,7 @@ export const getFinanceContextData = async (userId: string, entityId: string) =>
             where: {
                 userId,
                 entityId,
+                status: LoanStatus.ACTIVE,
             },
             orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         }),

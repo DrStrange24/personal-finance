@@ -1,4 +1,4 @@
-import { Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
+import { LoanDirection, LoanStatus, Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
 import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { prisma } from "@/lib/prisma";
 import type { DashboardSummary } from "@/lib/finance/types";
@@ -195,6 +195,45 @@ export const getCreditCardStatus = async (userId: string, entityId: string) => {
         ...card,
         currentBalanceAmount: Number(card.currentBalanceAmount),
     }));
+};
+
+export const getOutstandingLoanTotals = async (userId: string, entityId: string) => {
+    const outstandingLoanWhere = {
+        userId,
+        direction: LoanDirection.YOU_OWE,
+        status: LoanStatus.ACTIVE,
+        remainingPhp: {
+            gt: 0,
+        },
+    } satisfies Prisma.LoanRecordWhereInput;
+
+    const [allEntitiesAggregate, activeEntityAggregate] = await Promise.all([
+        prisma.loanRecord.aggregate({
+            where: {
+                ...outstandingLoanWhere,
+                entity: {
+                    isArchived: false,
+                },
+            },
+            _sum: {
+                remainingPhp: true,
+            },
+        }),
+        prisma.loanRecord.aggregate({
+            where: {
+                ...outstandingLoanWhere,
+                entityId,
+            },
+            _sum: {
+                remainingPhp: true,
+            },
+        }),
+    ]);
+
+    return {
+        allEntitiesOutstandingPhp: Number(allEntitiesAggregate._sum.remainingPhp ?? 0),
+        activeEntityOutstandingPhp: Number(activeEntityAggregate._sum.remainingPhp ?? 0),
+    };
 };
 
 export const formatTransactionDirection = (

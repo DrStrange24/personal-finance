@@ -117,6 +117,7 @@ export const walletAccountTypeLabel: Record<WalletAccountType, string> = {
 
 export const loanStatusLabel: Record<LoanStatus, string> = {
     ACTIVE: "Active",
+    INACTIVE: "Inactive",
     PAID: "Paid",
     WRITTEN_OFF: "Written Off",
 };
