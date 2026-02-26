@@ -14,10 +14,16 @@ type FormOption = {
     type?: WalletAccountType;
 };
 
+type BudgetOption = {
+    id: string;
+    label: string;
+    targetLabel?: string;
+};
+
 type AddTransactionModalProps = {
     wallets: FormOption[];
     creditAccounts?: FormOption[];
-    budgets: FormOption[];
+    budgets: BudgetOption[];
     incomeStreams: FormOption[];
     loanRecords: FormOption[];
     postTransactionAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
@@ -286,7 +292,7 @@ export default function AddTransactionModal({
                                             <option value="">Select budget envelope</option>
                                             {budgets.map((budget) => (
                                                 <option key={budget.id} value={budget.id}>
-                                                    {budget.label}
+                                                    {budget.targetLabel ?? budget.label}
                                                 </option>
                                             ))}
                                         </select>

@@ -9,6 +9,7 @@ import TransactionKindBadge from "@/app/components/finance/transaction-kind-badg
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
 import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance/form-parsers";
+import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
 import { getDashboardSummary } from "@/lib/finance/queries";
@@ -186,12 +187,7 @@ export default async function DashboardPage() {
         label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
         type: wallet.type,
     }));
-    const budgetOptions = context.budgets
-        .filter((budget) => !budget.isSystem)
-        .map((budget) => ({
-            id: budget.id,
-            label: `${budget.name} (${formatPhp(Number(budget.availablePhp))})`,
-        }));
+    const budgetOptions = mapBudgetFormOptions(context.budgets);
     const incomeOptions = context.incomes.map((income) => ({
         id: income.id,
         label: income.name,
