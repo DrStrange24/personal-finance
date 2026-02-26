@@ -2,7 +2,7 @@ import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { revalidatePath } from "next/cache";
-import { getDashboardSummary } from "@/lib/finance/queries";
+import { getDashboardSummaryAcrossEntities } from "@/lib/finance/queries";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 import MonthlyOverviewChartModal from "./chart-modal";
@@ -202,7 +202,7 @@ export default async function MonthlyOverviewPage() {
             WHERE "userId" = ${session.userId}
             ORDER BY "entryDate" DESC, "createdAt" DESC
         `;
-    const summaryResult = await getDashboardSummary(session.userId, session.activeEntity.id)
+    const summaryResult = await getDashboardSummaryAcrossEntities(session.userId)
         .then((data) => ({ ok: true as const, data }))
         .catch((error) => ({ ok: false as const, error }));
     const summary = summaryResult.ok ? summaryResult.data : null;
@@ -211,7 +211,7 @@ export default async function MonthlyOverviewPage() {
             scope: "finance-kpi",
             level: "error",
             queryType: "monthly-overview-default-kpi",
-            entityId: session.activeEntity.id,
+            entityId: "ALL_ENTITIES",
             error: summaryResult.error instanceof Error ? summaryResult.error.message : "Unknown KPI error.",
         }));
     }
