@@ -16,6 +16,7 @@ type CreditAccountRow = {
     name: string;
     creditLimitAmount: number;
     currentBalanceAmount: number;
+    paymentReservePhp: number;
     createdAtLabel: string;
 };
 
@@ -74,6 +75,7 @@ export default function CreditAccountTable({
                                     <th>Credit Limit</th>
                                     <th>Used</th>
                                     <th>Remaining</th>
+                                    <th>Reserved</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
@@ -81,7 +83,7 @@ export default function CreditAccountTable({
                             <tbody>
                                 {accounts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No credit accounts yet.
                                         </td>
                                     </tr>
@@ -94,6 +96,7 @@ export default function CreditAccountTable({
                                             <td className={account.creditLimitAmount - account.currentBalanceAmount >= 0 ? "text-success" : "text-danger"}>
                                                 {formatPhp(account.creditLimitAmount - account.currentBalanceAmount)}
                                             </td>
+                                            <td>{formatPhp(account.paymentReservePhp)}</td>
                                             <td>{account.createdAtLabel}</td>
                                             <td>
                                                 <div className="d-flex align-items-center gap-2">

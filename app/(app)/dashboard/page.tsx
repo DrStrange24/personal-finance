@@ -46,6 +46,7 @@ export default async function DashboardPage() {
         revalidatePath("/dashboard");
         revalidatePath("/transactions");
         revalidatePath("/budget");
+        revalidatePath("/credit");
         revalidatePath("/loan");
         revalidatePath("/wallet");
         return { ok: true, message: "Transaction posted successfully." } satisfies FinanceActionResult;

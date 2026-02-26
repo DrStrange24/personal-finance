@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { WalletAccountType } from "@prisma/client";
+import { BudgetEnvelopeSystemType, WalletAccountType } from "@prisma/client";
 import AddBudgetEnvelopeModal from "./add-budget-envelope-modal";
 import AllocateBudgetModal from "./allocate-budget-modal";
 import BudgetEnvelopeTable from "./budget-envelope-table";
@@ -252,6 +252,19 @@ export default async function BudgetPage() {
         remarks: budget.remarks,
         rolloverEnabled: budget.rolloverEnabled,
     }));
+    const systemBudgetRows = context.budgets
+        .filter((budget) => budget.isSystem && budget.systemType === BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT)
+        .map((budget) => ({
+            id: budget.id,
+            name: budget.name,
+            monthlyTargetPhp: Number(budget.monthlyTargetPhp),
+            availablePhp: Number(budget.availablePhp),
+            spentPhp: 0,
+            remainingPhp: Number(budget.availablePhp),
+            payTo: budget.payTo,
+            remarks: budget.remarks,
+            rolloverEnabled: budget.rolloverEnabled,
+        }));
     const liquidWalletBalancePhp = context.wallets.reduce((total, wallet) => {
         if (
             wallet.type !== WalletAccountType.CASH
@@ -263,13 +276,8 @@ export default async function BudgetPage() {
         return total + Number(wallet.currentBalanceAmount);
     }, 0);
     const allocatedBudgetPhp = budgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
-    const totalCreditCardDebtPhp = context.wallets.reduce((total, wallet) => {
-        if (wallet.type !== WalletAccountType.CREDIT_CARD) {
-            return total;
-        }
-        return total + Number(wallet.currentBalanceAmount);
-    }, 0);
-    const unallocatedCashPhp = liquidWalletBalancePhp - (allocatedBudgetPhp + totalCreditCardDebtPhp);
+    const totalCreditPaymentReservePhp = systemBudgetRows.reduce((total, budget) => total + budget.availablePhp, 0);
+    const unallocatedCashPhp = liquidWalletBalancePhp - (allocatedBudgetPhp + totalCreditPaymentReservePhp);
 
     return (
         <section className="d-grid gap-4">
@@ -294,12 +302,13 @@ export default async function BudgetPage() {
                 <MetricCard
                     label="Unallocated Cash"
                     value={formatPhp(unallocatedCashPhp)}
-                    helper="Liquid wallets minus (allocated budget plus credit card debt)."
+                    helper="Liquid wallets minus (allocated budget plus credit payment reserves)."
                 />
             </div>
 
             <BudgetEnvelopeTable
                 budgets={budgetRows}
+                systemBudgets={systemBudgetRows}
                 updateBudgetEnvelopeAction={updateBudgetEnvelopeAction}
                 deleteBudgetEnvelopeAction={deleteBudgetEnvelopeAction}
             />

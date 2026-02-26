@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { TransactionKind } from "@prisma/client";
+import { useMemo, useState } from "react";
+import { TransactionKind, WalletAccountType } from "@prisma/client";
 import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
@@ -17,6 +17,7 @@ import { transactionKindLabel } from "@/lib/finance/types";
 type FormOption = {
     id: string;
     label: string;
+    type?: WalletAccountType;
 };
 
 type TransactionRow = {
@@ -103,6 +104,27 @@ export default function TransactionsTable({
     const editRequiresTargetWallet = kindsRequiringTargetWallet.has(editKind);
     const editSupportsIncomeStream = kindsSupportingIncomeStream.has(editKind);
     const editSupportsLoan = kindsSupportingLoan.has(editKind);
+    const editWalletOptions = useMemo(() => {
+        if (editKind === "CREDIT_CARD_CHARGE") {
+            return wallets.filter((wallet) => wallet.type === WalletAccountType.CREDIT_CARD);
+        }
+        if (editKind === "CREDIT_CARD_PAYMENT") {
+            return wallets.filter((wallet) => wallet.type !== WalletAccountType.CREDIT_CARD);
+        }
+        return wallets;
+    }, [editKind, wallets]);
+    const editTargetWalletOptions = useMemo(() => {
+        if (editKind === "CREDIT_CARD_PAYMENT") {
+            return wallets.filter((wallet) => wallet.type === WalletAccountType.CREDIT_CARD);
+        }
+        return wallets;
+    }, [editKind, wallets]);
+    const editWalletLabel = editKind === "CREDIT_CARD_PAYMENT"
+        ? "Cash Wallet"
+        : editKind === "CREDIT_CARD_CHARGE"
+            ? "Credit Card Wallet"
+            : "Wallet";
+    const editTargetWalletLabel = editKind === "CREDIT_CARD_PAYMENT" ? "Credit Card Wallet" : "Target Wallet";
 
     const submitUpdateTransaction = async (formData: FormData) => {
         try {
@@ -263,7 +285,7 @@ export default function TransactionsTable({
                         </div>
 
                         <div className="d-grid gap-1">
-                            <label htmlFor="edit-tx-wallet" className="small fw-semibold">Wallet</label>
+                            <label htmlFor="edit-tx-wallet" className="small fw-semibold">{editWalletLabel}</label>
                             <select
                                 id="edit-tx-wallet"
                                 name="walletAccountId"
@@ -273,7 +295,7 @@ export default function TransactionsTable({
                                 required
                             >
                                 <option value="">Select wallet</option>
-                                {wallets.map((wallet) => (
+                                {editWalletOptions.map((wallet) => (
                                     <option key={wallet.id} value={wallet.id}>
                                         {wallet.label}
                                     </option>
@@ -283,7 +305,7 @@ export default function TransactionsTable({
 
                         {editRequiresTargetWallet ? (
                             <div className="d-grid gap-1">
-                                <label htmlFor="edit-tx-target-wallet" className="small fw-semibold">Target Wallet</label>
+                                <label htmlFor="edit-tx-target-wallet" className="small fw-semibold">{editTargetWalletLabel}</label>
                                 <select
                                     id="edit-tx-target-wallet"
                                     name="targetWalletAccountId"
@@ -293,7 +315,7 @@ export default function TransactionsTable({
                                     required
                                 >
                                     <option value="">Select target wallet</option>
-                                    {wallets.map((wallet) => (
+                                    {editTargetWalletOptions.map((wallet) => (
                                         <option key={wallet.id} value={wallet.id}>
                                             {wallet.label}
                                         </option>

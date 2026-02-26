@@ -70,6 +70,13 @@ enum EntityType {
   BUSINESS
 }
 
+enum BudgetEnvelopeSystemType {
+  TRANSFER
+  CREDIT_CARD_PAYMENT
+  LOAN_INFLOW
+  LOAN_PAYMENT
+}
+
 model FinanceEntity {
   id          String               @id @default(cuid())
   userId      String
@@ -119,6 +126,7 @@ model WalletAccount {
   entity              FinanceEntity?       @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sourceTransactions  FinanceTransaction[] @relation("TransactionSourceWallet")
   targetTransactions  FinanceTransaction[] @relation("TransactionTargetWallet")
+  linkedPaymentEnvelopes BudgetEnvelope[]  @relation("BudgetEnvelopeLinkedWallet")
 
   @@index([userId, type, isArchived])
   @@index([userId, isArchived, name])
@@ -138,6 +146,7 @@ model CreditAccount {
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   entity               FinanceEntity @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  linkedPaymentEnvelopes BudgetEnvelope[] @relation("BudgetEnvelopeLinkedCreditAccount")
 
   @@index([userId, isArchived, name])
   @@index([entityId])
@@ -196,18 +205,27 @@ model BudgetEnvelope {
   payTo            String?
   remarks          String?
   isSystem         Boolean              @default(false)
+  systemType       BudgetEnvelopeSystemType?
+  linkedWalletAccountId String?
+  linkedCreditAccountId String?
   isArchived       Boolean              @default(false)
   sortOrder        Int                  @default(0)
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   entity           FinanceEntity?       @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  linkedWalletAccount WalletAccount?    @relation("BudgetEnvelopeLinkedWallet", fields: [linkedWalletAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  linkedCreditAccount CreditAccount?    @relation("BudgetEnvelopeLinkedCreditAccount", fields: [linkedCreditAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   transactions     FinanceTransaction[]
+  ccPaymentTransactions FinanceTransaction[] @relation("TransactionCcPaymentEnvelope")
 
   @@index([userId, isArchived, isSystem, sortOrder])
   @@index([userId, name])
   @@index([entityId, isArchived, isSystem, sortOrder])
   @@index([entityId, name])
+  @@index([entityId, systemType, isArchived])
+  @@index([entityId, systemType, linkedWalletAccountId])
+  @@index([entityId, systemType, linkedCreditAccountId])
 }
 
 model LoanRecord {
@@ -247,6 +265,7 @@ model FinanceTransaction {
   walletAccountId       String
   targetWalletAccountId String?
   budgetEnvelopeId      String?
+  ccPaymentEnvelopeId   String?
   incomeStreamId        String?
   loanRecordId          String?
   adjustmentReasonCode  AdjustmentReasonCode?
@@ -263,6 +282,7 @@ model FinanceTransaction {
   walletAccount         WalletAccount   @relation("TransactionSourceWallet", fields: [walletAccountId], references: [id], onDelete: Restrict)
   targetWalletAccount   WalletAccount?  @relation("TransactionTargetWallet", fields: [targetWalletAccountId], references: [id], onDelete: SetNull)
   budgetEnvelope        BudgetEnvelope? @relation(fields: [budgetEnvelopeId], references: [id], onDelete: SetNull)
+  ccPaymentEnvelope     BudgetEnvelope? @relation("TransactionCcPaymentEnvelope", fields: [ccPaymentEnvelopeId], references: [id], onDelete: SetNull)
   incomeStream          IncomeStream?   @relation(fields: [incomeStreamId], references: [id], onDelete: SetNull)
   loanRecord            LoanRecord?     @relation(fields: [loanRecordId], references: [id], onDelete: SetNull)
   reversedTransaction   FinanceTransaction? @relation("TransactionReversal", fields: [reversedTransactionId], references: [id], onDelete: SetNull)
@@ -275,6 +295,7 @@ model FinanceTransaction {
   @@index([entityId, postedAt])
   @@index([entityId, kind, postedAt])
   @@index([entityId, budgetEnvelopeId, postedAt])
+  @@index([entityId, ccPaymentEnvelopeId, postedAt])
   @@index([entityId, walletAccountId, postedAt])
   @@index([userId, isReversal, voidedAt, postedAt])
   @@index([entityId, isReversal, voidedAt, postedAt])

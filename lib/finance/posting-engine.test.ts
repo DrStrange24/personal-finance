@@ -1,5 +1,6 @@
 import {
     AdjustmentReasonCode,
+    BudgetEnvelopeSystemType,
     LoanStatus,
     Prisma,
     WalletAccountType,
@@ -35,6 +36,9 @@ type EnvelopeRow = {
     entityId: string;
     name: string;
     isSystem: boolean;
+    systemType: BudgetEnvelopeSystemType | null;
+    linkedWalletAccountId: string | null;
+    linkedCreditAccountId: string | null;
     isArchived: boolean;
     availablePhp: Prisma.Decimal;
     monthlyTargetPhp: Prisma.Decimal;
@@ -86,6 +90,7 @@ type FinanceTransactionRow = {
     walletAccountId: string;
     targetWalletAccountId: string | null;
     budgetEnvelopeId: string | null;
+    ccPaymentEnvelopeId: string | null;
     incomeStreamId: string | null;
     loanRecordId: string | null;
     adjustmentReasonCode: AdjustmentReasonCode | null;
@@ -157,12 +162,32 @@ const baseState = (): InMemoryState => ({
             entityId: "e1",
             name: "General",
             isSystem: false,
+            systemType: null,
+            linkedWalletAccountId: null,
+            linkedCreditAccountId: null,
             isArchived: false,
             availablePhp: toDecimal(600),
             monthlyTargetPhp: toDecimal(1000),
             rolloverEnabled: true,
             sortOrder: 1,
             remarks: null,
+            payTo: null,
+        },
+        {
+            id: "ccpay_1",
+            userId: "u1",
+            entityId: "e1",
+            name: "System: CC Payment - Visa Card",
+            isSystem: true,
+            systemType: BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT,
+            linkedWalletAccountId: "cc_1",
+            linkedCreditAccountId: "credit_1",
+            isArchived: false,
+            availablePhp: toDecimal(200),
+            monthlyTargetPhp: toDecimal(0),
+            rolloverEnabled: true,
+            sortOrder: 9999,
+            remarks: "System managed",
             payTo: null,
         },
     ],
@@ -301,11 +326,14 @@ const makeTxClient = (state: InMemoryState) => ({
         },
         create: async ({ data }: { data: Record<string, unknown> }) => {
             const row: EnvelopeRow = {
-                id: `budget_${state.nextId++}`,
+                id: `budget_auto_${state.nextId++}`,
                 userId: data.userId as string,
                 entityId: data.entityId as string,
                 name: data.name as string,
                 isSystem: Boolean(data.isSystem),
+                systemType: (data.systemType as BudgetEnvelopeSystemType | null) ?? null,
+                linkedWalletAccountId: (data.linkedWalletAccountId as string | null) ?? null,
+                linkedCreditAccountId: (data.linkedCreditAccountId as string | null) ?? null,
                 isArchived: Boolean(data.isArchived),
                 availablePhp: toDecimal((data.availablePhp as number | Prisma.Decimal) ?? 0),
                 monthlyTargetPhp: toDecimal((data.monthlyTargetPhp as number | Prisma.Decimal) ?? 0),
@@ -328,6 +356,18 @@ const makeTxClient = (state: InMemoryState) => ({
                 if (next.increment !== undefined) {
                     row.availablePhp = row.availablePhp.add(toDecimal(next.increment as number));
                 }
+            }
+            if (data.name !== undefined) {
+                row.name = data.name as string;
+            }
+            if (data.systemType !== undefined) {
+                row.systemType = (data.systemType as BudgetEnvelopeSystemType | null) ?? null;
+            }
+            if (data.linkedWalletAccountId !== undefined) {
+                row.linkedWalletAccountId = (data.linkedWalletAccountId as string | null) ?? null;
+            }
+            if (data.linkedCreditAccountId !== undefined) {
+                row.linkedCreditAccountId = (data.linkedCreditAccountId as string | null) ?? null;
             }
 
             return pickSelect(row as unknown as Record<string, unknown>, select);
@@ -396,6 +436,7 @@ const makeTxClient = (state: InMemoryState) => ({
                 walletAccountId: data.walletAccountId as string,
                 targetWalletAccountId: (data.targetWalletAccountId as string | null) ?? null,
                 budgetEnvelopeId: (data.budgetEnvelopeId as string | null) ?? null,
+                ccPaymentEnvelopeId: (data.ccPaymentEnvelopeId as string | null) ?? null,
                 incomeStreamId: (data.incomeStreamId as string | null) ?? null,
                 loanRecordId: (data.loanRecordId as string | null) ?? null,
                 adjustmentReasonCode: (data.adjustmentReasonCode as AdjustmentReasonCode | null) ?? null,
@@ -462,6 +503,7 @@ const captureCoreState = (state: InMemoryState) => ({
     cash2: walletBalance(state, "cash_2"),
     creditWallet: walletBalance(state, "cc_1"),
     budget: envelopeAvailable(state, "budget_1"),
+    ccReserve: envelopeAvailable(state, "ccpay_1"),
     loanRemaining: loanRemaining(state, "loan_1"),
     loanPaid: loanPaid(state, "loan_1"),
     creditUsed: Number(state.creditAccounts.find((account) => account.id === "credit_1")?.currentBalanceAmount ?? 0),
@@ -570,6 +612,27 @@ describe("posting-engine", () => {
         })).rejects.toThrow("Credit card charge exceeds credit limit.");
     });
 
+    it("auto-creates per-card payment reserve envelope on credit card charge", async () => {
+        state.budgetEnvelopes = state.budgetEnvelopes.filter((envelope) => envelope.id !== "ccpay_1");
+
+        await postFinanceTransaction({
+            userId: "u1",
+            entityId: "e1",
+            actorUserId: "u1",
+            kind: "CREDIT_CARD_CHARGE",
+            amountPhp: 40,
+            walletAccountId: "cc_1",
+            budgetEnvelopeId: "budget_1",
+            remarks: "Charge with auto reserve",
+        });
+
+        const createdReserve = state.budgetEnvelopes.find((envelope) => envelope.linkedWalletAccountId === "cc_1");
+        expect(createdReserve).toBeDefined();
+        expect(createdReserve?.systemType).toBe(BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT);
+        expect(createdReserve?.name).toBe("System: CC Payment - Visa Card");
+        expect(Number(createdReserve?.availablePhp ?? 0)).toBe(40);
+    });
+
     it("posts CREDIT_CARD_PAYMENT and blocks overpay", async () => {
         await postFinanceTransaction({
             userId: "u1",
@@ -584,6 +647,7 @@ describe("posting-engine", () => {
 
         expect(walletBalance(state, "cash_1")).toBe(900);
         expect(walletBalance(state, "cc_1")).toBe(100);
+        expect(envelopeAvailable(state, "ccpay_1")).toBe(100);
 
         await expect(postFinanceTransaction({
             userId: "u1",
@@ -595,6 +659,21 @@ describe("posting-engine", () => {
             targetWalletAccountId: "cc_1",
             remarks: "Overpay",
         })).rejects.toThrow("Credit card payment cannot exceed outstanding debt.");
+    });
+
+    it("blocks CREDIT_CARD_PAYMENT when reserve is insufficient", async () => {
+        state.budgetEnvelopes.find((envelope) => envelope.id === "ccpay_1")!.availablePhp = toDecimal(20);
+
+        await expect(postFinanceTransaction({
+            userId: "u1",
+            entityId: "e1",
+            actorUserId: "u1",
+            kind: "CREDIT_CARD_PAYMENT",
+            amountPhp: 50,
+            walletAccountId: "cash_1",
+            targetWalletAccountId: "cc_1",
+            remarks: "Insufficient reserve",
+        })).rejects.toThrow("Insufficient reserved cash in credit card payment envelope.");
     });
 
     it("keeps same-name credit account in other entity unchanged", async () => {
@@ -610,8 +689,10 @@ describe("posting-engine", () => {
         });
 
         expect(walletBalance(state, "cc_1")).toBe(250);
+        expect(envelopeAvailable(state, "budget_1")).toBe(550);
         expect(Number(state.creditAccounts.find((account) => account.id === "credit_1")?.currentBalanceAmount ?? 0)).toBe(250);
         expect(Number(state.creditAccounts.find((account) => account.id === "credit_2")?.currentBalanceAmount ?? 0)).toBe(999);
+        expect(envelopeAvailable(state, "ccpay_1")).toBe(250);
     });
 
     it("posts LOAN_BORROW and LOAN_REPAY with overpay guard", async () => {

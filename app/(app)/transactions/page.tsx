@@ -54,6 +54,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         revalidatePath("/transactions");
         revalidatePath("/dashboard");
         revalidatePath("/budget");
+        revalidatePath("/credit");
         revalidatePath("/loan");
         revalidatePath("/wallet");
         return result;
@@ -106,6 +107,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         revalidatePath("/transactions");
         revalidatePath("/dashboard");
         revalidatePath("/budget");
+        revalidatePath("/credit");
         revalidatePath("/loan");
         revalidatePath("/wallet");
         return result;
@@ -137,6 +139,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         revalidatePath("/transactions");
         revalidatePath("/dashboard");
         revalidatePath("/budget");
+        revalidatePath("/credit");
         revalidatePath("/loan");
         revalidatePath("/wallet");
         return { ok: true, message: "Transaction deleted successfully." };

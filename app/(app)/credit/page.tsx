@@ -1,9 +1,11 @@
 import { revalidatePath } from "next/cache";
+import { BudgetEnvelopeSystemType } from "@prisma/client";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import AddCreditAccountModal from "./add-credit-account-modal";
 import CreditAccountTable from "./credit-account-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
+import { buildCreditCardPaymentEnvelopeName } from "@/lib/finance/credit-payment-envelope";
 import {
     ensureUniqueActiveCreditAccountName,
     listActiveCreditAccountsByEntity,
@@ -166,18 +168,47 @@ export default async function CreditPage() {
         }
     };
 
-    const accounts = await listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId);
+    const [accounts, ccPaymentEnvelopes] = await Promise.all([
+        listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
+        prisma.budgetEnvelope.findMany({
+            where: {
+                userId: session.userId,
+                entityId: activeEntityId,
+                isArchived: false,
+                isSystem: true,
+                systemType: BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT,
+            },
+            select: {
+                id: true,
+                name: true,
+                availablePhp: true,
+                linkedCreditAccountId: true,
+            },
+        }),
+    ]);
+    const reserveByCreditAccountId = new Map<string, number>();
+    const reserveByEnvelopeName = new Map<string, number>();
+    for (const envelope of ccPaymentEnvelopes) {
+        if (envelope.linkedCreditAccountId) {
+            reserveByCreditAccountId.set(envelope.linkedCreditAccountId, Number(envelope.availablePhp));
+        }
+        reserveByEnvelopeName.set(envelope.name, Number(envelope.availablePhp));
+    }
 
     const creditRows = accounts.map((account) => ({
         id: account.id,
         name: account.name,
         creditLimitAmount: Number(account.creditLimitAmount),
         currentBalanceAmount: Number(account.currentBalanceAmount),
+        paymentReservePhp: reserveByCreditAccountId.get(account.id)
+            ?? reserveByEnvelopeName.get(buildCreditCardPaymentEnvelopeName(account.name))
+            ?? 0,
         createdAtLabel: account.createdAt.toISOString().slice(0, 10),
     }));
 
     const totalLimitPhp = creditRows.reduce((sum, account) => sum + account.creditLimitAmount, 0);
     const totalUsedPhp = creditRows.reduce((sum, account) => sum + account.currentBalanceAmount, 0);
+    const totalReservePhp = creditRows.reduce((sum, account) => sum + account.paymentReservePhp, 0);
     const totalRemainingPhp = totalLimitPhp - totalUsedPhp;
 
     return (
@@ -215,6 +246,12 @@ export default async function CreditPage() {
                         <p className={`m-0 fs-5 fw-semibold ${totalRemainingPhp >= 0 ? "text-success" : "text-danger"}`}>
                             {formatPhp(totalRemainingPhp)}
                         </p>
+                    </CardBody>
+                </Card>
+                <Card className="pf-surface-card">
+                    <CardBody className="d-grid gap-1">
+                        <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Reserved For Payment</small>
+                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalReservePhp)}</p>
                     </CardBody>
                 </Card>
             </div>

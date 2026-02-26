@@ -37,6 +37,7 @@ Enums:
 
 - `WalletAccountType`
 - `TransactionKind`
+- `BudgetEnvelopeSystemType`
 - `LoanDirection`
 - `LoanStatus`
 
@@ -54,8 +55,8 @@ Implemented behavior:
 - `EXPENSE`: wallet -, budget envelope -
 - `BUDGET_ALLOCATION`: wallet -, budget envelope +
 - `TRANSFER`: source wallet -, target wallet +, uses system envelope
-- `CREDIT_CARD_CHARGE`: credit-card wallet debt +, budget envelope -
-- `CREDIT_CARD_PAYMENT`: cash wallet -, credit-card wallet debt -, uses system envelope
+- `CREDIT_CARD_CHARGE`: credit-card wallet debt +, spend envelope -, per-card CC payment reserve envelope +
+- `CREDIT_CARD_PAYMENT`: cash wallet -, credit-card wallet debt -, per-card CC payment reserve envelope -
 - `LOAN_BORROW`: wallet +, loan remaining +, uses system envelope
 - `LOAN_REPAY`: wallet -, loan paid + and remaining -, uses system envelope
 - `ADJUSTMENT`: wallet +/- (requires reason code + remarks)
@@ -66,6 +67,7 @@ Audit fields on `FinanceTransaction`:
 - `adjustmentReasonCode`
 - `isReversal`
 - `reversedTransactionId`
+- `ccPaymentEnvelopeId`
 - `voidedAt`
 - `voidedByUserId`
 
@@ -78,9 +80,9 @@ Active query contract for KPI/list views:
 System envelopes are auto-created in bootstrap:
 
 - `System: Transfer`
-- `System: Credit Payment`
 - `System: Loan Inflow`
 - `System: Loan Payment`
+- per-card: `System: CC Payment - {CardName}` (typed as `CREDIT_CARD_PAYMENT`)
 
 ## Bootstrap and Migration Compatibility
 
@@ -91,6 +93,10 @@ System envelopes are auto-created in bootstrap:
 - default income streams (if none)
 
 Legacy monthly overview is preserved and still served by `/monthly-overview`.
+
+Unallocated cash semantics:
+
+- `Unallocated Cash = liquid wallets - (non-system budget allocations + CC payment reserves)`
 
 ## Entity Scope Refactor (Sprint 2)
 

@@ -36,8 +36,11 @@ describe("queries.getDashboardSummary", () => {
                 { name: "ETH", value: new Prisma.Decimal(3) },
             ];
         });
-        mockPrisma.budgetEnvelope.aggregate.mockResolvedValue({
-            _sum: { availablePhp: new Prisma.Decimal(300) },
+        mockPrisma.budgetEnvelope.aggregate.mockImplementation(async ({ where }: { where: { systemType?: string } }) => {
+            if (where.systemType) {
+                return { _sum: { availablePhp: new Prisma.Decimal(80) } };
+            }
+            return { _sum: { availablePhp: new Prisma.Decimal(300) } };
         });
         mockPrisma.financeTransaction.aggregate.mockImplementation(async ({ where }: { where: { kind: TransactionKind | { in: TransactionKind[] } } }) => {
             if (where.kind === TransactionKind.INCOME) {
@@ -65,8 +68,17 @@ describe("queries.getDashboardSummary", () => {
         expect(summary.totalAssetsPhp).toBe(1400);
         expect(summary.totalWalletBalancePhp).toBe(1000);
         expect(summary.totalCreditCardDebtPhp).toBe(200);
+        expect(summary.totalCreditPaymentReservePhp).toBe(80);
+        expect(summary.unallocatedCashPhp).toBe(620);
         expect(summary.monthIncomePhp).toBe(500);
         expect(summary.monthExpensePhp).toBe(200);
         expect(summary.monthNetCashflowPhp).toBe(300);
+        expect(mockPrisma.financeTransaction.aggregate).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                kind: {
+                    in: [TransactionKind.EXPENSE, TransactionKind.CREDIT_CARD_CHARGE],
+                },
+            }),
+        }));
     });
 });

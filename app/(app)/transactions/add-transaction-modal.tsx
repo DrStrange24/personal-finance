@@ -100,6 +100,13 @@ export default function AddTransactionModal({
 
     const visibleKinds = useMemo(() => allKinds, []);
     const sourceWallets = useMemo(() => {
+        if (kind === "CREDIT_CARD_CHARGE") {
+            const creditWallets = wallets.filter((wallet) => wallet.type === "CREDIT_CARD");
+            return creditWallets.length > 0 ? creditWallets : creditAccounts;
+        }
+        if (kind === "CREDIT_CARD_PAYMENT") {
+            return wallets.filter((wallet) => wallet.type !== "CREDIT_CARD");
+        }
         if (!isExpense) {
             return wallets;
         }
@@ -108,7 +115,22 @@ export default function AddTransactionModal({
             return creditWallets.length > 0 ? creditWallets : creditAccounts;
         }
         return wallets.filter((wallet) => wallet.type !== "CREDIT_CARD");
-    }, [creditAccounts, expenseFunding, isExpense, wallets]);
+    }, [creditAccounts, expenseFunding, isExpense, kind, wallets]);
+    const targetWalletOptions = useMemo(() => {
+        if (kind === "CREDIT_CARD_PAYMENT") {
+            return wallets.filter((wallet) => wallet.type === "CREDIT_CARD");
+        }
+        return wallets;
+    }, [kind, wallets]);
+    const walletFieldLabel = useMemo(() => {
+        if (kind === "CREDIT_CARD_PAYMENT") {
+            return "Cash Wallet";
+        }
+        if (kind === "CREDIT_CARD_CHARGE" || (isExpense && expenseFunding === "credit")) {
+            return "Credit Account";
+        }
+        return "Wallet";
+    }, [expenseFunding, isExpense, kind]);
     const budgetTargetById = useMemo(
         () => new Map(budgets.map((budget) => [budget.id, budget.targetAmountPhp ?? null])),
         [budgets],
@@ -296,9 +318,7 @@ export default function AddTransactionModal({
                         )}
 
                         <div className="d-grid gap-1">
-                            <label htmlFor="tx-wallet" className="small fw-semibold">
-                                {isExpense && expenseFunding === "credit" ? "Credit Account" : "Wallet"}
-                            </label>
+                            <label htmlFor="tx-wallet" className="small fw-semibold">{walletFieldLabel}</label>
                             <select
                                 id="tx-wallet"
                                 name="walletAccountId"
@@ -308,7 +328,7 @@ export default function AddTransactionModal({
                                 required
                             >
                                 <option value="">
-                                    {isExpense && expenseFunding === "credit" ? "Select credit account" : "Select wallet"}
+                                    {walletFieldLabel === "Credit Account" ? "Select credit account" : "Select wallet"}
                                 </option>
                                 {sourceWallets.map((wallet) => (
                                     <option key={wallet.id} value={wallet.id}>
@@ -316,7 +336,7 @@ export default function AddTransactionModal({
                                     </option>
                                 ))}
                             </select>
-                            {isExpense && expenseFunding === "credit" && sourceWallets.length === 0 && (
+                            {(walletFieldLabel === "Credit Account") && sourceWallets.length === 0 && (
                                 <small style={{ color: "var(--color-text-muted)" }}>
                                     No credit account found. Add one in Credit or add a Credit Card wallet.
                                 </small>
@@ -325,7 +345,9 @@ export default function AddTransactionModal({
 
                         {requiresTargetWallet ? (
                             <div className="d-grid gap-1">
-                                <label htmlFor="tx-target-wallet" className="small fw-semibold">Target Wallet</label>
+                                <label htmlFor="tx-target-wallet" className="small fw-semibold">
+                                    {kind === "CREDIT_CARD_PAYMENT" ? "Credit Card Wallet" : "Target Wallet"}
+                                </label>
                                 <select
                                     id="tx-target-wallet"
                                     name="targetWalletAccountId"
@@ -335,12 +357,17 @@ export default function AddTransactionModal({
                                     required
                                 >
                                     <option value="">Select target wallet</option>
-                                    {wallets.map((wallet) => (
+                                    {targetWalletOptions.map((wallet) => (
                                         <option key={wallet.id} value={wallet.id}>
                                             {wallet.label}
                                         </option>
                                     ))}
                                 </select>
+                                {kind === "CREDIT_CARD_PAYMENT" && targetWalletOptions.length === 0 && (
+                                    <small style={{ color: "var(--color-text-muted)" }}>
+                                        No credit card wallet found for this entity.
+                                    </small>
+                                )}
                             </div>
                         ) : (
                             <input type="hidden" name="targetWalletAccountId" value="" />

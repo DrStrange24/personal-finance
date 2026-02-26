@@ -1,6 +1,7 @@
-import { AdjustmentReasonCode, Prisma, WalletAccountType } from "@prisma/client";
+import { AdjustmentReasonCode, BudgetEnvelopeSystemType, Prisma, WalletAccountType } from "@prisma/client";
+import { ensureCreditCardPaymentEnvelopesForEntity } from "@/lib/finance/credit-payment-envelope";
 import { prisma } from "@/lib/prisma";
-import { SYSTEM_ENVELOPE_NAMES } from "@/lib/finance/constants";
+import { SYSTEM_ENVELOPES, SYSTEM_ENVELOPE_NAMES } from "@/lib/finance/constants";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
 
 const assertFinancePrismaDelegates = () => {
@@ -38,8 +39,14 @@ const inferWalletAccountType = (name: string) => {
 
 export const ensureSystemEnvelopesForEntity = async (userId: string, entityId: string) => {
     assertFinancePrismaDelegates();
+    const envelopeSystemTypeByName: Record<string, BudgetEnvelopeSystemType> = {
+        [SYSTEM_ENVELOPES.transfer]: BudgetEnvelopeSystemType.TRANSFER,
+        [SYSTEM_ENVELOPES.loanInflow]: BudgetEnvelopeSystemType.LOAN_INFLOW,
+        [SYSTEM_ENVELOPES.loanPayment]: BudgetEnvelopeSystemType.LOAN_PAYMENT,
+    };
 
     for (const name of SYSTEM_ENVELOPE_NAMES) {
+        const systemType = envelopeSystemTypeByName[name];
         const existing = await prisma.budgetEnvelope.findFirst({
             where: {
                 userId,
@@ -57,11 +64,19 @@ export const ensureSystemEnvelopesForEntity = async (userId: string, entityId: s
                     entityId,
                     name,
                     isSystem: true,
+                    systemType,
                     monthlyTargetPhp: 0,
                     availablePhp: 0,
                     rolloverEnabled: true,
                     sortOrder: 9999,
                     remarks: "Auto-created system envelope.",
+                },
+            });
+        } else if (existing.systemType !== systemType) {
+            await prisma.budgetEnvelope.update({
+                where: { id: existing.id },
+                data: {
+                    systemType,
                 },
             });
         }
@@ -194,5 +209,7 @@ export const ensureFinanceBootstrap = async (userId: string, entityId: string) =
             ],
         });
     }
+
+    await ensureCreditCardPaymentEnvelopesForEntity(userId, entityId);
 };
 

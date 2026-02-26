@@ -114,13 +114,18 @@ Supported workbook sheets:
 - PHP-only currency model.
 - `FinanceEntity` is the accounting boundary for `WalletAccount`, `CreditAccount`, `Investment`, `BudgetEnvelope`, `LoanRecord`, `IncomeStream`, and `FinanceTransaction`.
 - Posting engine strictly validates entity consistency across linked records (wallet/budget/loan/income/target wallet).
+- Sprint 3 debt-aware credit logic is enabled:
+  - `CREDIT_CARD_CHARGE` increases debt, decreases spend envelope, and increases a per-card CC payment reserve envelope.
+  - `CREDIT_CARD_PAYMENT` decreases cash, decreases debt, and consumes that per-card reserve envelope.
+  - credit-card payments are not treated as expenses.
 - Every manual add/deduct flow records a ledger transaction with `actorUserId`.
 - Transaction delete is reversal-based (no hard delete): reversal row + voided original linkage.
 - Active KPI/list queries exclude reversal rows and voided originals (`isReversal = false`, `voidedAt IS NULL`).
 - Active-name uniqueness for `CreditAccount` and `Investment` is enforced per `(userId, entityId, name)` for non-archived rows.
 - Investments are managed in entity-scoped `Investment` records with unit value tracking and estimated PHP valuation in UI.
 - Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.
-- Credit accounts are managed in entity-scoped `CreditAccount` records via `/credit`.
+- Credit accounts are managed in entity-scoped `CreditAccount` records via `/credit` and display linked reserve balances.
+- `BudgetEnvelope` supports system typing (`TRANSFER`, `CREDIT_CARD_PAYMENT`, `LOAN_INFLOW`, `LOAN_PAYMENT`) and optional per-card linkage.
 - Legacy `MonthlyOverviewEntry` remains user-scoped by design for migration compatibility.
 
 ## Styling

@@ -19,6 +19,7 @@ export type TransactionFormInput = {
     amountPhp: number;
     walletAccountId: string;
     budgetEnvelopeId?: string | null;
+    ccPaymentEnvelopeId?: string | null;
     targetWalletAccountId?: string | null;
     incomeStreamId?: string | null;
     loanRecordId?: string | null;
@@ -64,6 +65,7 @@ export type LoanStats = {
 export type DashboardSummary = {
     totalWalletBalancePhp: number;
     totalCreditCardDebtPhp: number;
+    totalCreditPaymentReservePhp: number;
     totalAssetsPhp: number;
     totalInvestmentPhp: number;
     netPositionPhp: number;

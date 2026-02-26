@@ -87,6 +87,7 @@
     - bootstrap.ts
     - coins-ph.ts
     - constants.ts
+    - credit-payment-envelope.ts (per-card credit payment reserve envelope resolver/ensurer)
     - context.ts
     - entity-context.ts (active entity resolution, ownership checks, entity cookie, delete guardrails)
     - entity-scoped-records.ts (canonical entity-owned CreditAccount/Investment access helpers)
@@ -110,9 +111,10 @@
   - verify-sprint2-entity-scope.ts (read-only manual verifier for Sprint 2 entity-scope migration)
   - migrations/
     - 20260226141602_sprint1_posting_engine_hardening/migration.sql
-    - 20260226235900_sprint2-entity-scope-refactor/migration.sql
+    - 20260226150750_sprint2_entity_scope_refactor/migration.sql
+    - 20260227001000_sprint3_debt_aware_credit_card_logic/migration.sql
 - docs/
-  - POSTING_ENGINE_MATRIX.md (Sprint 1 transaction validation matrix + reversal contract)
+  - POSTING_ENGINE_MATRIX.md (posting validation matrix + reversal/debt-aware credit reserve contract)
 - public/
 - vitest.config.ts
 

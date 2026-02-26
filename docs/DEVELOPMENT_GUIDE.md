@@ -121,9 +121,14 @@ Test stack:
 - Keep Prisma access server-side only.
 - Financial reads/writes must be scoped by `activeEntityId` (never by `userId` alone for entity-scoped models).
 - `CreditAccount` and `Investment` are entity-scoped in Sprint 2 and must always include `entityId`.
+- Sprint 3 credit-card reserve contract:
+  - `CREDIT_CARD_CHARGE`: debt `+`, spend envelope `-`, CC payment reserve envelope `+`
+  - `CREDIT_CARD_PAYMENT`: cash `-`, debt `-`, CC payment reserve envelope `-`
+  - payment over debt or over reserve must fail.
 - For transaction-driven KPIs/lists, filter to active canonical rows only:
   - `isReversal = false`
   - `voidedAt = null`
+- Unallocated cash KPI must subtract CC payment reserves (not credit debt).
 
 ## Reusable UI Placement
 

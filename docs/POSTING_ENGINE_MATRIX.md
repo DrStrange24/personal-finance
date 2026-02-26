@@ -1,4 +1,4 @@
-# Posting Engine Matrix (Sprint 1)
+# Posting Engine Matrix (Sprint 3)
 
 This document is the canonical rule matrix for `lib/finance/posting-engine.ts`.
 
@@ -49,13 +49,19 @@ Deleting a transaction does not hard-delete rows.
 
 - `CREDIT_CARD_CHARGE`
   - Required links: `walletAccountId` (credit card), `budgetEnvelopeId`
-  - Effect: credit-card debt `+`, envelope `-`
-  - Validations: envelope non-negative, credit limit not exceeded (when mapped credit account exists)
+  - Effect: credit-card debt `+`, spend envelope `-`, per-card CC payment reserve envelope `+`
+  - Validations:
+    - spend envelope non-negative
+    - credit limit not exceeded (when mapped credit account exists)
+    - linked per-card reserve envelope exists or is auto-created
 
 - `CREDIT_CARD_PAYMENT`
-  - Required links: `walletAccountId`, `targetWalletAccountId` (one side must be credit card)
-  - Effect: cash wallet `-`, credit-card debt `-`
-  - Validations: no overpay, cash sufficient funds
+  - Required links: `walletAccountId` (cash wallet), `targetWalletAccountId` (credit card wallet)
+  - Effect: cash wallet `-`, credit-card debt `-`, per-card CC payment reserve envelope `-`
+  - Validations:
+    - no overpay against outstanding debt
+    - cash wallet sufficient funds
+    - reserve envelope sufficient funds (partial reserve consumption is not allowed)
 
 - `LOAN_BORROW`
   - Required links: `walletAccountId`, `loanRecordId`
@@ -79,3 +85,10 @@ Every `ADJUSTMENT` row must include:
 - `adjustmentReasonCode`
 - non-empty `remarks`
 - `actorUserId`
+
+## Credit Reserve Linkage
+
+- Per-card reserve envelopes are system envelopes with:
+  - `systemType = CREDIT_CARD_PAYMENT`
+  - optional linkage fields: `linkedWalletAccountId`, `linkedCreditAccountId`
+- `FinanceTransaction.ccPaymentEnvelopeId` stores the envelope used by charge/payment for reversal-safe replay.

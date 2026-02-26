@@ -1,4 +1,4 @@
-import { LoanDirection, LoanStatus, Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
+import { BudgetEnvelopeSystemType, LoanDirection, LoanStatus, Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
 import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import { prisma } from "@/lib/prisma";
 import type { DashboardSummary } from "@/lib/finance/types";
@@ -9,7 +9,7 @@ const startOfMonth = () => {
 };
 
 export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
-    const [walletAccounts, investments, budgetAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate] = await Promise.all([
+    const [walletAccounts, investments, budgetAggregate, creditReserveAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate] = await Promise.all([
         prisma.walletAccount.findMany({
             where: {
                 userId,
@@ -38,6 +38,18 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
                 entityId,
                 isArchived: false,
                 isSystem: false,
+            },
+            _sum: {
+                availablePhp: true,
+            },
+        }),
+        prisma.budgetEnvelope.aggregate({
+            where: {
+                userId,
+                entityId,
+                isArchived: false,
+                isSystem: true,
+                systemType: BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT,
             },
             _sum: {
                 availablePhp: true,
@@ -113,6 +125,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
         .reduce((sum: number, value) => sum + (value ?? 0), 0);
     const totalAssetsPhp = totalAllWalletsPhp + totalEstimatedInvestmentsPhp;
     const budgetAvailablePhp = Number(budgetAggregate._sum.availablePhp ?? 0);
+    const totalCreditPaymentReservePhp = Number(creditReserveAggregate._sum.availablePhp ?? 0);
     const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
     const monthExpensePhp = Number(expenseAggregate._sum.amountPhp ?? 0);
     const monthlyTotalIncomePhp = Number(incomeStreamAggregate._sum.defaultAmountPhp ?? 0);
@@ -120,11 +133,12 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
     return {
         totalWalletBalancePhp,
         totalCreditCardDebtPhp,
+        totalCreditPaymentReservePhp,
         totalAssetsPhp,
         totalInvestmentPhp: totalEstimatedInvestmentsPhp,
         netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
         budgetAvailablePhp,
-        unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditCardDebtPhp),
+        unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditPaymentReservePhp),
         monthlyTotalIncomePhp,
         monthIncomePhp,
         monthExpensePhp,

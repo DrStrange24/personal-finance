@@ -1,5 +1,6 @@
 import {
     AdjustmentReasonCode,
+    BudgetEnvelopeSystemType,
     type BudgetEnvelope,
     type LoanRecord,
     LoanStatus,
@@ -7,6 +8,7 @@ import {
     TransactionKind,
     WalletAccountType,
 } from "@prisma/client";
+import { ensureCreditCardPaymentEnvelopeForWallet } from "@/lib/finance/credit-payment-envelope";
 import { prisma } from "@/lib/prisma";
 import { SYSTEM_ENVELOPES } from "@/lib/finance/constants";
 import { isRecordOnlyTransaction, type TransactionFormInput } from "@/lib/finance/types";
@@ -20,6 +22,7 @@ type PostTransactionParams = Omit<TransactionFormInput, "kind"> & {
     kind: TransactionKind;
     recordOnly?: boolean;
     adjustmentReasonCode?: AdjustmentReasonCode | null;
+    ccPaymentEnvelopeId?: string | null;
 };
 
 type PostOptions = {
@@ -42,6 +45,10 @@ type ResolvedPostingContext = {
         currentBalanceAmount: Prisma.Decimal;
     } | null;
     budgetEnvelope: {
+        id: string;
+        availablePhp: Prisma.Decimal;
+    } | null;
+    ccPaymentEnvelope: {
         id: string;
         availablePhp: Prisma.Decimal;
     } | null;
@@ -182,6 +189,12 @@ const ensureSystemEnvelope = async (
     entityId: string,
     name: string,
 ): Promise<BudgetEnvelope> => {
+    const systemTypeByName: Record<string, BudgetEnvelopeSystemType> = {
+        [SYSTEM_ENVELOPES.transfer]: BudgetEnvelopeSystemType.TRANSFER,
+        [SYSTEM_ENVELOPES.loanInflow]: BudgetEnvelopeSystemType.LOAN_INFLOW,
+        [SYSTEM_ENVELOPES.loanPayment]: BudgetEnvelopeSystemType.LOAN_PAYMENT,
+    };
+    const systemType = systemTypeByName[name];
     const existing = await tx.budgetEnvelope.findFirst({
         where: {
             userId,
@@ -193,6 +206,14 @@ const ensureSystemEnvelope = async (
     });
 
     if (existing) {
+        if (existing.systemType !== systemType) {
+            return tx.budgetEnvelope.update({
+                where: { id: existing.id },
+                data: {
+                    systemType,
+                },
+            });
+        }
         return existing;
     }
 
@@ -202,6 +223,7 @@ const ensureSystemEnvelope = async (
             entityId,
             name,
             isSystem: true,
+            systemType,
             isArchived: false,
             monthlyTargetPhp: 0,
             availablePhp: 0,
@@ -223,9 +245,6 @@ const resolveBudgetEnvelope = async (
     if (kind === TransactionKind.TRANSFER) {
         return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.transfer);
     }
-    if (kind === TransactionKind.CREDIT_CARD_PAYMENT) {
-        return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.creditPayment);
-    }
     if (kind === TransactionKind.LOAN_BORROW) {
         return ensureSystemEnvelope(tx, userId, entityId, SYSTEM_ENVELOPES.loanInflow);
     }
@@ -237,6 +256,105 @@ const resolveBudgetEnvelope = async (
     }
 
     return ensureOwnedEnvelope(tx, userId, entityId, budgetEnvelopeId, includeArchived);
+};
+
+const ensureOwnedCcPaymentEnvelope = async (
+    tx: TxClient,
+    userId: string,
+    entityId: string,
+    ccPaymentEnvelopeId: string,
+    includeArchived = false,
+) => {
+    const envelope = await tx.budgetEnvelope.findFirst({
+        where: {
+            id: ccPaymentEnvelopeId,
+            userId,
+            entityId,
+            isSystem: true,
+            systemType: BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT,
+            ...(includeArchived ? {} : { isArchived: false }),
+        },
+        select: {
+            id: true,
+            availablePhp: true,
+        },
+    });
+
+    if (!envelope) {
+        throw new Error("Credit card payment envelope not found.");
+    }
+
+    return envelope;
+};
+
+const resolveCreditWallet = (
+    kind: TransactionKind,
+    sourceWallet: ResolvedPostingContext["sourceWallet"],
+    targetWallet: ResolvedPostingContext["targetWallet"],
+) => {
+    if (kind === TransactionKind.CREDIT_CARD_CHARGE) {
+        if (sourceWallet.type !== WalletAccountType.CREDIT_CARD) {
+            throw new Error("Credit card charge must use a credit card wallet.");
+        }
+        return sourceWallet;
+    }
+
+    if (kind === TransactionKind.CREDIT_CARD_PAYMENT) {
+        if (!targetWallet) {
+            throw new Error("Credit card wallet is required for payment.");
+        }
+
+        const sourceIsCredit = sourceWallet.type === WalletAccountType.CREDIT_CARD;
+        const targetIsCredit = targetWallet.type === WalletAccountType.CREDIT_CARD;
+        if (!sourceIsCredit && !targetIsCredit) {
+            throw new Error("Credit card payment requires one credit card wallet.");
+        }
+        return sourceIsCredit ? sourceWallet : targetWallet;
+    }
+
+    return null;
+};
+
+const resolveCreditCardPaymentEnvelope = async (
+    tx: TxClient,
+    params: PostTransactionParams,
+    context: Pick<ResolvedPostingContext, "sourceWallet" | "targetWallet">,
+    includeArchived = false,
+) => {
+    if (
+        params.kind !== TransactionKind.CREDIT_CARD_CHARGE
+        && params.kind !== TransactionKind.CREDIT_CARD_PAYMENT
+    ) {
+        return null;
+    }
+
+    if (params.ccPaymentEnvelopeId) {
+        return ensureOwnedCcPaymentEnvelope(
+            tx,
+            params.userId,
+            params.entityId,
+            params.ccPaymentEnvelopeId,
+            includeArchived,
+        );
+    }
+
+    const creditWallet = resolveCreditWallet(params.kind, context.sourceWallet, context.targetWallet);
+    if (!creditWallet) {
+        return null;
+    }
+
+    const envelope = await ensureCreditCardPaymentEnvelopeForWallet(tx, {
+        id: creditWallet.id,
+        userId: params.userId,
+        entityId: params.entityId,
+        type: creditWallet.type,
+        name: creditWallet.name,
+    });
+
+    return {
+        id: envelope.id,
+        availablePhp: envelope.availablePhp,
+    };
 };
 
 const resolveCountsTowardBudget = (kind: TransactionKind) => {
@@ -409,6 +527,12 @@ const resolveContext = async (
         params.budgetEnvelopeId,
         includeArchived,
     );
+    const ccPaymentEnvelope = await resolveCreditCardPaymentEnvelope(
+        tx,
+        params,
+        { sourceWallet, targetWallet },
+        includeArchived,
+    );
 
     const loan = params.loanRecordId
         ? await ensureOwnedLoan(tx, params.userId, params.entityId, params.loanRecordId)
@@ -422,6 +546,7 @@ const resolveContext = async (
         sourceWallet,
         targetWallet,
         budgetEnvelope,
+        ccPaymentEnvelope,
         loan,
         incomeStreamId,
     };
@@ -459,6 +584,9 @@ const validateByRule = (
     if (params.kind === TransactionKind.CREDIT_CARD_CHARGE && context.sourceWallet.type !== WalletAccountType.CREDIT_CARD) {
         throw new Error("Credit card charge must use a credit card wallet.");
     }
+    if (params.kind === TransactionKind.CREDIT_CARD_CHARGE && !context.ccPaymentEnvelope) {
+        throw new Error("Credit card payment envelope is required for charge.");
+    }
 
     if (params.kind === TransactionKind.CREDIT_CARD_PAYMENT) {
         if (!context.targetWallet) {
@@ -470,9 +598,15 @@ const validateByRule = (
         if (!sourceIsCredit && !targetIsCredit) {
             throw new Error("Credit card payment requires one credit card wallet.");
         }
+        if (sourceIsCredit && targetIsCredit) {
+            throw new Error("Credit card payment requires one cash wallet and one credit card wallet.");
+        }
 
         if (context.sourceWallet.id === context.targetWallet.id) {
             throw new Error("Source and target wallets must be different.");
+        }
+        if (!context.ccPaymentEnvelope) {
+            throw new Error("Credit card payment envelope is required for payment.");
         }
     }
 
@@ -549,6 +683,9 @@ const applyPostingEffects = async (
             if (!context.budgetEnvelope) {
                 throw new Error("Budget envelope is required.");
             }
+            if (!context.ccPaymentEnvelope) {
+                throw new Error("Credit card payment envelope is required for charge.");
+            }
 
             if (!reverse) {
                 assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Budget envelope cannot go below 0.");
@@ -574,15 +711,24 @@ const applyPostingEffects = async (
                 if (new Prisma.Decimal(context.sourceWallet.currentBalanceAmount).lt(positive)) {
                     throw new Error("Cannot reverse charge because credit card debt would go below 0.");
                 }
+                assertEnvelopeCanDecrease(
+                    context.ccPaymentEnvelope,
+                    positive,
+                    "Cannot reverse charge because credit payment reserve would go below 0.",
+                );
             }
 
             await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? positive : negative);
             await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? negative : positive);
+            await updateEnvelopeBalance(tx, context.ccPaymentEnvelope.id, direction === 1 ? positive : negative);
             break;
         }
         case TransactionKind.CREDIT_CARD_PAYMENT: {
             if (!context.targetWallet) {
                 throw new Error("Credit card wallet is required for payment.");
+            }
+            if (!context.ccPaymentEnvelope) {
+                throw new Error("Credit card payment envelope is required for payment.");
             }
 
             const sourceIsCredit = context.sourceWallet.type === WalletAccountType.CREDIT_CARD;
@@ -594,6 +740,11 @@ const applyPostingEffects = async (
                 if (new Prisma.Decimal(creditWallet.currentBalanceAmount).lt(positive)) {
                     throw new Error("Credit card payment cannot exceed outstanding debt.");
                 }
+                assertEnvelopeCanDecrease(
+                    context.ccPaymentEnvelope,
+                    positive,
+                    "Insufficient reserved cash in credit card payment envelope.",
+                );
             } else {
                 const linkedCard = await tx.creditAccount.findFirst({
                     where: {
@@ -617,6 +768,7 @@ const applyPostingEffects = async (
 
             await updateWalletBalance(tx, params.userId, params.entityId, cashWallet, direction === 1 ? negative : positive);
             await updateWalletBalance(tx, params.userId, params.entityId, creditWallet, direction === 1 ? negative : positive);
+            await updateEnvelopeBalance(tx, context.ccPaymentEnvelope.id, direction === 1 ? negative : positive);
             break;
         }
         case TransactionKind.LOAN_BORROW:
@@ -701,6 +853,7 @@ const postFinanceTransactionInTx = async (
             walletAccountId: context.sourceWallet.id,
             targetWalletAccountId: context.targetWallet?.id ?? null,
             budgetEnvelopeId: context.budgetEnvelope?.id ?? null,
+            ccPaymentEnvelopeId: context.ccPaymentEnvelope?.id ?? null,
             incomeStreamId: context.incomeStreamId,
             loanRecordId: context.loan?.id ?? null,
             adjustmentReasonCode: params.kind === TransactionKind.ADJUSTMENT ? params.adjustmentReasonCode ?? null : null,
@@ -871,6 +1024,7 @@ export const deleteFinanceTransactionWithReversal = async (
             amountPhp: Number(transaction.amountPhp),
             walletAccountId: transaction.walletAccountId,
             budgetEnvelopeId: transaction.budgetEnvelopeId,
+            ccPaymentEnvelopeId: transaction.ccPaymentEnvelopeId,
             targetWalletAccountId: transaction.targetWalletAccountId,
             incomeStreamId: transaction.incomeStreamId,
             loanRecordId: transaction.loanRecordId,

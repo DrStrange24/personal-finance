@@ -25,12 +25,14 @@ type BudgetEnvelopeRow = {
 
 type BudgetEnvelopeTableProps = {
     budgets: BudgetEnvelopeRow[];
+    systemBudgets?: BudgetEnvelopeRow[];
     updateBudgetEnvelopeAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
     deleteBudgetEnvelopeAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
 };
 
 export default function BudgetEnvelopeTable({
     budgets,
+    systemBudgets = [],
     updateBudgetEnvelopeAction,
     deleteBudgetEnvelopeAction,
 }: BudgetEnvelopeTableProps) {
@@ -124,6 +126,36 @@ export default function BudgetEnvelopeTable({
                     </div>
                 </CardBody>
             </Card>
+
+            {systemBudgets.length > 0 && (
+                <Card className="pf-surface-panel">
+                    <CardBody className="d-grid gap-3">
+                        <h3 className="m-0 fs-6 fw-semibold">System Credit Payment Envelopes (Read-only)</h3>
+                        <div className="table-responsive">
+                            <Table hover className="align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Reserved</th>
+                                        <th>Remarks</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {systemBudgets.map((budget) => (
+                                        <tr key={budget.id}>
+                                            <td>{budget.name}</td>
+                                            <td>{formatPhp(budget.availablePhp)}</td>
+                                            <td>{budget.remarks?.trim() || "-"}</td>
+                                            <td className="text-muted">System Managed</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+                        </div>
+                    </CardBody>
+                </Card>
+            )}
 
             <Modal show={editState !== null} onHide={() => setEditState(null)} centered>
                 <Modal.Header closeButton>
