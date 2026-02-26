@@ -99,7 +99,6 @@ export const isRecordOnlyTransaction = (transaction: RecordOnlyTransactionCandid
     return (
         transaction.countsTowardBudget === false
         && transaction.targetWalletAccountId === null
-        && transaction.budgetEnvelopeId === null
         && transaction.incomeStreamId === null
         && transaction.loanRecordId === null
         && transaction.kind !== "TRANSFER"
