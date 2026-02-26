@@ -166,7 +166,6 @@ export const ensureFinanceBootstrap = async (userId: string, entityId: string) =
         where: {
             userId,
             entityId,
-            isArchived: false,
             isSystem: false,
         },
     });
@@ -182,31 +181,6 @@ export const ensureFinanceBootstrap = async (userId: string, entityId: string) =
                 rolloverEnabled: true,
                 sortOrder: 1,
             },
-        });
-    }
-
-    const incomeStreamCount = await prisma.incomeStream.count({
-        where: { userId, entityId },
-    });
-
-    if (incomeStreamCount === 0) {
-        await prisma.incomeStream.createMany({
-            data: [
-                {
-                    userId,
-                    entityId,
-                    name: "Income Stream 1",
-                    defaultAmountPhp: 0,
-                    remarks: "Default stream created during finance bootstrap.",
-                },
-                {
-                    userId,
-                    entityId,
-                    name: "Income Stream 2",
-                    defaultAmountPhp: 0,
-                    remarks: "Default stream created during finance bootstrap.",
-                },
-            ],
         });
     }
 

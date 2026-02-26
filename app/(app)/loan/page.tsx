@@ -356,6 +356,16 @@ export default async function LoanPage() {
                     value={formatPhp(loanTotals.activeEntityOutstandingPhp)}
                     helper="Outstanding amount in this entity"
                 />
+                <MetricCard
+                    label="Total Loan Monthly Due (All Entities)"
+                    value={formatPhp(loanTotals.allEntitiesMonthlyDuePhp)}
+                    helper="Monthly due for active loans"
+                />
+                <MetricCard
+                    label="Total Loan Monthly Due (Active Entity)"
+                    value={formatPhp(loanTotals.activeEntityMonthlyDuePhp)}
+                    helper="Monthly due for active loans in this entity"
+                />
             </div>
 
             <Card className="pf-surface-panel">

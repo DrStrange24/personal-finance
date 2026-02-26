@@ -91,6 +91,18 @@ describe("queries", () => {
         expect(summary.totalAssetsPhp).toBe(1350);
     });
 
+    it("normalizes credit card debt when imported balances are stored negative", async () => {
+        mockPrisma.walletAccount.groupBy.mockResolvedValue([
+            { type: WalletAccountType.CASH, _sum: { currentBalanceAmount: new Prisma.Decimal(1000) } },
+            { type: WalletAccountType.CREDIT_CARD, _sum: { currentBalanceAmount: new Prisma.Decimal(-200) } },
+        ]);
+
+        const summary = await getDashboardSummary("u1", "e1");
+
+        expect(summary.totalCreditCardDebtPhp).toBe(200);
+        expect(summary.netPositionPhp).toBe(800);
+    });
+
     it("enforces monthly budget spent aggregation with countsTowardBudget=true", async () => {
         mockPrisma.budgetEnvelope.findMany.mockResolvedValue([
             {

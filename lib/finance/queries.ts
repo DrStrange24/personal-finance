@@ -52,6 +52,10 @@ const sumTransactionKind = (
     return Number(row?._sum.amountPhp ?? 0);
 };
 
+const toOutstandingDebt = (balance: number) => {
+    return Math.abs(balance);
+};
+
 export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
     return getDashboardSummaryWithScope(userId, entityId);
 };
@@ -153,7 +157,7 @@ const getDashboardSummaryWithScope = async (userId: string, entityId?: string): 
             totalAllWalletsPhp += amount;
 
             if (wallet.type === WalletAccountType.CREDIT_CARD) {
-                totalCreditCardDebtPhp += amount;
+                totalCreditCardDebtPhp += toOutstandingDebt(amount);
             }
             if (wallet.type !== WalletAccountType.CREDIT_CARD && wallet.type !== WalletAccountType.ASSET) {
                 totalWalletBalancePhp += amount;
@@ -334,16 +338,20 @@ export const getOutstandingLoanTotals = async (userId: string, entityId: string)
     const queryStartedAt = Date.now();
 
     try {
-        const outstandingLoanWhere = {
+        const activeLoanWhere = {
             userId,
             direction: LoanDirection.YOU_OWE,
             status: LoanStatus.ACTIVE,
+        } satisfies Prisma.LoanRecordWhereInput;
+
+        const outstandingLoanWhere = {
+            ...activeLoanWhere,
             remainingPhp: {
                 gt: 0,
             },
         } satisfies Prisma.LoanRecordWhereInput;
 
-        const [allEntitiesAggregate, activeEntityAggregate] = await Promise.all([
+        const [allEntitiesOutstandingAggregate, activeEntityOutstandingAggregate, allEntitiesMonthlyDueAggregate, activeEntityMonthlyDueAggregate] = await Promise.all([
             prisma.loanRecord.aggregate({
                 where: {
                     ...outstandingLoanWhere,
@@ -364,11 +372,33 @@ export const getOutstandingLoanTotals = async (userId: string, entityId: string)
                     remainingPhp: true,
                 },
             }),
+            prisma.loanRecord.aggregate({
+                where: {
+                    ...activeLoanWhere,
+                    entity: {
+                        isArchived: false,
+                    },
+                },
+                _sum: {
+                    monthlyDuePhp: true,
+                },
+            }),
+            prisma.loanRecord.aggregate({
+                where: {
+                    ...activeLoanWhere,
+                    entityId,
+                },
+                _sum: {
+                    monthlyDuePhp: true,
+                },
+            }),
         ]);
 
         const totals = {
-            allEntitiesOutstandingPhp: Number(allEntitiesAggregate._sum.remainingPhp ?? 0),
-            activeEntityOutstandingPhp: Number(activeEntityAggregate._sum.remainingPhp ?? 0),
+            allEntitiesOutstandingPhp: Number(allEntitiesOutstandingAggregate._sum.remainingPhp ?? 0),
+            activeEntityOutstandingPhp: Number(activeEntityOutstandingAggregate._sum.remainingPhp ?? 0),
+            allEntitiesMonthlyDuePhp: Number(allEntitiesMonthlyDueAggregate._sum.monthlyDuePhp ?? 0),
+            activeEntityMonthlyDuePhp: Number(activeEntityMonthlyDueAggregate._sum.monthlyDuePhp ?? 0),
         };
 
         logFinanceQuery("info", {

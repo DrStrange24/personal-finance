@@ -18,7 +18,7 @@ import { isRecordOnlyTransaction, type FinanceActionResult } from "@/lib/finance
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
-const TRANSACTIONS_PAGE_SIZE = 50;
+const TRANSACTIONS_PAGE_SIZE = 10;
 
 type TransactionsPageProps = {
     searchParams?: Promise<{
@@ -412,7 +412,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                         Filters
                     </h3>
                     <form method="GET" className="row g-2 align-items-end">
-                        <div className="col-12 col-md-3">
+                        <div className="col-12 col-md-6 col-lg-2">
                             <label htmlFor="filter-kind" className="small fw-semibold mb-1">Kind</label>
                             <select id="filter-kind" name="kind" className="form-control form-control-sm" defaultValue={selectedKind}>
                                 <option value="">All</option>
@@ -421,7 +421,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 col-md-3">
+                        <div className="col-12 col-md-6 col-lg-2">
                             <label htmlFor="filter-wallet" className="small fw-semibold mb-1">Wallet</label>
                             <select id="filter-wallet" name="wallet" className="form-control form-control-sm" defaultValue={selectedWalletId}>
                                 <option value="">All</option>
@@ -430,19 +430,19 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 col-md-4">
+                        <div className="col-12 col-md-6 col-lg-3">
                             <label htmlFor="filter-q" className="small fw-semibold mb-1">Remarks Search</label>
                             <input id="filter-q" type="text" name="q" className="form-control form-control-sm" defaultValue={searchText} />
                         </div>
-                        <div className="col-12 col-md-2">
+                        <div className="col-12 col-md-6 col-lg-2">
                             <label htmlFor="filter-from" className="small fw-semibold mb-1">From</label>
                             <input id="filter-from" type="date" name="from" className="form-control form-control-sm" defaultValue={selectedFromDate} />
                         </div>
-                        <div className="col-12 col-md-2">
+                        <div className="col-12 col-md-6 col-lg-2">
                             <label htmlFor="filter-to" className="small fw-semibold mb-1">To</label>
                             <input id="filter-to" type="date" name="to" className="form-control form-control-sm" defaultValue={selectedToDate} />
                         </div>
-                        <div className="col-12 col-md-2 d-flex gap-2">
+                        <div className="col-12 d-flex gap-2 justify-content-start justify-content-md-end pt-1">
                             <Button type="submit" variant="primary" size="sm">Apply</Button>
                             <Button type="button" variant="outline-secondary" href="/transactions" size="sm">Reset</Button>
                         </div>

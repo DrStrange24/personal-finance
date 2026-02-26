@@ -110,14 +110,28 @@ export default async function IncomePage() {
         }
 
         try {
-            const deleted = await prisma.incomeStream.deleteMany({
-                where: {
-                    id,
-                    userId: actionSession.userId,
-                },
+            const deletedCount = await prisma.$transaction(async (tx) => {
+                await tx.financeTransaction.updateMany({
+                    where: {
+                        userId: actionSession.userId,
+                        incomeStreamId: id,
+                    },
+                    data: {
+                        incomeStreamId: null,
+                    },
+                });
+
+                const deleted = await tx.incomeStream.deleteMany({
+                    where: {
+                        id,
+                        userId: actionSession.userId,
+                    },
+                });
+
+                return deleted.count;
             });
 
-            if (deleted.count === 0) {
+            if (deletedCount === 0) {
                 return { ok: false, message: "Income stream not found." };
             }
 
@@ -125,8 +139,11 @@ export default async function IncomePage() {
             revalidatePath("/dashboard");
             revalidatePath("/transactions");
             return { ok: true, message: "Income stream deleted successfully." };
-        } catch {
-            return { ok: false, message: "Could not delete income stream. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not delete income stream. Please try again.",
+            };
         }
     };
 
