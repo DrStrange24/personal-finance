@@ -4,6 +4,11 @@ import CardBody from "react-bootstrap/CardBody";
 import AddCreditAccountModal from "./add-credit-account-modal";
 import CreditAccountTable from "./credit-account-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
+import {
+    ensureUniqueActiveCreditAccountName,
+    listActiveCreditAccountsByEntity,
+    requireOwnedCreditAccount,
+} from "@/lib/finance/entity-scoped-records";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -28,7 +33,8 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
 
 export default async function CreditPage() {
     const session = await getAuthenticatedEntitySession();
-    await ensureFinanceBootstrap(session.userId, session.activeEntity.id);
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createCreditAccountAction = async (formData: FormData): Promise<CreditAccountActionResult> => {
         "use server";
@@ -46,9 +52,17 @@ export default async function CreditPage() {
         }
 
         try {
+            await ensureUniqueActiveCreditAccountName(
+                prisma,
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                name,
+            );
+
             await prisma.creditAccount.create({
                 data: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     name,
                     creditLimitAmount: creditLimitResult.value,
                     currentBalanceAmount: 0,
@@ -57,8 +71,11 @@ export default async function CreditPage() {
 
             revalidatePath("/credit");
             return { ok: true, message: "Credit account created successfully." };
-        } catch {
-            return { ok: false, message: "Could not create credit account. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not create credit account. Please try again.",
+            };
         }
     };
 
@@ -79,19 +96,21 @@ export default async function CreditPage() {
             return { ok: false, message: "Please provide valid credit account details." };
         }
 
-        const existing = await prisma.creditAccount.findFirst({
-            where: {
-                id,
-                userId: actionSession.userId,
-                isArchived: false,
-            },
-        });
-
-        if (!existing) {
-            return { ok: false, message: "Credit account not found." };
-        }
-
         try {
+            const existing = await requireOwnedCreditAccount(
+                prisma,
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                id,
+            );
+            await ensureUniqueActiveCreditAccountName(
+                prisma,
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                name,
+                existing.id,
+            );
+
             await prisma.creditAccount.update({
                 where: { id: existing.id },
                 data: {
@@ -102,8 +121,11 @@ export default async function CreditPage() {
 
             revalidatePath("/credit");
             return { ok: true, message: "Credit account updated successfully." };
-        } catch {
-            return { ok: false, message: "Could not update credit account. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not update credit account. Please try again.",
+            };
         }
     };
 
@@ -122,6 +144,7 @@ export default async function CreditPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isArchived: false,
                 },
                 data: {
@@ -135,18 +158,15 @@ export default async function CreditPage() {
 
             revalidatePath("/credit");
             return { ok: true, message: "Credit account archived successfully." };
-        } catch {
-            return { ok: false, message: "Could not archive credit account. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not archive credit account. Please try again.",
+            };
         }
     };
 
-    const accounts = await prisma.creditAccount.findMany({
-        where: {
-            userId: session.userId,
-            isArchived: false,
-        },
-        orderBy: [{ createdAt: "desc" }],
-    });
+    const accounts = await listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId);
 
     const creditRows = accounts.map((account) => ({
         id: account.id,

@@ -286,12 +286,14 @@ const assertEnvelopeCanDecrease = (
 const syncCreditAccountBalance = async (
     tx: TxClient,
     userId: string,
+    entityId: string,
     walletName: string,
     nextBalance: Prisma.Decimal,
 ) => {
     await tx.creditAccount.updateMany({
         where: {
             userId,
+            entityId,
             isArchived: false,
             name: walletName,
         },
@@ -304,6 +306,7 @@ const syncCreditAccountBalance = async (
 const updateWalletBalance = async (
     tx: TxClient,
     userId: string,
+    entityId: string,
     wallet: { id: string; type: WalletAccountType; name: string },
     delta: Prisma.Decimal,
 ) => {
@@ -323,7 +326,7 @@ const updateWalletBalance = async (
     });
 
     if (updated.type === WalletAccountType.CREDIT_CARD) {
-        await syncCreditAccountBalance(tx, userId, updated.name, updated.currentBalanceAmount);
+        await syncCreditAccountBalance(tx, userId, entityId, updated.name, updated.currentBalanceAmount);
     }
 
     return updated;
@@ -504,7 +507,7 @@ const applyPostingEffects = async (
                 assertWalletCanDecrease(context.sourceWallet, positive, "Cannot reverse income because wallet balance would go negative.");
                 assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Cannot reverse income because budget envelope would go negative.");
             }
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? positive : negative);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? positive : negative);
             await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? positive : negative);
             break;
         case TransactionKind.EXPENSE:
@@ -515,7 +518,7 @@ const applyPostingEffects = async (
                 assertWalletCanDecrease(context.sourceWallet, positive, "Insufficient wallet funds for expense.");
                 assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Budget envelope cannot go below 0.");
             }
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? negative : positive);
             await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? negative : positive);
             break;
         case TransactionKind.BUDGET_ALLOCATION:
@@ -527,7 +530,7 @@ const applyPostingEffects = async (
             } else {
                 assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Cannot reverse allocation because budget envelope would go negative.");
             }
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? negative : positive);
             await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? positive : negative);
             break;
         case TransactionKind.TRANSFER:
@@ -539,8 +542,8 @@ const applyPostingEffects = async (
             } else {
                 assertWalletCanDecrease(context.targetWallet, positive, "Cannot reverse transfer because target wallet would go negative.");
             }
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
-            await updateWalletBalance(tx, params.userId, context.targetWallet, direction === 1 ? positive : negative);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.targetWallet, direction === 1 ? positive : negative);
             break;
         case TransactionKind.CREDIT_CARD_CHARGE: {
             if (!context.budgetEnvelope) {
@@ -552,6 +555,7 @@ const applyPostingEffects = async (
                 const linkedCard = await tx.creditAccount.findFirst({
                     where: {
                         userId: params.userId,
+                        entityId: params.entityId,
                         isArchived: false,
                         name: context.sourceWallet.name,
                     },
@@ -572,7 +576,7 @@ const applyPostingEffects = async (
                 }
             }
 
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? positive : negative);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? positive : negative);
             await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? negative : positive);
             break;
         }
@@ -594,6 +598,7 @@ const applyPostingEffects = async (
                 const linkedCard = await tx.creditAccount.findFirst({
                     where: {
                         userId: params.userId,
+                        entityId: params.entityId,
                         isArchived: false,
                         name: creditWallet.name,
                     },
@@ -610,8 +615,8 @@ const applyPostingEffects = async (
                 }
             }
 
-            await updateWalletBalance(tx, params.userId, cashWallet, direction === 1 ? negative : positive);
-            await updateWalletBalance(tx, params.userId, creditWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, params.entityId, cashWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, params.entityId, creditWallet, direction === 1 ? negative : positive);
             break;
         }
         case TransactionKind.LOAN_BORROW:
@@ -624,7 +629,7 @@ const applyPostingEffects = async (
             if (reverse && new Prisma.Decimal(context.loan.remainingPhp).lt(positive)) {
                 throw new Error("Cannot reverse borrow because remaining principal would go below 0.");
             }
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? positive : negative);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? positive : negative);
             await updateLoan(tx, context.loan, direction === 1 ? positive : negative, new Prisma.Decimal(0));
             break;
         case TransactionKind.LOAN_REPAY:
@@ -643,7 +648,7 @@ const applyPostingEffects = async (
                 throw new Error("Cannot reverse repayment because paid amount would go below 0.");
             }
 
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, direction === 1 ? negative : positive);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? negative : positive);
             await updateLoan(tx, context.loan, direction === 1 ? negative : positive, direction === 1 ? positive : negative);
             break;
         case TransactionKind.ADJUSTMENT: {
@@ -655,7 +660,7 @@ const applyPostingEffects = async (
                     "Adjustment would make wallet balance negative.",
                 );
             }
-            await updateWalletBalance(tx, params.userId, context.sourceWallet, effectiveDelta);
+            await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, effectiveDelta);
             break;
         }
         default:

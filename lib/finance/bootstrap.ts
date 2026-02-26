@@ -111,6 +111,7 @@ export const ensureFinanceBootstrap = async (userId: string, entityId: string) =
                 await prisma.investment.create({
                     data: {
                         userId,
+                        entityId,
                         name: legacyEntry.name,
                         initialInvestmentPhp: currentBalance,
                         value: currentBalance,

@@ -5,6 +5,11 @@ import AddInvestmentModal from "./add-investment-modal";
 import InvestmentTable from "./investment-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
+import {
+    ensureUniqueActiveInvestmentName,
+    listActiveInvestmentsByEntity,
+    requireOwnedInvestment,
+} from "@/lib/finance/entity-scoped-records";
 import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -50,7 +55,8 @@ const inferAssetSymbol = (name: string) => {
 
 export default async function InvestmentPage() {
     const session = await getAuthenticatedEntitySession();
-    await ensureFinanceBootstrap(session.userId, session.activeEntity.id);
+    const activeEntityId = session.activeEntity.id;
+    await ensureFinanceBootstrap(session.userId, activeEntityId);
 
     const createInvestmentAction = async (formData: FormData): Promise<InvestmentActionResult> => {
         "use server";
@@ -73,9 +79,17 @@ export default async function InvestmentPage() {
         }
 
         try {
+            await ensureUniqueActiveInvestmentName(
+                prisma,
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                name,
+            );
+
             await prisma.investment.create({
                 data: {
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     name,
                     initialInvestmentPhp: initialResult.value,
                     value: valueResult.value,
@@ -85,8 +99,11 @@ export default async function InvestmentPage() {
 
             revalidatePath("/investment");
             return { ok: true, message: "Investment created successfully." };
-        } catch {
-            return { ok: false, message: "Could not create investment. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not create investment. Please try again.",
+            };
         }
     };
 
@@ -113,10 +130,25 @@ export default async function InvestmentPage() {
         }
 
         try {
+            await requireOwnedInvestment(
+                prisma,
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                id,
+            );
+            await ensureUniqueActiveInvestmentName(
+                prisma,
+                actionSession.userId,
+                actionSession.activeEntity.id,
+                name,
+                id,
+            );
+
             const updated = await prisma.investment.updateMany({
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isArchived: false,
                 },
                 data: {
@@ -133,8 +165,11 @@ export default async function InvestmentPage() {
 
             revalidatePath("/investment");
             return { ok: true, message: "Investment updated successfully." };
-        } catch {
-            return { ok: false, message: "Could not update investment. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not update investment. Please try again.",
+            };
         }
     };
 
@@ -152,6 +187,7 @@ export default async function InvestmentPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
+                    entityId: actionSession.activeEntity.id,
                     isArchived: false,
                 },
                 data: {
@@ -165,18 +201,15 @@ export default async function InvestmentPage() {
 
             revalidatePath("/investment");
             return { ok: true, message: "Investment deleted successfully." };
-        } catch {
-            return { ok: false, message: "Could not delete investment. Please try again." };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error instanceof Error ? error.message : "Could not delete investment. Please try again.",
+            };
         }
     };
 
-    const investments = await prisma.investment.findMany({
-        where: {
-            userId: session.userId,
-            isArchived: false,
-        },
-        orderBy: [{ createdAt: "desc" }],
-    });
+    const investments = await listActiveInvestmentsByEntity(prisma, session.userId, activeEntityId);
 
     const estimatedValuePairs = await Promise.all(investments.map(async (investment) => {
         const symbol = inferAssetSymbol(investment.name);

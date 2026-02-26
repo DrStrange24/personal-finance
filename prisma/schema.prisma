@@ -80,6 +80,8 @@ model FinanceEntity {
   updatedAt   DateTime             @updatedAt
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   wallets     WalletAccount[]
+  creditAccounts CreditAccount[]
+  investments Investment[]
   budgets     BudgetEnvelope[]
   loans       LoanRecord[]
   incomeStreams IncomeStream[]
@@ -127,6 +129,7 @@ model WalletAccount {
 model CreditAccount {
   id                   String   @id @default(cuid())
   userId               String
+  entityId             String
   name                 String
   creditLimitAmount    Decimal  @default(0)
   currentBalanceAmount Decimal  @default(0)
@@ -134,13 +137,18 @@ model CreditAccount {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity               FinanceEntity @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId, isArchived, name])
+  @@index([entityId])
+  @@index([entityId, isArchived, name])
+  @@index([userId, entityId, isArchived, name])
 }
 
 model Investment {
   id                   String   @id @default(cuid())
   userId               String
+  entityId             String
   name                 String
   initialInvestmentPhp Decimal  @default(0)
   value                Decimal  @default(0)
@@ -149,9 +157,14 @@ model Investment {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity               FinanceEntity @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId, isArchived, name])
   @@index([userId, createdAt])
+  @@index([entityId])
+  @@index([entityId, isArchived, name])
+  @@index([userId, entityId, isArchived, name])
+  @@index([entityId, createdAt])
 }
 
 model IncomeStream {

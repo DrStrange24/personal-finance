@@ -1,4 +1,5 @@
 import { Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
+import { requireOwnedCreditAccount } from "@/lib/finance/entity-scoped-records";
 import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance/form-parsers";
 import {
     deleteFinanceTransactionWithReversal,
@@ -38,17 +39,7 @@ const resolveSourceWalletAccountId = async (
     }
 
     const creditId = walletAccountId.slice("credit:".length);
-    const creditAccount = await prisma.creditAccount.findFirst({
-        where: {
-            id: creditId,
-            userId,
-            isArchived: false,
-        },
-    });
-
-    if (!creditAccount) {
-        throw new Error("Credit account not found.");
-    }
+    const creditAccount = await requireOwnedCreditAccount(prisma, userId, entityId, creditId);
 
     const existingCreditWallet = await prisma.walletAccount.findFirst({
         where: {

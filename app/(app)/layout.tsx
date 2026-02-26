@@ -19,6 +19,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         revalidatePath("/dashboard");
         revalidatePath("/transactions");
         revalidatePath("/income");
+        revalidatePath("/credit");
+        revalidatePath("/investment");
         revalidatePath("/budget");
         revalidatePath("/loan");
         revalidatePath("/wallet");

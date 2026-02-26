@@ -42,21 +42,18 @@ Generate Prisma client:
 npx prisma generate
 ```
 
-Run the entity backfill script after introducing nullable `entityId` columns:
+After applying Sprint 2 migration manually, run entity-scope verification:
 
 ```bash
-npx tsx prisma/migrate-finance-entities.ts
+npm run verify:sprint2-entity-scope
 ```
 
-The script is idempotent and runs per-user transactions. It creates a default `FinanceEntity` (`Personal`) and fills `entityId` for:
+The verifier is read-only and reports:
 
-- `WalletAccount`
-- `BudgetEnvelope`
-- `LoanRecord`
-- `IncomeStream`
-- `FinanceTransaction`
-
-It also verifies no remaining NULL `entityId` values and prints a migration summary.
+- NULL `entityId` rows for `CreditAccount` and `Investment`
+- orphan/cross-user `FinanceEntity` references
+- active duplicate name groups within `(userId, entityId, name)`
+- total row counts per model
 
 ## Prisma Migration Safety
 
@@ -123,6 +120,7 @@ Test stack:
 - Use `app/api/*` endpoints for browser file upload/import flows.
 - Keep Prisma access server-side only.
 - Financial reads/writes must be scoped by `activeEntityId` (never by `userId` alone for entity-scoped models).
+- `CreditAccount` and `Investment` are entity-scoped in Sprint 2 and must always include `entityId`.
 - For transaction-driven KPIs/lists, filter to active canonical rows only:
   - `isReversal = false`
   - `voidedAt = null`

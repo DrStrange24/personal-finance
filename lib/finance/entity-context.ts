@@ -20,6 +20,8 @@ export type FinanceEntityContext = {
 
 export type FinanceEntityRecordCounts = {
     walletAccounts: number;
+    creditAccounts: number;
+    investments: number;
     budgetEnvelopes: number;
     loanRecords: number;
     incomeStreams: number;
@@ -233,8 +235,14 @@ export const getFinanceEntityRecordCounts = async (
     userId: string,
     entityId: string,
 ): Promise<FinanceEntityRecordCounts> => {
-    const [walletAccounts, budgetEnvelopes, loanRecords, incomeStreams, transactions] = await Promise.all([
+    const [walletAccounts, creditAccounts, investments, budgetEnvelopes, loanRecords, incomeStreams, transactions] = await Promise.all([
         db.walletAccount.count({
+            where: { userId, entityId },
+        }),
+        db.creditAccount.count({
+            where: { userId, entityId },
+        }),
+        db.investment.count({
             where: { userId, entityId },
         }),
         db.budgetEnvelope.count({
@@ -253,11 +261,13 @@ export const getFinanceEntityRecordCounts = async (
 
     return {
         walletAccounts,
+        creditAccounts,
+        investments,
         budgetEnvelopes,
         loanRecords,
         incomeStreams,
         transactions,
-        total: walletAccounts + budgetEnvelopes + loanRecords + incomeStreams + transactions,
+        total: walletAccounts + creditAccounts + investments + budgetEnvelopes + loanRecords + incomeStreams + transactions,
     };
 };
 

@@ -8,6 +8,7 @@ import MetricCard from "@/app/components/finance/metric-card";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
+import { listActiveCreditAccountsByEntity } from "@/lib/finance/entity-scoped-records";
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { postTransactionFromFormData } from "@/lib/finance/transaction-orchestration";
@@ -68,13 +69,7 @@ export default async function DashboardPage() {
             orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
             take: 12,
         }),
-        prisma.creditAccount.findMany({
-            where: {
-                userId: session.userId,
-                isArchived: false,
-            },
-            orderBy: { name: "asc" },
-        }),
+        listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({

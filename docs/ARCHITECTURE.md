@@ -22,7 +22,8 @@
 Primary models:
 
 - `WalletAccount` (cash, bank, e-wallet, credit card)
-- `Investment` (initial investment + unit value + PHP value)
+- `CreditAccount` (entity-scoped card account metadata + debt mirror)
+- `Investment` (entity-scoped initial investment + unit value + PHP value)
 - `IncomeStream`
 - `BudgetEnvelope` (including hidden system envelopes)
 - `LoanRecord`
@@ -30,7 +31,7 @@ Primary models:
 
 Legacy compatibility models:
 
-- `MonthlyOverviewEntry`
+- `MonthlyOverviewEntry` (explicit user-scoped legacy exception in Sprint 2)
 
 Enums:
 
@@ -72,6 +73,7 @@ Active query contract for KPI/list views:
 
 - `isReversal = false`
 - `voidedAt IS NULL`
+- for entity-scoped models, always filter by `(userId, entityId)`
 
 System envelopes are auto-created in bootstrap:
 
@@ -89,6 +91,17 @@ System envelopes are auto-created in bootstrap:
 - default income streams (if none)
 
 Legacy monthly overview is preserved and still served by `/monthly-overview`.
+
+## Entity Scope Refactor (Sprint 2)
+
+- `CreditAccount` and `Investment` are entity-scoped and require `entityId`.
+- Access/mutation paths use canonical entity-owned helper functions in:
+  - `lib/finance/entity-scoped-records.ts`
+- Active uniqueness is DB-enforced with partial unique indexes:
+  - `CreditAccount(userId, entityId, name) WHERE isArchived = false`
+  - `Investment(userId, entityId, name) WHERE isArchived = false`
+- One-time manual verification script:
+  - `prisma/verify-sprint2-entity-scope.ts`
 
 ## Workbook Import
 

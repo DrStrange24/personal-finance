@@ -7,6 +7,7 @@ import AddTransactionModal from "./add-transaction-modal";
 import TransactionsTable from "./transactions-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextData } from "@/lib/finance/context";
+import { listActiveCreditAccountsByEntity } from "@/lib/finance/entity-scoped-records";
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal } from "@/lib/finance/posting-engine";
@@ -170,13 +171,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
             take: 200,
         }),
-        prisma.creditAccount.findMany({
-            where: {
-                userId: session.userId,
-                isArchived: false,
-            },
-            orderBy: { name: "asc" },
-        }),
+        listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({

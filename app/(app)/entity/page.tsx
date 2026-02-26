@@ -55,6 +55,8 @@ export default async function EntityPage() {
             revalidatePath("/dashboard");
             revalidatePath("/transactions");
             revalidatePath("/income");
+            revalidatePath("/credit");
+            revalidatePath("/investment");
             revalidatePath("/budget");
             revalidatePath("/loan");
             revalidatePath("/wallet");
@@ -83,6 +85,8 @@ export default async function EntityPage() {
             revalidatePath("/dashboard");
             revalidatePath("/transactions");
             revalidatePath("/income");
+            revalidatePath("/credit");
+            revalidatePath("/investment");
             revalidatePath("/budget");
             revalidatePath("/loan");
             revalidatePath("/wallet");
@@ -108,6 +112,8 @@ export default async function EntityPage() {
             revalidatePath("/dashboard");
             revalidatePath("/transactions");
             revalidatePath("/income");
+            revalidatePath("/credit");
+            revalidatePath("/investment");
             revalidatePath("/budget");
             revalidatePath("/loan");
             revalidatePath("/wallet");
@@ -135,6 +141,8 @@ export default async function EntityPage() {
             revalidatePath("/dashboard");
             revalidatePath("/transactions");
             revalidatePath("/income");
+            revalidatePath("/credit");
+            revalidatePath("/investment");
             revalidatePath("/budget");
             revalidatePath("/loan");
             revalidatePath("/wallet");

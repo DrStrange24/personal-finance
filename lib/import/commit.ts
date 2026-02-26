@@ -55,6 +55,7 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
             const existingInvestment = await prisma.investment.findFirst({
                 where: {
                     userId,
+                    entityId,
                     name: entry.name,
                     isArchived: false,
                 },
@@ -75,6 +76,7 @@ export const commitWorkbookForUser = async (userId: string, entityId: string, wo
                 await prisma.investment.create({
                     data: {
                         userId,
+                        entityId,
                         name: entry.name,
                         initialInvestmentPhp,
                         value,

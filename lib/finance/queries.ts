@@ -24,6 +24,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
         prisma.investment.findMany({
             where: {
                 userId,
+                entityId,
                 isArchived: false,
             },
             select: {

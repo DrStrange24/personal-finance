@@ -68,6 +68,7 @@ type IncomeRow = {
 type CreditAccountRow = {
     id: string;
     userId: string;
+    entityId: string;
     name: string;
     isArchived: boolean;
     creditLimitAmount: Prisma.Decimal;
@@ -192,10 +193,20 @@ const baseState = (): InMemoryState => ({
         {
             id: "credit_1",
             userId: "u1",
+            entityId: "e1",
             name: "Visa Card",
             isArchived: false,
             creditLimitAmount: toDecimal(1000),
             currentBalanceAmount: toDecimal(200),
+        },
+        {
+            id: "credit_2",
+            userId: "u1",
+            entityId: "e2",
+            name: "Visa Card",
+            isArchived: false,
+            creditLimitAmount: toDecimal(5000),
+            currentBalanceAmount: toDecimal(999),
         },
     ],
     financeTransactions: [],
@@ -584,6 +595,23 @@ describe("posting-engine", () => {
             targetWalletAccountId: "cc_1",
             remarks: "Overpay",
         })).rejects.toThrow("Credit card payment cannot exceed outstanding debt.");
+    });
+
+    it("keeps same-name credit account in other entity unchanged", async () => {
+        await postFinanceTransaction({
+            userId: "u1",
+            entityId: "e1",
+            actorUserId: "u1",
+            kind: "CREDIT_CARD_CHARGE",
+            amountPhp: 50,
+            walletAccountId: "cc_1",
+            budgetEnvelopeId: "budget_1",
+            remarks: "Scoped charge",
+        });
+
+        expect(walletBalance(state, "cc_1")).toBe(250);
+        expect(Number(state.creditAccounts.find((account) => account.id === "credit_1")?.currentBalanceAmount ?? 0)).toBe(250);
+        expect(Number(state.creditAccounts.find((account) => account.id === "credit_2")?.currentBalanceAmount ?? 0)).toBe(999);
     });
 
     it("posts LOAN_BORROW and LOAN_REPAY with overpay guard", async () => {

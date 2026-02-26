@@ -89,11 +89,16 @@
     - constants.ts
     - context.ts
     - entity-context.ts (active entity resolution, ownership checks, entity cookie, delete guardrails)
+    - entity-scoped-records.ts (canonical entity-owned CreditAccount/Investment access helpers)
+    - entity-scoped-records.test.ts
+    - entity-scope-verification.ts (shared verifier rules for Sprint 2 migration checks)
+    - entity-scope-verification.test.ts
     - form-parsers.ts
     - money.ts
     - posting-engine.ts
     - posting-engine.test.ts
     - queries.ts
+    - queries.test.ts
     - transaction-orchestration.ts
     - types.ts
   - import/
@@ -102,9 +107,10 @@
     - commit.ts
 - prisma/
   - schema.prisma
-  - migrate-finance-entities.ts (idempotent per-user backfill for nullable `entityId` columns)
+  - verify-sprint2-entity-scope.ts (read-only manual verifier for Sprint 2 entity-scope migration)
   - migrations/
-    - 20260226223000_sprint1-posting-engine-hardening/migration.sql
+    - 20260226141602_sprint1_posting_engine_hardening/migration.sql
+    - 20260226235900_sprint2-entity-scope-refactor/migration.sql
 - docs/
   - POSTING_ENGINE_MATRIX.md (Sprint 1 transaction validation matrix + reversal contract)
 - public/
@@ -113,7 +119,7 @@
 Notes:
 
 - Protected pages are under `app/(app)`.
-- New finance domain models are in Prisma (`WalletAccount`, `CreditAccount`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
+- New finance domain models are in Prisma (`WalletAccount`, `CreditAccount`, `Investment`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
 - Multi-entity isolation uses `FinanceEntity` as the primary boundary for all entity-scoped financial models.
-- Legacy model (`MonthlyOverviewEntry`) remains for migration compatibility.
+- Legacy model (`MonthlyOverviewEntry`) remains user-scoped for migration compatibility.
 - Workbook import currently uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) workflow.

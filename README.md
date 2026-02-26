@@ -72,10 +72,10 @@ Generate Prisma client (if needed):
 npx prisma generate
 ```
 
-Backfill existing rows into default entity after adding nullable `entityId` columns:
+After applying Sprint 2 migrations manually, run entity-scope verification:
 
 ```bash
-npx tsx prisma/migrate-finance-entities.ts
+npm run verify:sprint2-entity-scope
 ```
 
 Run development server:
@@ -112,15 +112,16 @@ Supported workbook sheets:
 ## Finance Model (Phase)
 
 - PHP-only currency model.
-- `FinanceEntity` is the accounting boundary for `WalletAccount`, `BudgetEnvelope`, `LoanRecord`, `IncomeStream`, and `FinanceTransaction`.
+- `FinanceEntity` is the accounting boundary for `WalletAccount`, `CreditAccount`, `Investment`, `BudgetEnvelope`, `LoanRecord`, `IncomeStream`, and `FinanceTransaction`.
 - Posting engine strictly validates entity consistency across linked records (wallet/budget/loan/income/target wallet).
 - Every manual add/deduct flow records a ledger transaction with `actorUserId`.
 - Transaction delete is reversal-based (no hard delete): reversal row + voided original linkage.
 - Active KPI/list queries exclude reversal rows and voided originals (`isReversal = false`, `voidedAt IS NULL`).
-- Investments are managed in `Investment` records with unit value tracking and estimated PHP valuation in UI.
+- Active-name uniqueness for `CreditAccount` and `Investment` is enforced per `(userId, entityId, name)` for non-archived rows.
+- Investments are managed in entity-scoped `Investment` records with unit value tracking and estimated PHP valuation in UI.
 - Envelope budgeting is supported through `BudgetEnvelope` + `BUDGET_ALLOCATION`.
-- Credit accounts are managed in dedicated `CreditAccount` records via `/credit`.
-- Legacy `MonthlyOverviewEntry` remains for migration compatibility.
+- Credit accounts are managed in entity-scoped `CreditAccount` records via `/credit`.
+- Legacy `MonthlyOverviewEntry` remains user-scoped by design for migration compatibility.
 
 ## Styling
 
