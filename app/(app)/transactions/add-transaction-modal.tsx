@@ -57,6 +57,12 @@ const kindsSupportingLoan = new Set<TransactionKind>(["LOAN_BORROW", "LOAN_REPAY
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const getEmptyDistributionRow = () => ({ budgetEnvelopeId: "", amountPhp: "" });
+const getDistributionRowsFromBudgets = (budgets: BudgetOption[]) => budgets.map((budget) => ({
+    budgetEnvelopeId: budget.id,
+    amountPhp: Number.isFinite(budget.targetAmountPhp) && (budget.targetAmountPhp ?? 0) > 0
+        ? Number(budget.targetAmountPhp).toFixed(2)
+        : "",
+}));
 
 export default function AddTransactionModal({
     wallets,
@@ -70,6 +76,7 @@ export default function AddTransactionModal({
     const [kind, setKind] = useState<TransactionKind>("EXPENSE");
     const [expenseFunding, setExpenseFunding] = useState<"wallet" | "credit">("wallet");
     const [incomeDistributionRows, setIncomeDistributionRows] = useState([getEmptyDistributionRow()]);
+    const [selectAllBudgets, setSelectAllBudgets] = useState(false);
     const { showSuccess, showError } = useAppToast();
 
     const requiresBudget = kindsRequiringBudget.has(kind);
@@ -186,6 +193,7 @@ export default function AddTransactionModal({
                                     }
                                     if (nextKind !== "INCOME") {
                                         setIncomeDistributionRows([getEmptyDistributionRow()]);
+                                        setSelectAllBudgets(false);
                                     }
                                 }}
                             >
@@ -279,11 +287,33 @@ export default function AddTransactionModal({
                             <div className="d-grid gap-2">
                                 <div className="d-flex align-items-center justify-content-between">
                                     <label className="small fw-semibold m-0">Budget Distribution</label>
-                                    <ActionIconButton
-                                        action="add"
-                                        label="Add budget distribution row"
-                                        onClick={() => setIncomeDistributionRows((rows) => [...rows, getEmptyDistributionRow()])}
-                                    />
+                                    <div className="d-flex align-items-center gap-2">
+                                        <div className="form-check m-0">
+                                            <input
+                                                id="income-dist-select-all"
+                                                type="checkbox"
+                                                className="form-check-input"
+                                                checked={selectAllBudgets}
+                                                disabled={budgets.length === 0}
+                                                onChange={(event) => {
+                                                    const shouldSelectAll = event.target.checked;
+                                                    setSelectAllBudgets(shouldSelectAll);
+                                                    setIncomeDistributionRows(shouldSelectAll ? getDistributionRowsFromBudgets(budgets) : [getEmptyDistributionRow()]);
+                                                }}
+                                            />
+                                            <label htmlFor="income-dist-select-all" className="form-check-label small">
+                                                Select all budgets
+                                            </label>
+                                        </div>
+                                        <ActionIconButton
+                                            action="add"
+                                            label="Add budget distribution row"
+                                            onClick={() => {
+                                                setSelectAllBudgets(false);
+                                                setIncomeDistributionRows((rows) => [...rows, getEmptyDistributionRow()]);
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                                 {incomeDistributionRows.map((row, index) => (
                                     <div key={`income-dist-${index}`} className="d-grid gap-2" style={{ gridTemplateColumns: "1fr 170px auto" }}>
@@ -302,6 +332,7 @@ export default function AddTransactionModal({
                                                         }
                                                         : entry
                                                 )));
+                                                setSelectAllBudgets(false);
                                             }}
                                         >
                                             <option value="">Select budget envelope</option>
@@ -318,16 +349,22 @@ export default function AddTransactionModal({
                                             step="0.01"
                                             placeholder="Amount"
                                             value={row.amountPhp}
-                                            onChange={(event) => setIncomeDistributionRows((rows) => rows.map((entry, entryIndex) => (
-                                                entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
-                                            )))}
+                                            onChange={(event) => {
+                                                setIncomeDistributionRows((rows) => rows.map((entry, entryIndex) => (
+                                                    entryIndex === index ? { ...entry, amountPhp: event.target.value } : entry
+                                                )));
+                                                setSelectAllBudgets(false);
+                                            }}
                                         />
                                         <ActionIconButton
                                             action="delete"
                                             label={`Remove budget distribution row ${index + 1}`}
                                             type="button"
                                             disabled={incomeDistributionRows.length === 1}
-                                            onClick={() => setIncomeDistributionRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
+                                            onClick={() => {
+                                                setSelectAllBudgets(false);
+                                                setIncomeDistributionRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index));
+                                            }}
                                         />
                                     </div>
                                 ))}
