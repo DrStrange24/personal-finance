@@ -92,7 +92,7 @@ export default function AddTransactionModal({
 
     const requiresBudget = !recordOnly && kindsRequiringBudget.has(kind);
     const requiresTargetWallet = !recordOnly && kindsRequiringTargetWallet.has(kind);
-    const supportsIncomeStream = !recordOnly && kindsSupportingIncomeStream.has(kind);
+    const supportsIncomeStream = kindsSupportingIncomeStream.has(kind);
     const supportsLoan = !recordOnly && kindsSupportingLoan.has(kind);
     const isIncome = !recordOnly && kind === "INCOME";
     const isExpense = !recordOnly && kind === "EXPENSE";
@@ -125,7 +125,6 @@ export default function AddTransactionModal({
 
         if (recordOnly) {
             formData.set("targetWalletAccountId", "");
-            formData.set("incomeStreamId", "");
             formData.set("loanRecordId", "");
             formData.delete("distributedBudgetEnvelopeId");
             formData.delete("distributedAmountPhp");
@@ -462,7 +461,9 @@ export default function AddTransactionModal({
 
                         {supportsIncomeStream && (
                             <div className="d-grid gap-1">
-                                <label htmlFor="tx-income-stream" className="small fw-semibold">Income Stream</label>
+                                <label htmlFor="tx-income-stream" className="small fw-semibold">
+                                    {recordOnly ? "Income Stream (Optional)" : "Income Stream"}
+                                </label>
                                 <select
                                     id="tx-income-stream"
                                     name="incomeStreamId"

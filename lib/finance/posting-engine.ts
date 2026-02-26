@@ -206,7 +206,7 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
                     walletAccountId: sourceWallet.id,
                     targetWalletAccountId: null,
                     budgetEnvelopeId: budgetEnvelope?.id ?? null,
-                    incomeStreamId: null,
+                    incomeStreamId: params.incomeStreamId ?? null,
                     loanRecordId: null,
                     countsTowardBudget: false,
                     remarks: params.remarks?.trim() || null,
