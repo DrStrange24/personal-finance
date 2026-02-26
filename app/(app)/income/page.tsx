@@ -1,8 +1,10 @@
 import { revalidatePath } from "next/cache";
+import { TransactionKind } from "@prisma/client";
+import MetricCard from "@/app/components/finance/metric-card";
 import AddIncomeStreamModal from "./add-income-stream-modal";
 import IncomeStreamTable from "./income-stream-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
-import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
+import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -142,6 +144,38 @@ export default async function IncomePage() {
         remarks: stream.remarks,
     }));
 
+    const sciTechWhere = {
+        userId: session.userId,
+        kind: TransactionKind.INCOME,
+        incomeStream: {
+            is: {
+                name: {
+                    equals: "SciTech",
+                    mode: "insensitive" as const,
+                },
+            },
+        },
+    };
+    const [sciTechIncomeAggregate, sciTechLatestTransactions] = await Promise.all([
+        prisma.financeTransaction.aggregate({
+            where: sciTechWhere,
+            _sum: {
+                amountPhp: true,
+            },
+        }),
+        prisma.financeTransaction.findMany({
+            where: sciTechWhere,
+            select: {
+                amountPhp: true,
+            },
+            orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
+            take: 10,
+        }),
+    ]);
+    const sciTechTotalIncomePhp = Number(sciTechIncomeAggregate._sum.amountPhp ?? 0);
+    const sciTechLatestTotalPhp = sciTechLatestTransactions.reduce((sum, tx) => sum + Number(tx.amountPhp), 0);
+    const sciTechAverageIncomePhp = sciTechLatestTransactions.length > 0 ? sciTechLatestTotalPhp / sciTechLatestTransactions.length : 0;
+
     return (
         <section className="d-grid gap-4">
             <header className="d-grid gap-2">
@@ -153,6 +187,14 @@ export default async function IncomePage() {
             </header>
 
             <AddIncomeStreamModal createIncomeStreamAction={createIncomeStreamAction} />
+
+            <div className="d-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
+                <MetricCard
+                    label="SciTech Income"
+                    value={formatPhp(sciTechTotalIncomePhp)}
+                    helper={`Average (latest 10): ${formatPhp(sciTechAverageIncomePhp)}`}
+                />
+            </div>
 
             <IncomeStreamTable
                 streams={streamRows}
