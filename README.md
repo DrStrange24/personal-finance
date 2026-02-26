@@ -144,6 +144,11 @@ Supported workbook sheets:
   - deterministic row idempotency keys
   - atomic commit (all-or-nothing per batch)
   - finance transaction traceability via `externalId` and `importBatchId`
+- Sprint 5 performance/reporting readiness is enabled:
+  - dashboard KPI queries use grouped aggregates with entity scoping
+  - `/transactions` uses server-side pagination (`50` rows/page)
+  - KPI query failures degrade safely in UI (`-`) with server logs
+  - legacy `MonthlyOverviewEntry` remains isolated from modern entity KPI computation
 - Legacy `MonthlyOverviewEntry` remains user-scoped by design for migration compatibility.
 
 ## Styling

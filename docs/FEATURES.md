@@ -11,6 +11,7 @@
 - Dashboard and Core Finance:
   - `/dashboard` as post-auth landing page.
   - KPI cards (wallet balance, debt, net position, budget available, month income/expense/cashflow).
+  - KPI fallback behavior (`-`) when aggregate query fails, with server-side diagnostics logging.
   - Quick transaction posting flow.
   - Recent transactions table.
   - Credit card status card.
@@ -18,6 +19,7 @@
 - Ledger:
   - `/transactions` unified transaction list.
   - Filters by kind, wallet, and remarks search.
+  - Date-range filtering and server-side pagination for large ledgers.
   - Add/edit/delete transaction actions via icon buttons with modal flows.
   - Transaction delete is reversal-based (reversal row + voided original, no hard delete).
   - Active ledger views/KPIs exclude reversal rows and voided originals.

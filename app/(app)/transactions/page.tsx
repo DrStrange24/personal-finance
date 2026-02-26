@@ -1,4 +1,4 @@
-import { TransactionKind } from "@prisma/client";
+import { Prisma, TransactionKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
@@ -19,12 +19,40 @@ import { isRecordOnlyTransaction, type FinanceActionResult } from "@/lib/finance
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
+const TRANSACTIONS_PAGE_SIZE = 50;
+
 type TransactionsPageProps = {
     searchParams?: Promise<{
         kind?: string;
         wallet?: string;
         q?: string;
+        from?: string;
+        to?: string;
+        page?: string;
     }>;
+};
+
+const parsePositiveInt = (value: string | undefined, fallback: number) => {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+        return fallback;
+    }
+    return parsed;
+};
+
+const parseDateFilter = (value: string | undefined) => {
+    if (!value) {
+        return null;
+    }
+    const normalized = value.trim();
+    if (!normalized) {
+        return null;
+    }
+    const parsed = new Date(`${normalized}T00:00:00`);
+    if (Number.isNaN(parsed.valueOf())) {
+        return null;
+    }
+    return parsed;
 };
 
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
@@ -35,6 +63,9 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     const selectedKind = typeof params.kind === "string" ? params.kind.trim() : "";
     const selectedWalletId = typeof params.wallet === "string" ? params.wallet.trim() : "";
     const searchText = typeof params.q === "string" ? params.q.trim() : "";
+    const selectedFromDate = typeof params.from === "string" ? params.from.trim() : "";
+    const selectedToDate = typeof params.to === "string" ? params.to.trim() : "";
+    const requestedPage = parsePositiveInt(params.page, 1);
 
     const postTransactionAction = async (formData: FormData): Promise<FinanceActionResult> => {
         "use server";
@@ -145,37 +176,105 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         return { ok: true, message: "Transaction deleted successfully." };
     };
 
-    const [context, transactions, creditAccounts] = await Promise.all([
+    const postedAtFilter: Prisma.DateTimeFilter = {};
+    const fromDate = parseDateFilter(selectedFromDate);
+    const toDate = parseDateFilter(selectedToDate);
+    if (fromDate) {
+        postedAtFilter.gte = fromDate;
+    }
+    if (toDate) {
+        const nextDate = new Date(toDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        postedAtFilter.lt = nextDate;
+    }
+
+    const transactionWhere: Prisma.FinanceTransactionWhereInput = {
+        userId: session.userId,
+        entityId: activeEntityId,
+        isReversal: false,
+        voidedAt: null,
+        ...(selectedKind ? { kind: selectedKind as TransactionKind } : {}),
+        ...(selectedWalletId
+            ? {
+                OR: [
+                    { walletAccountId: selectedWalletId },
+                    { targetWalletAccountId: selectedWalletId },
+                ],
+            }
+            : {}),
+        ...(Object.keys(postedAtFilter).length > 0 ? { postedAt: postedAtFilter } : {}),
+        ...(searchText
+            ? {
+                remarks: {
+                    contains: searchText,
+                    mode: "insensitive",
+                },
+            }
+            : {}),
+    };
+
+    const fetchTransactionsPage = async () => {
+        try {
+            const totalTransactions = await prisma.financeTransaction.count({
+                where: transactionWhere,
+            });
+            const totalPages = Math.max(1, Math.ceil(totalTransactions / TRANSACTIONS_PAGE_SIZE));
+            const currentPage = Math.min(requestedPage, totalPages);
+            const skip = (currentPage - 1) * TRANSACTIONS_PAGE_SIZE;
+            const rows = await prisma.financeTransaction.findMany({
+                where: transactionWhere,
+                include: {
+                    walletAccount: true,
+                    targetWalletAccount: true,
+                    budgetEnvelope: true,
+                    incomeStream: true,
+                    loanRecord: true,
+                },
+                orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
+                skip,
+                take: TRANSACTIONS_PAGE_SIZE,
+            });
+
+            if (process.env.NODE_ENV !== "test") {
+                console.info(JSON.stringify({
+                    scope: "finance-query",
+                    level: "info",
+                    queryType: "transactions-list",
+                    entityId: activeEntityId,
+                    details: {
+                        page: currentPage,
+                        pageSize: TRANSACTIONS_PAGE_SIZE,
+                        totalTransactions,
+                    },
+                }));
+            }
+
+            return {
+                rows,
+                totalTransactions,
+                totalPages,
+                currentPage,
+            };
+        } catch (error) {
+            if (process.env.NODE_ENV !== "test") {
+                console.error(JSON.stringify({
+                    scope: "finance-query",
+                    level: "error",
+                    queryType: "transactions-list",
+                    entityId: activeEntityId,
+                    error: error instanceof Error ? error.message : "Unknown transactions query error.",
+                }));
+            }
+            throw error;
+        }
+    };
+
+    const [context, transactionPage, creditAccounts] = await Promise.all([
         getFinanceContextData(session.userId, activeEntityId),
-        prisma.financeTransaction.findMany({
-            where: {
-                userId: session.userId,
-                entityId: activeEntityId,
-                isReversal: false,
-                voidedAt: null,
-                ...(selectedKind ? { kind: selectedKind as TransactionKind } : {}),
-                ...(selectedWalletId ? { walletAccountId: selectedWalletId } : {}),
-                ...(searchText
-                    ? {
-                        remarks: {
-                            contains: searchText,
-                            mode: "insensitive",
-                        },
-                    }
-                    : {}),
-            },
-            include: {
-                walletAccount: true,
-                targetWalletAccount: true,
-                budgetEnvelope: true,
-                incomeStream: true,
-                loanRecord: true,
-            },
-            orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
-            take: 200,
-        }),
+        fetchTransactionsPage(),
         listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
     ]);
+    const transactions = transactionPage.rows;
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
@@ -213,6 +312,28 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         loanName: tx.loanRecord?.itemName ?? null,
         remarks: tx.remarks,
     }));
+    const makePageHref = (page: number) => {
+        const params = new URLSearchParams();
+        if (selectedKind) {
+            params.set("kind", selectedKind);
+        }
+        if (selectedWalletId) {
+            params.set("wallet", selectedWalletId);
+        }
+        if (searchText) {
+            params.set("q", searchText);
+        }
+        if (selectedFromDate) {
+            params.set("from", selectedFromDate);
+        }
+        if (selectedToDate) {
+            params.set("to", selectedToDate);
+        }
+        params.set("page", String(page));
+        return `/transactions?${params.toString()}`;
+    };
+    const hasPreviousPage = transactionPage.currentPage > 1;
+    const hasNextPage = transactionPage.currentPage < transactionPage.totalPages;
 
     return (
         <section className="d-grid gap-4">
@@ -263,6 +384,14 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                             <label htmlFor="filter-q" className="small fw-semibold mb-1">Remarks Search</label>
                             <input id="filter-q" type="text" name="q" className="form-control form-control-sm" defaultValue={searchText} />
                         </div>
+                        <div className="col-12 col-md-2">
+                            <label htmlFor="filter-from" className="small fw-semibold mb-1">From</label>
+                            <input id="filter-from" type="date" name="from" className="form-control form-control-sm" defaultValue={selectedFromDate} />
+                        </div>
+                        <div className="col-12 col-md-2">
+                            <label htmlFor="filter-to" className="small fw-semibold mb-1">To</label>
+                            <input id="filter-to" type="date" name="to" className="form-control form-control-sm" defaultValue={selectedToDate} />
+                        </div>
                         <div className="col-12 col-md-2 d-flex gap-2">
                             <Button type="submit" variant="primary" size="sm">Apply</Button>
                             <Button type="button" variant="outline-secondary" href="/transactions" size="sm">Reset</Button>
@@ -280,6 +409,34 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 updateTransactionAction={updateTransactionAction}
                 deleteTransactionAction={deleteTransactionAction}
             />
+
+            <Card className="pf-surface-panel">
+                <CardBody className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
+                        Page {transactionPage.currentPage} of {transactionPage.totalPages} ({transactionPage.totalTransactions} total transactions)
+                    </p>
+                    <div className="d-flex gap-2">
+                        <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            disabled={!hasPreviousPage}
+                            href={hasPreviousPage ? makePageHref(transactionPage.currentPage - 1) : undefined}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            disabled={!hasNextPage}
+                            href={hasNextPage ? makePageHref(transactionPage.currentPage + 1) : undefined}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </CardBody>
+            </Card>
         </section>
     );
 }

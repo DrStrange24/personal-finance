@@ -52,8 +52,10 @@ export default async function DashboardPage() {
         return { ok: true, message: "Transaction posted successfully." } satisfies FinanceActionResult;
     };
 
-    const [summary, context, recentTransactions, creditAccounts] = await Promise.all([
-        getDashboardSummary(session.userId, activeEntityId),
+    const [summaryResult, context, recentTransactions, creditAccounts] = await Promise.all([
+        getDashboardSummary(session.userId, activeEntityId)
+            .then((data) => ({ ok: true as const, data }))
+            .catch((error) => ({ ok: false as const, error })),
         getFinanceContextData(session.userId, activeEntityId),
         prisma.financeTransaction.findMany({
             where: {
@@ -72,6 +74,16 @@ export default async function DashboardPage() {
         }),
         listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
     ]);
+    const summary = summaryResult.ok ? summaryResult.data : null;
+    if (!summaryResult.ok) {
+        console.error(JSON.stringify({
+            scope: "finance-kpi",
+            level: "error",
+            queryType: "dashboard-summary",
+            entityId: activeEntityId,
+            error: summaryResult.error instanceof Error ? summaryResult.error.message : "Unknown KPI error.",
+        }));
+    }
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
@@ -114,13 +126,13 @@ export default async function DashboardPage() {
             </header>
 
             <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                <MetricCard label="Total Assets" value={formatPhp(summary.totalAssetsPhp)} />
-                <MetricCard label="Total Investment" value={formatPhp(summary.totalInvestmentPhp)} />
-                <MetricCard label="Wallet Balance" value={formatPhp(summary.totalWalletBalancePhp)} />
-                <MetricCard label="Allocated Budget" value={formatPhp(summary.budgetAvailablePhp)} />
-                <MetricCard label="Credit Card Debt" value={formatPhp(summary.totalCreditCardDebtPhp)} />
-                <MetricCard label="Unallocated Budget" value={formatPhp(summary.unallocatedCashPhp)} />
-                <MetricCard label="Total Monthly Income" value={formatPhp(summary.monthlyTotalIncomePhp)} />
+                <MetricCard label="Total Assets" value={summary ? formatPhp(summary.totalAssetsPhp) : "-"} />
+                <MetricCard label="Total Investment" value={summary ? formatPhp(summary.totalInvestmentPhp) : "-"} />
+                <MetricCard label="Wallet Balance" value={summary ? formatPhp(summary.totalWalletBalancePhp) : "-"} />
+                <MetricCard label="Allocated Budget" value={summary ? formatPhp(summary.budgetAvailablePhp) : "-"} />
+                <MetricCard label="Credit Card Debt" value={summary ? formatPhp(summary.totalCreditCardDebtPhp) : "-"} />
+                <MetricCard label="Unallocated Budget" value={summary ? formatPhp(summary.unallocatedCashPhp) : "-"} />
+                <MetricCard label="Total Monthly Income" value={summary ? formatPhp(summary.monthlyTotalIncomePhp) : "-"} />
             </div>
 
             <Card className="pf-surface-panel">

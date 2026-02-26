@@ -94,6 +94,24 @@ const normalizeRemarks = (remarks: string | null | undefined) => {
     return normalized.length > 0 ? normalized : null;
 };
 
+const logPostingEngineError = (
+    operation: string,
+    details: Record<string, unknown>,
+    error: unknown,
+) => {
+    if (process.env.NODE_ENV === "test") {
+        return;
+    }
+
+    console.error(JSON.stringify({
+        scope: "posting-engine",
+        level: "error",
+        operation,
+        ...details,
+        error: error instanceof Error ? error.message : "Unknown posting-engine error.",
+    }));
+};
+
 const normalizeExternalId = (externalId: string | null | undefined) => {
     const normalized = externalId?.trim() ?? "";
     return normalized.length > 0 ? normalized : null;
@@ -901,9 +919,17 @@ export const reconcileWalletBalanceWithAdjustment = async (params: {
     remarks: string;
     reasonCode: AdjustmentReasonCode;
 }) => {
-    return prisma.$transaction(async (tx) => {
-        return reconcileWalletBalanceWithAdjustmentInTx(tx, params);
-    });
+    try {
+        return await prisma.$transaction(async (tx) => {
+            return reconcileWalletBalanceWithAdjustmentInTx(tx, params);
+        });
+    } catch (error) {
+        logPostingEngineError("reconcile-wallet-balance", {
+            entityId: params.entityId,
+            walletAccountId: params.walletAccountId,
+        }, error);
+        throw error;
+    }
 };
 
 export const reconcileWalletBalanceWithAdjustmentInTx = async (
@@ -952,9 +978,17 @@ export const syncBudgetEnvelopeAvailableForImport = async (params: {
     budgetEnvelopeId: string;
     targetAvailablePhp: number;
 }) => {
-    return prisma.$transaction(async (tx) => {
-        return syncBudgetEnvelopeAvailableForImportInTx(tx, params);
-    });
+    try {
+        return await prisma.$transaction(async (tx) => {
+            return syncBudgetEnvelopeAvailableForImportInTx(tx, params);
+        });
+    } catch (error) {
+        logPostingEngineError("sync-budget-envelope-available", {
+            entityId: params.entityId,
+            budgetEnvelopeId: params.budgetEnvelopeId,
+        }, error);
+        throw error;
+    }
 };
 
 export const syncBudgetEnvelopeAvailableForImportInTx = async (
@@ -989,9 +1023,17 @@ export const syncLoanSnapshotForImport = async (params: {
     remainingPhp: number;
     status: LoanStatus;
 }) => {
-    return prisma.$transaction(async (tx) => {
-        return syncLoanSnapshotForImportInTx(tx, params);
-    });
+    try {
+        return await prisma.$transaction(async (tx) => {
+            return syncLoanSnapshotForImportInTx(tx, params);
+        });
+    } catch (error) {
+        logPostingEngineError("sync-loan-snapshot", {
+            entityId: params.entityId,
+            loanRecordId: params.loanRecordId,
+        }, error);
+        throw error;
+    }
 };
 
 export const syncLoanSnapshotForImportInTx = async (

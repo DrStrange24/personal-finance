@@ -170,6 +170,7 @@ model CreditAccount {
 
   @@index([userId, isArchived, name])
   @@index([entityId])
+  @@index([entityId, isArchived])
   @@index([entityId, isArchived, name])
   @@index([userId, entityId, isArchived, name])
 }
@@ -191,6 +192,7 @@ model Investment {
   @@index([userId, isArchived, name])
   @@index([userId, createdAt])
   @@index([entityId])
+  @@index([entityId, isArchived])
   @@index([entityId, isArchived, name])
   @@index([userId, entityId, isArchived, name])
   @@index([entityId, createdAt])
@@ -241,6 +243,7 @@ model BudgetEnvelope {
 
   @@index([userId, isArchived, isSystem, sortOrder])
   @@index([userId, name])
+  @@index([entityId, isArchived])
   @@index([entityId, isArchived, isSystem, sortOrder])
   @@index([entityId, name])
   @@index([entityId, systemType, isArchived])
@@ -356,6 +359,11 @@ model FinanceTransaction {
   @@index([userId, kind, postedAt])
   @@index([userId, budgetEnvelopeId, postedAt])
   @@index([userId, walletAccountId, postedAt])
+  @@index([entityId, createdAt])
+  @@index([entityId, kind, createdAt])
+  @@index([entityId, walletAccountId, createdAt])
+  @@index([entityId, targetWalletAccountId, createdAt])
+  @@index([entityId, budgetEnvelopeId, createdAt])
   @@index([entityId, postedAt])
   @@index([entityId, kind, postedAt])
   @@index([entityId, externalId])

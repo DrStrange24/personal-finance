@@ -8,7 +8,7 @@
     - dashboard/
       - page.tsx (main transaction-first dashboard + import card + quick posting)
     - transactions/
-      - page.tsx (transactions page shell + server actions for add/edit/delete)
+      - page.tsx (transactions page shell + server actions + indexed filters + server pagination)
       - add-transaction-modal.tsx (transaction create modal trigger/form with icon action)
       - transactions-table.tsx (transaction table + edit modal + icon edit/delete actions)
     - income/
@@ -99,7 +99,7 @@
     - money.ts
     - posting-engine.ts
     - posting-engine.test.ts
-    - queries.ts
+    - queries.ts (entity-scoped KPI grouped aggregates + structured diagnostics logs)
     - queries.test.ts
     - transaction-orchestration.ts
     - types.ts
@@ -117,7 +117,8 @@
     - 20260226141602_sprint1_posting_engine_hardening/migration.sql
     - 20260226150750_sprint2_entity_scope_refactor/migration.sql
     - 20260226152651_sprint3_debt_aware_credit_card_logic/migration.sql
-    - 20260227014000_sprint4_import_reliability_idempotency/migration.sql
+    - 20260226174508_sprint4/migration.sql
+    - 20260227031500_sprint5_performance_reporting_readiness/migration.sql
 - docs/
   - POSTING_ENGINE_MATRIX.md (posting validation matrix + reversal/debt-aware credit reserve contract)
 - public/
@@ -131,3 +132,4 @@ Notes:
 - Legacy model (`MonthlyOverviewEntry`) remains user-scoped for migration compatibility.
 - Workbook import uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) by `batchId`, with status diagnostics at `/api/imports/{batchId}`.
 - Import modes are explicit: bootstrap snapshot sheets vs ledger `Transactions` sheet posting rows.
+- Sprint 5 adds entity/reporting-focused index coverage and paginated ledger browsing.

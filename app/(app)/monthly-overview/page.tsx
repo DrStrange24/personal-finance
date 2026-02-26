@@ -202,7 +202,19 @@ export default async function MonthlyOverviewPage() {
             WHERE "userId" = ${session.userId}
             ORDER BY "entryDate" DESC, "createdAt" DESC
         `;
-    const summary = await getDashboardSummary(session.userId, session.activeEntity.id);
+    const summaryResult = await getDashboardSummary(session.userId, session.activeEntity.id)
+        .then((data) => ({ ok: true as const, data }))
+        .catch((error) => ({ ok: false as const, error }));
+    const summary = summaryResult.ok ? summaryResult.data : null;
+    if (!summaryResult.ok) {
+        console.error(JSON.stringify({
+            scope: "finance-kpi",
+            level: "error",
+            queryType: "monthly-overview-default-kpi",
+            entityId: session.activeEntity.id,
+            error: summaryResult.error instanceof Error ? summaryResult.error.message : "Unknown KPI error.",
+        }));
+    }
 
     const chartEntries = [...entries].reverse();
     const chartData = chartEntries.map((entry) => ({
@@ -246,7 +258,7 @@ export default async function MonthlyOverviewPage() {
                     <div className="table-responsive">
                         <MonthlyOverviewEntryTable
                             entries={tableEntries}
-                            defaultWalletAmount={summary.totalAssetsPhp}
+                            defaultWalletAmount={summary?.totalAssetsPhp ?? 0}
                             createEntryAction={createEntryAction}
                             updateEntryAction={updateEntryAction}
                             deleteEntryAction={deleteEntryAction}

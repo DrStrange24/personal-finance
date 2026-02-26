@@ -140,6 +140,11 @@ Sprint 4 import guarantees:
   - `isReversal = false`
   - `voidedAt = null`
 - Unallocated cash KPI must subtract CC payment reserves (not credit debt).
+- Sprint 5 reporting/performance rules:
+  - dashboard KPIs must remain entity-scoped and ledger-derived/reconcilable
+  - `MonthlyOverviewEntry` is legacy-only and must not feed modern KPI totals
+  - transactions list uses paginated server query (`50` rows/page)
+  - prefer grouped aggregates over many independent aggregate round trips
 
 ## Reusable UI Placement
 

@@ -1,5 +1,12 @@
-import { BudgetEnvelopeSystemType, LoanDirection, LoanStatus, Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
-import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
+import {
+    BudgetEnvelopeSystemType,
+    LoanDirection,
+    LoanStatus,
+    Prisma,
+    TransactionKind,
+    WalletAccountType,
+} from "@prisma/client";
+import { getCoinsPhBidPricePhp } from "@/lib/finance/coins-ph";
 import { prisma } from "@/lib/prisma";
 import type { DashboardSummary } from "@/lib/finance/types";
 
@@ -8,197 +15,284 @@ const startOfMonth = () => {
     return new Date(now.getFullYear(), now.getMonth(), 1);
 };
 
+const shouldLogFinanceQueries = process.env.NODE_ENV !== "test";
+
+const logFinanceQuery = (
+    level: "info" | "error",
+    payload: {
+        queryType: string;
+        entityId: string;
+        durationMs: number;
+        details?: Record<string, unknown>;
+        error?: string;
+    },
+) => {
+    if (!shouldLogFinanceQueries) {
+        return;
+    }
+
+    const logger = level === "error" ? console.error : console.info;
+    logger(JSON.stringify({
+        scope: "finance-query",
+        level,
+        ...payload,
+    }));
+};
+
+const inferAssetSymbol = (name: string) => {
+    const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
+    return match?.[0] ?? "UNITS";
+};
+
+const sumTransactionKind = (
+    rows: Array<{ kind: TransactionKind; _sum: { amountPhp: Prisma.Decimal | null } }>,
+    kind: TransactionKind,
+) => {
+    const row = rows.find((item) => item.kind === kind);
+    return Number(row?._sum.amountPhp ?? 0);
+};
+
 export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
-    const [walletAccounts, investments, budgetAggregate, creditReserveAggregate, incomeAggregate, expenseAggregate, incomeStreamAggregate] = await Promise.all([
-        prisma.walletAccount.findMany({
-            where: {
-                userId,
-                entityId,
-                isArchived: false,
+    const queryStartedAt = Date.now();
+
+    try {
+        const monthStart = startOfMonth();
+        const [walletByType, investments, budgetBySystem, monthTransactionsByKind, incomeStreamAggregate] = await Promise.all([
+            prisma.walletAccount.groupBy({
+                by: ["type"],
+                where: {
+                    userId,
+                    entityId,
+                    isArchived: false,
+                },
+                _sum: {
+                    currentBalanceAmount: true,
+                },
+            }),
+            prisma.investment.findMany({
+                where: {
+                    userId,
+                    entityId,
+                    isArchived: false,
+                },
+                select: {
+                    name: true,
+                    value: true,
+                    initialInvestmentPhp: true,
+                },
+            }),
+            prisma.budgetEnvelope.groupBy({
+                by: ["isSystem", "systemType"],
+                where: {
+                    userId,
+                    entityId,
+                    isArchived: false,
+                },
+                _sum: {
+                    availablePhp: true,
+                },
+            }),
+            prisma.financeTransaction.groupBy({
+                by: ["kind"],
+                where: {
+                    userId,
+                    entityId,
+                    isReversal: false,
+                    voidedAt: null,
+                    postedAt: {
+                        gte: monthStart,
+                    },
+                    kind: {
+                        in: [TransactionKind.INCOME, TransactionKind.EXPENSE, TransactionKind.CREDIT_CARD_CHARGE],
+                    },
+                },
+                _sum: {
+                    amountPhp: true,
+                },
+            }),
+            prisma.incomeStream.aggregate({
+                where: {
+                    userId,
+                    entityId,
+                    isActive: true,
+                },
+                _sum: {
+                    defaultAmountPhp: true,
+                },
+            }),
+        ]);
+
+        const uniqueSymbols = Array.from(
+            new Set(investments.map((investment) => inferAssetSymbol(investment.name))),
+        );
+        const bidBySymbol = new Map<string, number | null>();
+        const bidResults = await Promise.allSettled(uniqueSymbols.map(async (symbol) => {
+            const bid = await getCoinsPhBidPricePhp(symbol);
+            return [symbol, bid] as const;
+        }));
+        for (const result of bidResults) {
+            if (result.status === "fulfilled") {
+                bidBySymbol.set(result.value[0], result.value[1]);
+            }
+        }
+
+        let totalWalletBalancePhp = 0;
+        let totalAllWalletsPhp = 0;
+        let totalCreditCardDebtPhp = 0;
+        for (const wallet of walletByType) {
+            const amount = Number(wallet._sum.currentBalanceAmount ?? 0);
+            totalAllWalletsPhp += amount;
+
+            if (wallet.type === WalletAccountType.CREDIT_CARD) {
+                totalCreditCardDebtPhp += amount;
+            }
+            if (wallet.type !== WalletAccountType.CREDIT_CARD && wallet.type !== WalletAccountType.ASSET) {
+                totalWalletBalancePhp += amount;
+            }
+        }
+
+        let budgetAvailablePhp = 0;
+        let totalCreditPaymentReservePhp = 0;
+        for (const budget of budgetBySystem) {
+            const amount = Number(budget._sum.availablePhp ?? 0);
+            if (budget.isSystem && budget.systemType === BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT) {
+                totalCreditPaymentReservePhp += amount;
+                continue;
+            }
+            if (!budget.isSystem) {
+                budgetAvailablePhp += amount;
+            }
+        }
+
+        const monthIncomePhp = sumTransactionKind(monthTransactionsByKind, TransactionKind.INCOME);
+        const monthExpensePhp =
+            sumTransactionKind(monthTransactionsByKind, TransactionKind.EXPENSE)
+            + sumTransactionKind(monthTransactionsByKind, TransactionKind.CREDIT_CARD_CHARGE);
+
+        const totalEstimatedInvestmentsPhp = investments.reduce((total, investment) => {
+            const bidPrice = bidBySymbol.get(inferAssetSymbol(investment.name)) ?? null;
+            if (bidPrice !== null && Number.isFinite(bidPrice) && bidPrice > 0) {
+                return total + bidPrice * Number(investment.value);
+            }
+            return total + Number(investment.initialInvestmentPhp);
+        }, 0);
+
+        const totalAssetsPhp = totalAllWalletsPhp + totalEstimatedInvestmentsPhp;
+        const monthlyTotalIncomePhp = Number(incomeStreamAggregate._sum.defaultAmountPhp ?? 0);
+        const summary: DashboardSummary = {
+            totalWalletBalancePhp,
+            totalCreditCardDebtPhp,
+            totalCreditPaymentReservePhp,
+            totalAssetsPhp,
+            totalInvestmentPhp: totalEstimatedInvestmentsPhp,
+            netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
+            budgetAvailablePhp,
+            unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditPaymentReservePhp),
+            monthlyTotalIncomePhp,
+            monthIncomePhp,
+            monthExpensePhp,
+            monthNetCashflowPhp: monthIncomePhp - monthExpensePhp,
+        };
+
+        logFinanceQuery("info", {
+            queryType: "dashboard-summary",
+            entityId,
+            durationMs: Date.now() - queryStartedAt,
+            details: {
+                investmentCount: investments.length,
+                symbolCount: uniqueSymbols.length,
             },
-            select: {
-                type: true,
-                currentBalanceAmount: true,
-            },
-        }),
-        prisma.investment.findMany({
-            where: {
-                userId,
-                entityId,
-                isArchived: false,
-            },
-            select: {
-                name: true,
-                value: true,
-            },
-        }),
-        prisma.budgetEnvelope.aggregate({
+        });
+
+        return summary;
+    } catch (error) {
+        logFinanceQuery("error", {
+            queryType: "dashboard-summary",
+            entityId,
+            durationMs: Date.now() - queryStartedAt,
+            error: error instanceof Error ? error.message : "Unknown query error.",
+        });
+        throw error;
+    }
+};
+
+export const getBudgetStats = async (userId: string, entityId: string) => {
+    const queryStartedAt = Date.now();
+
+    try {
+        const start = startOfMonth();
+        const envelopes = await prisma.budgetEnvelope.findMany({
             where: {
                 userId,
                 entityId,
                 isArchived: false,
                 isSystem: false,
             },
-            _sum: {
-                availablePhp: true,
-            },
-        }),
-        prisma.budgetEnvelope.aggregate({
-            where: {
-                userId,
-                entityId,
-                isArchived: false,
-                isSystem: true,
-                systemType: BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT,
-            },
-            _sum: {
-                availablePhp: true,
-            },
-        }),
-        prisma.financeTransaction.aggregate({
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        });
+
+        const spentByEnvelope = await prisma.financeTransaction.groupBy({
+            by: ["budgetEnvelopeId"],
             where: {
                 userId,
                 entityId,
                 isReversal: false,
                 voidedAt: null,
-                postedAt: {
-                    gte: startOfMonth(),
-                },
-                kind: TransactionKind.INCOME,
-            },
-            _sum: {
-                amountPhp: true,
-            },
-        }),
-        prisma.financeTransaction.aggregate({
-            where: {
-                userId,
-                entityId,
-                isReversal: false,
-                voidedAt: null,
-                postedAt: {
-                    gte: startOfMonth(),
-                },
+                countsTowardBudget: true,
+                postedAt: { gte: start },
                 kind: {
                     in: [TransactionKind.EXPENSE, TransactionKind.CREDIT_CARD_CHARGE],
                 },
+                budgetEnvelopeId: {
+                    not: null,
+                },
             },
             _sum: {
                 amountPhp: true,
             },
-        }),
-        prisma.incomeStream.aggregate({
-            where: {
-                userId,
-                entityId,
-                isActive: true,
-            },
-            _sum: {
-                defaultAmountPhp: true,
-            },
-        }),
-    ]);
+        });
 
-    const estimatedInvestmentValues = await Promise.all(
-        investments.map(async (investment) => {
-            const symbol = investment.name.toUpperCase().match(/\b[A-Z]{2,10}\b/)?.[0] ?? "UNITS";
-            return getCoinsPhEstimatedValuePhp(symbol, Number(investment.value));
-        }),
-    );
-
-    let totalWalletBalancePhp = 0;
-    let totalAllWalletsPhp = 0;
-    let totalCreditCardDebtPhp = 0;
-
-    for (const wallet of walletAccounts) {
-        const amount = Number(wallet.currentBalanceAmount);
-        totalAllWalletsPhp += amount;
-        if (wallet.type === WalletAccountType.CREDIT_CARD) {
-            totalCreditCardDebtPhp += amount;
+        const spentMap = new Map<string, number>();
+        for (const item of spentByEnvelope) {
+            if (item.budgetEnvelopeId) {
+                spentMap.set(item.budgetEnvelopeId, Number(item._sum.amountPhp ?? 0));
+            }
         }
-        if (wallet.type !== WalletAccountType.CREDIT_CARD && wallet.type !== WalletAccountType.ASSET) {
-            totalWalletBalancePhp += amount;
-        }
-    }
 
-    const totalEstimatedInvestmentsPhp = estimatedInvestmentValues
-        .reduce((sum: number, value) => sum + (value ?? 0), 0);
-    const totalAssetsPhp = totalAllWalletsPhp + totalEstimatedInvestmentsPhp;
-    const budgetAvailablePhp = Number(budgetAggregate._sum.availablePhp ?? 0);
-    const totalCreditPaymentReservePhp = Number(creditReserveAggregate._sum.availablePhp ?? 0);
-    const monthIncomePhp = Number(incomeAggregate._sum.amountPhp ?? 0);
-    const monthExpensePhp = Number(expenseAggregate._sum.amountPhp ?? 0);
-    const monthlyTotalIncomePhp = Number(incomeStreamAggregate._sum.defaultAmountPhp ?? 0);
+        const rows = envelopes.map((envelope) => {
+            const spentPhp = spentMap.get(envelope.id) ?? 0;
+            const monthlyTargetPhp = Number(envelope.monthlyTargetPhp);
+            const availablePhp = Number(envelope.availablePhp);
+            const remainingPhp = monthlyTargetPhp - spentPhp;
+            return {
+                ...envelope,
+                spentPhp,
+                monthlyTargetPhp,
+                availablePhp,
+                remainingPhp,
+                variancePhp: remainingPhp,
+            };
+        });
 
-    return {
-        totalWalletBalancePhp,
-        totalCreditCardDebtPhp,
-        totalCreditPaymentReservePhp,
-        totalAssetsPhp,
-        totalInvestmentPhp: totalEstimatedInvestmentsPhp,
-        netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
-        budgetAvailablePhp,
-        unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditPaymentReservePhp),
-        monthlyTotalIncomePhp,
-        monthIncomePhp,
-        monthExpensePhp,
-        monthNetCashflowPhp: monthIncomePhp - monthExpensePhp,
-    };
-};
-
-export const getBudgetStats = async (userId: string, entityId: string) => {
-    const start = startOfMonth();
-    const envelopes = await prisma.budgetEnvelope.findMany({
-        where: {
-            userId,
+        logFinanceQuery("info", {
+            queryType: "budget-stats",
             entityId,
-            isArchived: false,
-            isSystem: false,
-        },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    });
+            durationMs: Date.now() - queryStartedAt,
+            details: {
+                envelopeCount: envelopes.length,
+            },
+        });
 
-    const spentByEnvelope = await prisma.financeTransaction.groupBy({
-        by: ["budgetEnvelopeId"],
-        where: {
-            userId,
+        return rows;
+    } catch (error) {
+        logFinanceQuery("error", {
+            queryType: "budget-stats",
             entityId,
-            isReversal: false,
-            voidedAt: null,
-            postedAt: { gte: start },
-            kind: {
-                in: [TransactionKind.EXPENSE, TransactionKind.CREDIT_CARD_CHARGE],
-            },
-            budgetEnvelopeId: {
-                not: null,
-            },
-        },
-        _sum: {
-            amountPhp: true,
-        },
-    });
-
-    const spentMap = new Map<string, number>();
-    for (const item of spentByEnvelope) {
-        if (item.budgetEnvelopeId) {
-            spentMap.set(item.budgetEnvelopeId, Number(item._sum.amountPhp ?? 0));
-        }
+            durationMs: Date.now() - queryStartedAt,
+            error: error instanceof Error ? error.message : "Unknown query error.",
+        });
+        throw error;
     }
-
-    return envelopes.map((envelope) => {
-        const spentPhp = spentMap.get(envelope.id) ?? 0;
-        const monthlyTargetPhp = Number(envelope.monthlyTargetPhp);
-        const availablePhp = Number(envelope.availablePhp);
-        const remainingPhp = monthlyTargetPhp - spentPhp;
-        return {
-            ...envelope,
-            spentPhp,
-            monthlyTargetPhp,
-            availablePhp,
-            remainingPhp,
-            variancePhp: remainingPhp,
-        };
-    });
 };
 
 export const getCreditCardStatus = async (userId: string, entityId: string) => {
@@ -219,42 +313,62 @@ export const getCreditCardStatus = async (userId: string, entityId: string) => {
 };
 
 export const getOutstandingLoanTotals = async (userId: string, entityId: string) => {
-    const outstandingLoanWhere = {
-        userId,
-        direction: LoanDirection.YOU_OWE,
-        status: LoanStatus.ACTIVE,
-        remainingPhp: {
-            gt: 0,
-        },
-    } satisfies Prisma.LoanRecordWhereInput;
+    const queryStartedAt = Date.now();
 
-    const [allEntitiesAggregate, activeEntityAggregate] = await Promise.all([
-        prisma.loanRecord.aggregate({
-            where: {
-                ...outstandingLoanWhere,
-                entity: {
-                    isArchived: false,
+    try {
+        const outstandingLoanWhere = {
+            userId,
+            direction: LoanDirection.YOU_OWE,
+            status: LoanStatus.ACTIVE,
+            remainingPhp: {
+                gt: 0,
+            },
+        } satisfies Prisma.LoanRecordWhereInput;
+
+        const [allEntitiesAggregate, activeEntityAggregate] = await Promise.all([
+            prisma.loanRecord.aggregate({
+                where: {
+                    ...outstandingLoanWhere,
+                    entity: {
+                        isArchived: false,
+                    },
                 },
-            },
-            _sum: {
-                remainingPhp: true,
-            },
-        }),
-        prisma.loanRecord.aggregate({
-            where: {
-                ...outstandingLoanWhere,
-                entityId,
-            },
-            _sum: {
-                remainingPhp: true,
-            },
-        }),
-    ]);
+                _sum: {
+                    remainingPhp: true,
+                },
+            }),
+            prisma.loanRecord.aggregate({
+                where: {
+                    ...outstandingLoanWhere,
+                    entityId,
+                },
+                _sum: {
+                    remainingPhp: true,
+                },
+            }),
+        ]);
 
-    return {
-        allEntitiesOutstandingPhp: Number(allEntitiesAggregate._sum.remainingPhp ?? 0),
-        activeEntityOutstandingPhp: Number(activeEntityAggregate._sum.remainingPhp ?? 0),
-    };
+        const totals = {
+            allEntitiesOutstandingPhp: Number(allEntitiesAggregate._sum.remainingPhp ?? 0),
+            activeEntityOutstandingPhp: Number(activeEntityAggregate._sum.remainingPhp ?? 0),
+        };
+
+        logFinanceQuery("info", {
+            queryType: "outstanding-loan-totals",
+            entityId,
+            durationMs: Date.now() - queryStartedAt,
+        });
+
+        return totals;
+    } catch (error) {
+        logFinanceQuery("error", {
+            queryType: "outstanding-loan-totals",
+            entityId,
+            durationMs: Date.now() - queryStartedAt,
+            error: error instanceof Error ? error.message : "Unknown query error.",
+        });
+        throw error;
+    }
 };
 
 export const formatTransactionDirection = (
@@ -272,4 +386,3 @@ export const formatTransactionDirection = (
     }
     return Math.abs(numeric);
 };
-

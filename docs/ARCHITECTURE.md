@@ -102,6 +102,21 @@ Unallocated cash semantics:
 
 - `Unallocated Cash = liquid wallets - (non-system budget allocations + CC payment reserves)`
 
+## Performance and Reporting Readiness (Sprint 5)
+
+- KPI rules:
+  - all dashboard KPIs are entity-scoped and derived from ledger or ledger-reconcilable projections
+  - `MonthlyOverviewEntry` is legacy-only and not part of modern KPI aggregation
+- Dashboard query path (`lib/finance/queries.ts`):
+  - uses grouped aggregates for wallet type totals, budget totals, and monthly transaction totals
+  - logs structured query diagnostics (query type, entity id, duration, error state)
+- Transactions list (`app/(app)/transactions/page.tsx`):
+  - server-side pagination (`50` rows per page)
+  - index-aligned filters (kind, wallet/source-target, date window)
+  - structured query logging for list/count operations
+- KPI fault tolerance:
+  - dashboard and monthly-overview default KPI reads handle failures without breaking page render
+
 ## Entity Scope Refactor (Sprint 2)
 
 - `CreditAccount` and `Investment` are entity-scoped and require `entityId`.

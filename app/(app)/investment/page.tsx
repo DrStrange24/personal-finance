@@ -10,7 +10,7 @@ import {
     listActiveInvestmentsByEntity,
     requireOwnedInvestment,
 } from "@/lib/finance/entity-scoped-records";
-import { formatPhp, parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
+import { formatPhp, parseMoneyInput, parseNumberInput, parseOptionalText } from "@/lib/finance/money";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -30,24 +30,6 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
     return normalized;
 };
 
-const parseUnitsInput = (value: FormDataEntryValue | null) => {
-    if (typeof value !== "string") {
-        return { ok: false, value: null as number | null };
-    }
-
-    const normalized = value.replaceAll(",", "").trim();
-    if (normalized.length === 0) {
-        return { ok: false, value: null as number | null };
-    }
-
-    const parsed = Number(normalized);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-        return { ok: false, value: null as number | null };
-    }
-
-    return { ok: true, value: parsed };
-};
-
 const inferAssetSymbol = (name: string) => {
     const match = name.toUpperCase().match(/\b[A-Z]{2,10}\b/);
     return match?.[0] ?? "UNITS";
@@ -64,7 +46,7 @@ export default async function InvestmentPage() {
 
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
-        const valueResult = parseUnitsInput(formData.get("value"));
+        const valueResult = parseNumberInput(formData.get("value"), { required: true, allowNegative: false });
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
         if (
@@ -114,7 +96,7 @@ export default async function InvestmentPage() {
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const name = parseRequiredName(formData.get("name"));
         const initialResult = parseMoneyInput(formData.get("initialInvestmentPhp"), true);
-        const valueResult = parseUnitsInput(formData.get("value"));
+        const valueResult = parseNumberInput(formData.get("value"), { required: true, allowNegative: false });
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
         if (

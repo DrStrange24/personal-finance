@@ -7,7 +7,25 @@ const currencyFormatterPhp = new Intl.NumberFormat("en-US", {
 
 export const formatPhp = (value: number) => currencyFormatterPhp.format(value);
 
-export const parseMoneyInput = (value: FormDataEntryValue | null, required = true) => {
+type ParsedNumberInput = {
+    ok: boolean;
+    value: number | null;
+};
+
+type ParseNumberInputOptions = {
+    required?: boolean;
+    allowNegative?: boolean;
+    maxDecimals?: number;
+};
+
+export const parseNumberInput = (
+    value: FormDataEntryValue | null,
+    options: ParseNumberInputOptions = {},
+): ParsedNumberInput => {
+    const required = options.required ?? true;
+    const allowNegative = options.allowNegative ?? false;
+    const maxDecimals = options.maxDecimals ?? null;
+
     if (typeof value !== "string") {
         return required
             ? { ok: false, value: null as number | null }
@@ -22,11 +40,28 @@ export const parseMoneyInput = (value: FormDataEntryValue | null, required = tru
     }
 
     const parsed = Number(normalized);
-    if (!Number.isFinite(parsed) || parsed < 0) {
+    if (!Number.isFinite(parsed)) {
         return { ok: false, value: null as number | null };
     }
 
-    return { ok: true, value: Math.round(parsed * 100) / 100 };
+    if (!allowNegative && parsed < 0) {
+        return { ok: false, value: null as number | null };
+    }
+
+    if (maxDecimals === null) {
+        return { ok: true, value: parsed };
+    }
+
+    const multiplier = 10 ** maxDecimals;
+    return { ok: true, value: Math.round(parsed * multiplier) / multiplier };
+};
+
+export const parseMoneyInput = (value: FormDataEntryValue | null, required = true) => {
+    return parseNumberInput(value, {
+        required,
+        allowNegative: false,
+        maxDecimals: 2,
+    });
 };
 
 export const parseOptionalText = (value: FormDataEntryValue | null, maxLength: number) => {
