@@ -1,8 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { ImportMode } from "@prisma/client";
 import { verifySessionToken } from "@/lib/auth";
+import { getFinanceEntityContextFromCookie } from "@/lib/finance/entity-context";
 import { parseFinanceWorkbook } from "@/lib/import/workbook";
-import { saveStagedWorkbook } from "@/lib/import/staging-store";
+import { stageWorkbookImportInDb } from "@/lib/import/staging-store";
 
 export const runtime = "nodejs";
 
@@ -28,20 +30,38 @@ export async function POST(request: Request) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const parsed = parseFinanceWorkbook(Buffer.from(arrayBuffer));
-    const importId = randomUUID();
-    saveStagedWorkbook(importId, parsed);
+    const entityContext = await getFinanceEntityContextFromCookie(session.userId);
+    const entityId = entityContext.activeEntity.id;
+    const importModeRaw = formData.get("importMode");
+    const importMode = importModeRaw === ImportMode.FULL_LEDGER
+        ? ImportMode.FULL_LEDGER
+        : ImportMode.BALANCE_BOOTSTRAP;
 
-    return NextResponse.json({
-        importId,
-        sheets: parsed.sheetNames,
-        warnings: parsed.warnings,
-        counts: {
-            wallet: parsed.wallet.length,
-            statistics: parsed.statistics.length,
-            income: parsed.income.length,
-            budget: parsed.budget.length,
-            loan: parsed.loan.length,
-        },
-    });
+    try {
+        const workbookBuffer = Buffer.from(arrayBuffer);
+        const parsed = parseFinanceWorkbook(workbookBuffer, entityId, importMode);
+        const sourceFileHash = createHash("sha256").update(workbookBuffer).digest("hex");
+
+        const staged = await stageWorkbookImportInDb({
+            userId: session.userId,
+            entityId,
+            sourceFileName: file.name,
+            sourceFileHash,
+            importMode,
+            parsedWorkbook: parsed,
+        });
+
+        return NextResponse.json({
+            batchId: staged.batchId,
+            importMode,
+            sheets: parsed.sheetNames,
+            warnings: parsed.warnings,
+            counts: parsed.counts,
+            stagedRowCount: staged.stagedRowCount,
+            duplicateRowCount: staged.duplicateRowCount,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not parse workbook.";
+        return NextResponse.json({ error: message }, { status: 400 });
+    }
 }

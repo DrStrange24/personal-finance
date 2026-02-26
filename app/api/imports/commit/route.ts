@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifySessionToken } from "@/lib/auth";
 import { getFinanceEntityContextFromCookie } from "@/lib/finance/entity-context";
-import { commitWorkbookForUser } from "@/lib/import/commit";
-import { getStagedWorkbook, removeStagedWorkbook } from "@/lib/import/staging-store";
+import { commitImportBatchForUser } from "@/lib/import/commit";
 
 export const runtime = "nodejs";
 
@@ -16,30 +15,37 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let body: { importId?: string } | null = null;
+    let body: { batchId?: string; importId?: string } | null = null;
     try {
         body = await request.json();
     } catch {
         body = null;
     }
 
-    const importId = typeof body?.importId === "string" ? body.importId.trim() : "";
-    if (!importId) {
-        return NextResponse.json({ error: "importId is required." }, { status: 400 });
-    }
-
-    const staged = getStagedWorkbook(importId);
-    if (!staged) {
-        return NextResponse.json({ error: "Import session not found or expired." }, { status: 404 });
+    const batchId = typeof body?.batchId === "string"
+        ? body.batchId.trim()
+        : (typeof body?.importId === "string" ? body.importId.trim() : "");
+    if (!batchId) {
+        return NextResponse.json({ error: "batchId is required." }, { status: 400 });
     }
 
     const entityContext = await getFinanceEntityContextFromCookie(session.userId);
-    const result = await commitWorkbookForUser(session.userId, entityContext.activeEntity.id, staged);
-    removeStagedWorkbook(importId);
+    try {
+        const result = await commitImportBatchForUser(
+            session.userId,
+            entityContext.activeEntity.id,
+            batchId,
+        );
 
-    return NextResponse.json({
-        ok: true,
-        entityId: entityContext.activeEntity.id,
-        result,
-    });
+        return NextResponse.json({
+            ok: true,
+            batchId,
+            entityId: entityContext.activeEntity.id,
+            result,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Import commit failed.";
+        const status = message.includes("not found") ? 404 : 400;
+        return NextResponse.json({ error: message }, { status });
+    }
 }

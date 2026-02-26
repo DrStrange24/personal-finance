@@ -5,6 +5,7 @@ import Button from "react-bootstrap/Button";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import FormControl from "react-bootstrap/FormControl";
+import FormSelect from "react-bootstrap/FormSelect";
 import { useAppToast } from "@/app/components/toast-provider";
 
 type WorkbookImportCardProps = {
@@ -14,7 +15,8 @@ type WorkbookImportCardProps = {
 export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardProps) {
     const { showError, showSuccess } = useAppToast();
     const [file, setFile] = useState<File | null>(null);
-    const [importId, setImportId] = useState<string | null>(null);
+    const [batchId, setBatchId] = useState<string | null>(null);
+    const [importMode, setImportMode] = useState<"BALANCE_BOOTSTRAP" | "FULL_LEDGER">("BALANCE_BOOTSTRAP");
     const [isUploading, setIsUploading] = useState(false);
     const [isCommitting, setIsCommitting] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
@@ -27,6 +29,7 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
 
         const formData = new FormData();
         formData.set("file", file);
+        formData.set("importMode", importMode);
         setIsUploading(true);
 
         try {
@@ -41,9 +44,9 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
                 return;
             }
 
-            setImportId(data.importId as string);
+            setBatchId(data.batchId as string);
             setPreview(
-                `Wallet ${data.counts.wallet}, Statistics ${data.counts.statistics}, Income ${data.counts.income}, Budget ${data.counts.budget}, Loan ${data.counts.loan}`,
+                `Rows ${data.counts.totalRows} (staged ${data.stagedRowCount}, duplicate ${data.duplicateRowCount}), Wallet ${data.counts.wallet}, Statistics ${data.counts.statistics}, Income ${data.counts.income}, Budget ${data.counts.budget}, Loan ${data.counts.loan}, Transactions ${data.counts.transactions}`,
             );
             showSuccess("Workbook Parsed", "Review the summary, then click commit.");
         } catch {
@@ -54,7 +57,7 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
     };
 
     const commitWorkbook = async () => {
-        if (!importId) {
+        if (!batchId) {
             showError("Commit Failed", "Upload and parse workbook first.");
             return;
         }
@@ -66,7 +69,7 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ importId }),
+                body: JSON.stringify({ batchId }),
             });
 
             const data = await response.json();
@@ -76,7 +79,7 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
             }
 
             showSuccess("Import Complete", "Workbook data has been committed to your finance app.");
-            setImportId(null);
+            setBatchId(null);
             if (onCommitted) {
                 onCommitted();
             }
@@ -107,6 +110,17 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
                         setFile(input.files?.[0] ?? null);
                     }}
                 />
+                <FormSelect
+                    aria-label="Import mode"
+                    value={importMode}
+                    onChange={(event) => {
+                        const value = event.target.value === "FULL_LEDGER" ? "FULL_LEDGER" : "BALANCE_BOOTSTRAP";
+                        setImportMode(value);
+                    }}
+                >
+                    <option value="BALANCE_BOOTSTRAP">Balance Bootstrap</option>
+                    <option value="FULL_LEDGER">Full Ledger</option>
+                </FormSelect>
 
                 {preview && (
                     <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
@@ -118,7 +132,7 @@ export default function WorkbookImportCard({ onCommitted }: WorkbookImportCardPr
                     <Button type="button" variant="outline-primary" onClick={uploadWorkbook} disabled={isUploading}>
                         {isUploading ? "Parsing..." : "Parse Workbook"}
                     </Button>
-                    <Button type="button" onClick={commitWorkbook} disabled={!importId || isCommitting}>
+                    <Button type="button" onClick={commitWorkbook} disabled={!batchId || isCommitting}>
                         {isCommitting ? "Committing..." : "Commit Import"}
                     </Button>
                 </div>

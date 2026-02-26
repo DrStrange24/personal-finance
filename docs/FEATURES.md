@@ -59,7 +59,12 @@
 
 - Workbook Import:
   - Parse `.xlsx` workbook (`/api/imports/workbook`) with 6-sheet support.
-  - Commit staged import (`/api/imports/commit`).
+  - Explicit import modes:
+    - `BALANCE_BOOTSTRAP` for snapshot sheets (`Wallet`, `Statistics`, `Income`, `Budget`, `Loan`)
+    - `FULL_LEDGER` for `Transactions` sheet posting rows
+  - Durable DB-backed staging (`ImportBatch` + `ImportRow`) with deterministic idempotency keys.
+  - Commit staged import by `batchId` (`/api/imports/commit`) with atomic all-or-nothing transaction.
+  - Batch diagnostics endpoint (`/api/imports/{batchId}`) with row counters and row errors.
   - Mapping into wallet accounts, investments, income streams, budget envelopes, loans, and monthly overview compatibility rows.
 
 - Legacy Compatibility:
@@ -75,3 +80,4 @@
 - Imports:
   - `POST /api/imports/workbook`
   - `POST /api/imports/commit`
+  - `GET /api/imports/{batchId}`

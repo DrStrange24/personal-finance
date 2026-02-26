@@ -21,6 +21,7 @@ model User {
   budgetEnvelopes        BudgetEnvelope[]
   loanRecords            LoanRecord[]
   financeTransactions    FinanceTransaction[]
+  importBatches          ImportBatch[]
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
 }
@@ -77,22 +78,41 @@ enum BudgetEnvelopeSystemType {
   LOAN_PAYMENT
 }
 
+enum ImportMode {
+  BALANCE_BOOTSTRAP
+  FULL_LEDGER
+}
+
+enum ImportBatchStatus {
+  STAGED
+  COMMITTING
+  COMMITTED
+  FAILED
+}
+
+enum ImportRowStatus {
+  STAGED
+  COMMITTED
+  FAILED
+}
+
 model FinanceEntity {
-  id          String               @id @default(cuid())
-  userId      String
-  name        String
-  type        EntityType
-  isArchived  Boolean              @default(false)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallets     WalletAccount[]
+  id             String               @id @default(cuid())
+  userId         String
+  name           String
+  type           EntityType
+  isArchived     Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallets        WalletAccount[]
   creditAccounts CreditAccount[]
-  investments Investment[]
-  budgets     BudgetEnvelope[]
-  loans       LoanRecord[]
-  incomeStreams IncomeStream[]
-  transactions FinanceTransaction[]
+  investments    Investment[]
+  budgets        BudgetEnvelope[]
+  loans          LoanRecord[]
+  incomeStreams  IncomeStream[]
+  transactions   FinanceTransaction[]
+  importBatches  ImportBatch[]
 
   @@index([userId, createdAt])
   @@index([userId, type])
@@ -113,20 +133,20 @@ model MonthlyOverviewEntry {
 }
 
 model WalletAccount {
-  id                  String               @id @default(cuid())
-  userId              String
-  entityId            String?
-  name                String
-  type                WalletAccountType
-  currentBalanceAmount Decimal              @default(0)
-  isArchived          Boolean              @default(false)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entity              FinanceEntity?       @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sourceTransactions  FinanceTransaction[] @relation("TransactionSourceWallet")
-  targetTransactions  FinanceTransaction[] @relation("TransactionTargetWallet")
-  linkedPaymentEnvelopes BudgetEnvelope[]  @relation("BudgetEnvelopeLinkedWallet")
+  id                     String               @id @default(cuid())
+  userId                 String
+  entityId               String?
+  name                   String
+  type                   WalletAccountType
+  currentBalanceAmount   Decimal              @default(0)
+  isArchived             Boolean              @default(false)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity                 FinanceEntity?       @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceTransactions     FinanceTransaction[] @relation("TransactionSourceWallet")
+  targetTransactions     FinanceTransaction[] @relation("TransactionTargetWallet")
+  linkedPaymentEnvelopes BudgetEnvelope[]     @relation("BudgetEnvelopeLinkedWallet")
 
   @@index([userId, type, isArchived])
   @@index([userId, isArchived, name])
@@ -135,17 +155,17 @@ model WalletAccount {
 }
 
 model CreditAccount {
-  id                   String   @id @default(cuid())
-  userId               String
-  entityId             String
-  name                 String
-  creditLimitAmount    Decimal  @default(0)
-  currentBalanceAmount Decimal  @default(0)
-  isArchived           Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entity               FinanceEntity @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id                     String           @id @default(cuid())
+  userId                 String
+  entityId               String
+  name                   String
+  creditLimitAmount      Decimal          @default(0)
+  currentBalanceAmount   Decimal          @default(0)
+  isArchived             Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  user                   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity                 FinanceEntity    @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   linkedPaymentEnvelopes BudgetEnvelope[] @relation("BudgetEnvelopeLinkedCreditAccount")
 
   @@index([userId, isArchived, name])
@@ -155,17 +175,17 @@ model CreditAccount {
 }
 
 model Investment {
-  id                   String   @id @default(cuid())
+  id                   String        @id @default(cuid())
   userId               String
   entityId             String
   name                 String
-  initialInvestmentPhp Decimal  @default(0)
-  value                Decimal  @default(0)
+  initialInvestmentPhp Decimal       @default(0)
+  value                Decimal       @default(0)
   remarks              String?
-  isArchived           Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isArchived           Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   entity               FinanceEntity @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId, isArchived, name])
@@ -195,29 +215,29 @@ model IncomeStream {
 }
 
 model BudgetEnvelope {
-  id               String               @id @default(cuid())
-  userId           String
-  entityId         String?
-  name             String
-  monthlyTargetPhp Decimal              @default(0)
-  availablePhp     Decimal              @default(0)
-  rolloverEnabled  Boolean              @default(true)
-  payTo            String?
-  remarks          String?
-  isSystem         Boolean              @default(false)
-  systemType       BudgetEnvelopeSystemType?
+  id                    String                    @id @default(cuid())
+  userId                String
+  entityId              String?
+  name                  String
+  monthlyTargetPhp      Decimal                   @default(0)
+  availablePhp          Decimal                   @default(0)
+  rolloverEnabled       Boolean                   @default(true)
+  payTo                 String?
+  remarks               String?
+  isSystem              Boolean                   @default(false)
+  systemType            BudgetEnvelopeSystemType?
   linkedWalletAccountId String?
   linkedCreditAccountId String?
-  isArchived       Boolean              @default(false)
-  sortOrder        Int                  @default(0)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entity           FinanceEntity?       @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  linkedWalletAccount WalletAccount?    @relation("BudgetEnvelopeLinkedWallet", fields: [linkedWalletAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  linkedCreditAccount CreditAccount?    @relation("BudgetEnvelopeLinkedCreditAccount", fields: [linkedCreditAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  transactions     FinanceTransaction[]
-  ccPaymentTransactions FinanceTransaction[] @relation("TransactionCcPaymentEnvelope")
+  isArchived            Boolean                   @default(false)
+  sortOrder             Int                       @default(0)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity                FinanceEntity?            @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  linkedWalletAccount   WalletAccount?            @relation("BudgetEnvelopeLinkedWallet", fields: [linkedWalletAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  linkedCreditAccount   CreditAccount?            @relation("BudgetEnvelopeLinkedCreditAccount", fields: [linkedCreditAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  transactions          FinanceTransaction[]
+  ccPaymentTransactions FinanceTransaction[]      @relation("TransactionCcPaymentEnvelope")
 
   @@index([userId, isArchived, isSystem, sortOrder])
   @@index([userId, name])
@@ -254,12 +274,55 @@ model LoanRecord {
   @@index([entityId, status])
 }
 
+model ImportBatch {
+  id             String               @id @default(cuid())
+  userId         String
+  entityId       String
+  sourceFileName String
+  sourceFileHash String
+  importMode     ImportMode
+  status         ImportBatchStatus    @default(STAGED)
+  errorMessage   String?
+  committedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity         FinanceEntity        @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rows           ImportRow[]
+  transactions   FinanceTransaction[]
+
+  @@index([userId, entityId, createdAt])
+  @@index([entityId, status, createdAt])
+  @@index([userId, sourceFileHash, createdAt])
+}
+
+model ImportRow {
+  id             String          @id @default(cuid())
+  batchId        String
+  sheetName      String
+  rowIndex       Int
+  rowHash        String
+  idempotencyKey String          @unique
+  payloadJson    Json
+  status         ImportRowStatus @default(STAGED)
+  errorMessage   String?
+  committedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  batch          ImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([batchId, status, rowIndex])
+  @@index([sheetName, rowIndex])
+}
+
 model FinanceTransaction {
-  id                    String          @id @default(cuid())
+  id                    String                @id @default(cuid())
   userId                String
   actorUserId           String
   entityId              String?
-  postedAt              DateTime        @default(now())
+  externalId            String?
+  importBatchId         String?
+  postedAt              DateTime              @default(now())
   kind                  TransactionKind
   amountPhp             Decimal
   walletAccountId       String
@@ -269,24 +332,25 @@ model FinanceTransaction {
   incomeStreamId        String?
   loanRecordId          String?
   adjustmentReasonCode  AdjustmentReasonCode?
-  isReversal            Boolean         @default(false)
-  reversedTransactionId String?         @unique
+  isReversal            Boolean               @default(false)
+  reversedTransactionId String?               @unique
   voidedAt              DateTime?
   voidedByUserId        String?
-  countsTowardBudget    Boolean         @default(true)
+  countsTowardBudget    Boolean               @default(true)
   remarks               String?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entity                FinanceEntity?  @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  walletAccount         WalletAccount   @relation("TransactionSourceWallet", fields: [walletAccountId], references: [id], onDelete: Restrict)
-  targetWalletAccount   WalletAccount?  @relation("TransactionTargetWallet", fields: [targetWalletAccountId], references: [id], onDelete: SetNull)
-  budgetEnvelope        BudgetEnvelope? @relation(fields: [budgetEnvelopeId], references: [id], onDelete: SetNull)
-  ccPaymentEnvelope     BudgetEnvelope? @relation("TransactionCcPaymentEnvelope", fields: [ccPaymentEnvelopeId], references: [id], onDelete: SetNull)
-  incomeStream          IncomeStream?   @relation(fields: [incomeStreamId], references: [id], onDelete: SetNull)
-  loanRecord            LoanRecord?     @relation(fields: [loanRecordId], references: [id], onDelete: SetNull)
-  reversedTransaction   FinanceTransaction? @relation("TransactionReversal", fields: [reversedTransactionId], references: [id], onDelete: SetNull)
-  reversalTransaction   FinanceTransaction? @relation("TransactionReversal")
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entity                FinanceEntity?        @relation(fields: [entityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  walletAccount         WalletAccount         @relation("TransactionSourceWallet", fields: [walletAccountId], references: [id], onDelete: Restrict)
+  targetWalletAccount   WalletAccount?        @relation("TransactionTargetWallet", fields: [targetWalletAccountId], references: [id], onDelete: SetNull)
+  budgetEnvelope        BudgetEnvelope?       @relation(fields: [budgetEnvelopeId], references: [id], onDelete: SetNull)
+  ccPaymentEnvelope     BudgetEnvelope?       @relation("TransactionCcPaymentEnvelope", fields: [ccPaymentEnvelopeId], references: [id], onDelete: SetNull)
+  incomeStream          IncomeStream?         @relation(fields: [incomeStreamId], references: [id], onDelete: SetNull)
+  loanRecord            LoanRecord?           @relation(fields: [loanRecordId], references: [id], onDelete: SetNull)
+  importBatch           ImportBatch?          @relation(fields: [importBatchId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  reversedTransaction   FinanceTransaction?   @relation("TransactionReversal", fields: [reversedTransactionId], references: [id], onDelete: SetNull)
+  reversalTransaction   FinanceTransaction?   @relation("TransactionReversal")
 
   @@index([userId, postedAt])
   @@index([userId, kind, postedAt])
@@ -294,10 +358,11 @@ model FinanceTransaction {
   @@index([userId, walletAccountId, postedAt])
   @@index([entityId, postedAt])
   @@index([entityId, kind, postedAt])
+  @@index([entityId, externalId])
+  @@index([importBatchId, postedAt])
   @@index([entityId, budgetEnvelopeId, postedAt])
   @@index([entityId, ccPaymentEnvelopeId, postedAt])
   @@index([entityId, walletAccountId, postedAt])
   @@index([userId, isReversal, voidedAt, postedAt])
   @@index([entityId, isReversal, voidedAt, postedAt])
 }
-

@@ -57,8 +57,9 @@
       - logout/route.ts
       - signup/route.ts
     - imports/
-      - workbook/route.ts (parse workbook upload into staging store)
-      - commit/route.ts (commit staged workbook into DB models)
+      - [batchId]/route.ts (import batch status + row-level errors)
+      - workbook/route.ts (parse workbook upload and create durable ImportBatch/ImportRow records)
+      - commit/route.ts (commit staged import batch into DB models)
   - components/
     - action-icon-button.tsx
     - confirmation-modal.tsx
@@ -104,15 +105,19 @@
     - types.ts
   - import/
     - workbook.ts
+    - workbook.test.ts
     - staging-store.ts
+    - staging-store.test.ts
     - commit.ts
+    - commit.test.ts
 - prisma/
   - schema.prisma
   - verify-sprint2-entity-scope.ts (read-only manual verifier for Sprint 2 entity-scope migration)
   - migrations/
     - 20260226141602_sprint1_posting_engine_hardening/migration.sql
     - 20260226150750_sprint2_entity_scope_refactor/migration.sql
-    - 20260227001000_sprint3_debt_aware_credit_card_logic/migration.sql
+    - 20260226152651_sprint3_debt_aware_credit_card_logic/migration.sql
+    - 20260227014000_sprint4_import_reliability_idempotency/migration.sql
 - docs/
   - POSTING_ENGINE_MATRIX.md (posting validation matrix + reversal/debt-aware credit reserve contract)
 - public/
@@ -124,4 +129,5 @@ Notes:
 - New finance domain models are in Prisma (`WalletAccount`, `CreditAccount`, `Investment`, `IncomeStream`, `BudgetEnvelope`, `LoanRecord`, `FinanceTransaction`).
 - Multi-entity isolation uses `FinanceEntity` as the primary boundary for all entity-scoped financial models.
 - Legacy model (`MonthlyOverviewEntry`) remains user-scoped for migration compatibility.
-- Workbook import currently uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) workflow.
+- Workbook import uses parse (`/api/imports/workbook`) then commit (`/api/imports/commit`) by `batchId`, with status diagnostics at `/api/imports/{batchId}`.
+- Import modes are explicit: bootstrap snapshot sheets vs ledger `Transactions` sheet posting rows.
