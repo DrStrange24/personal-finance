@@ -12,6 +12,7 @@ import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal } from "@/lib/finance/posting-engine";
 import {
     postTransactionFromFormData,
+    resolvePostingEntityIdFromFormData,
     updateTransactionFromFormData,
 } from "@/lib/finance/transaction-orchestration";
 import { isRecordOnlyTransaction, type FinanceActionResult } from "@/lib/finance/types";
@@ -69,31 +70,17 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         "use server";
 
         const actionSession = await getAuthenticatedEntitySession();
-        const walletAccountId = typeof formData.get("walletAccountId") === "string" ? String(formData.get("walletAccountId")).trim() : "";
-        if (!walletAccountId) {
-            return { ok: false, message: "Missing wallet account." };
-        }
-
-        const sourceWallet = await prisma.walletAccount.findFirst({
-            where: {
-                id: walletAccountId,
-                userId: actionSession.userId,
-                isArchived: false,
-                entity: {
-                    isArchived: false,
-                },
-            },
-            select: {
-                entityId: true,
-            },
+        const entityResolution = await resolvePostingEntityIdFromFormData({
+            userId: actionSession.userId,
+            formData,
         });
-        if (!sourceWallet?.entityId) {
-            return { ok: false, message: "Wallet account not found." };
+        if (!entityResolution.ok || !entityResolution.entityId) {
+            return entityResolution;
         }
 
         const result = await postTransactionFromFormData({
             userId: actionSession.userId,
-            entityId: sourceWallet.entityId,
+            entityId: entityResolution.entityId,
             actorUserId: actionSession.userId,
             formData,
         });

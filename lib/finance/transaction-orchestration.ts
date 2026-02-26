@@ -16,6 +16,11 @@ type TransactionOrchestrationParams = {
     formData: FormData;
 };
 
+type ResolvePostingEntityParams = {
+    userId: string;
+    formData: FormData;
+};
+
 type ValidParsedTransaction = {
     kind: TransactionKind;
     postedAt: Date;
@@ -97,6 +102,65 @@ const parseAndValidateBaseTransaction = (formData: FormData): ValidParsedTransac
         loanRecordId: parsed.loanRecordId ?? null,
         remarks: parsed.remarks ?? null,
         recordOnly: parsed.recordOnly,
+    };
+};
+
+export const resolvePostingEntityIdFromFormData = async (
+    params: ResolvePostingEntityParams,
+): Promise<FinanceActionResult & { entityId?: string }> => {
+    const walletAccountId = typeof params.formData.get("walletAccountId") === "string"
+        ? String(params.formData.get("walletAccountId")).trim()
+        : "";
+    if (!walletAccountId) {
+        return { ok: false, message: "Missing wallet account." };
+    }
+
+    if (walletAccountId.startsWith("credit:")) {
+        const creditId = walletAccountId.slice("credit:".length);
+        const creditAccount = await prisma.creditAccount.findFirst({
+            where: {
+                id: creditId,
+                userId: params.userId,
+                isArchived: false,
+                entity: {
+                    isArchived: false,
+                },
+            },
+            select: {
+                entityId: true,
+            },
+        });
+        if (!creditAccount?.entityId) {
+            return { ok: false, message: "Credit account not found." };
+        }
+        return {
+            ok: true,
+            message: "Entity resolved.",
+            entityId: creditAccount.entityId,
+        };
+    }
+
+    const wallet = await prisma.walletAccount.findFirst({
+        where: {
+            id: walletAccountId,
+            userId: params.userId,
+            isArchived: false,
+            entity: {
+                isArchived: false,
+            },
+        },
+        select: {
+            entityId: true,
+        },
+    });
+    if (!wallet?.entityId) {
+        return { ok: false, message: "Wallet account not found." };
+    }
+
+    return {
+        ok: true,
+        message: "Entity resolved.",
+        entityId: wallet.entityId,
     };
 };
 

@@ -7,11 +7,13 @@ import AddTransactionModal from "@/app/(app)/transactions/add-transaction-modal"
 import MetricCard from "@/app/components/finance/metric-card";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
-import { getFinanceContextData } from "@/lib/finance/context";
-import { listActiveCreditAccountsByEntity } from "@/lib/finance/entity-scoped-records";
+import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
-import { postTransactionFromFormData } from "@/lib/finance/transaction-orchestration";
+import {
+    postTransactionFromFormData,
+    resolvePostingEntityIdFromFormData,
+} from "@/lib/finance/transaction-orchestration";
 import { getDashboardSummaryAcrossEntities } from "@/lib/finance/queries";
 import type { FinanceActionResult } from "@/lib/finance/types";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
@@ -25,16 +27,23 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export default async function DashboardPage() {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
     await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createTransactionAction = async (formData: FormData) => {
         "use server";
 
         const actionSession = await getAuthenticatedEntitySession();
+        const entityResolution = await resolvePostingEntityIdFromFormData({
+            userId: actionSession.userId,
+            formData,
+        });
+        if (!entityResolution.ok || !entityResolution.entityId) {
+            return entityResolution;
+        }
+
         const result = await postTransactionFromFormData({
             userId: actionSession.userId,
-            entityId: actionSession.activeEntity.id,
+            entityId: entityResolution.entityId,
             actorUserId: actionSession.userId,
             formData,
         });
@@ -56,7 +65,7 @@ export default async function DashboardPage() {
         getDashboardSummaryAcrossEntities(session.userId)
             .then((data) => ({ ok: true as const, data }))
             .catch((error) => ({ ok: false as const, error })),
-        getFinanceContextData(session.userId, activeEntityId),
+        getFinanceContextDataAcrossEntities(session.userId),
         prisma.financeTransaction.findMany({
             where: {
                 userId: session.userId,
@@ -75,7 +84,24 @@ export default async function DashboardPage() {
             orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
             take: 12,
         }),
-        listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
+        prisma.creditAccount.findMany({
+            where: {
+                userId: session.userId,
+                isArchived: false,
+                entity: {
+                    isArchived: false,
+                },
+            },
+            include: {
+                entity: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: { name: "asc" },
+        }),
     ]);
     const summary = summaryResult.ok ? summaryResult.data : null;
     if (!summaryResult.ok) {
@@ -91,21 +117,26 @@ export default async function DashboardPage() {
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
         plainLabel: wallet.name,
-        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
+        label: `${wallet.name} (${wallet.entity?.name ?? "Entity"} | ${formatPhp(Number(wallet.currentBalanceAmount))})`,
         type: wallet.type,
     }));
-    const budgetOptions = mapBudgetFormOptions(context.budgets);
+    const budgetEntityById = new Map(context.budgets.map((budget) => [budget.id, budget.entity?.name ?? "Entity"]));
+    const budgetOptions = mapBudgetFormOptions(context.budgets).map((budget) => ({
+        ...budget,
+        label: `${budget.label} (${budgetEntityById.get(budget.id) ?? "Entity"})`,
+        targetLabel: `${budget.targetLabel} (${budgetEntityById.get(budget.id) ?? "Entity"})`,
+    }));
     const incomeOptions = context.incomes.map((income) => ({
         id: income.id,
-        label: income.name,
+        label: `${income.name} (${income.entity?.name ?? "Entity"})`,
     }));
     const loanOptions = context.loans.map((loan) => ({
         id: loan.id,
-        label: `${loan.itemName} (${formatPhp(Number(loan.remainingPhp))})`,
+        label: `${loan.itemName} (${loan.entity?.name ?? "Entity"} | ${formatPhp(Number(loan.remainingPhp))})`,
     }));
     const creditOptions = creditAccounts.map((credit) => ({
         id: `credit:${credit.id}`,
-        label: `${credit.name} (${formatPhp(Number(credit.creditLimitAmount) - Number(credit.currentBalanceAmount))} remaining)`,
+        label: `${credit.name} (${credit.entity?.name ?? "Entity"} | ${formatPhp(Number(credit.creditLimitAmount) - Number(credit.currentBalanceAmount))} remaining)`,
     }));
 
     return (
