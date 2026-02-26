@@ -77,14 +77,16 @@ export default function AddTransactionModal({
     const [expenseFunding, setExpenseFunding] = useState<"wallet" | "credit">("wallet");
     const [incomeDistributionRows, setIncomeDistributionRows] = useState([getEmptyDistributionRow()]);
     const [selectAllBudgets, setSelectAllBudgets] = useState(false);
+    const [recordOnly, setRecordOnly] = useState(false);
     const { showSuccess, showError } = useAppToast();
 
-    const requiresBudget = kindsRequiringBudget.has(kind);
-    const requiresTargetWallet = kindsRequiringTargetWallet.has(kind);
-    const supportsIncomeStream = kindsSupportingIncomeStream.has(kind);
-    const supportsLoan = kindsSupportingLoan.has(kind);
-    const isIncome = kind === "INCOME";
-    const isExpense = kind === "EXPENSE";
+    const requiresBudget = !recordOnly && kindsRequiringBudget.has(kind);
+    const requiresTargetWallet = !recordOnly && kindsRequiringTargetWallet.has(kind);
+    const supportsIncomeStream = !recordOnly && kindsSupportingIncomeStream.has(kind);
+    const supportsLoan = !recordOnly && kindsSupportingLoan.has(kind);
+    const isIncome = !recordOnly && kind === "INCOME";
+    const isExpense = !recordOnly && kind === "EXPENSE";
+    const showBudgetSelector = requiresBudget || recordOnly;
 
     const visibleKinds = useMemo(() => allKinds, []);
     const sourceWallets = useMemo(() => {
@@ -103,11 +105,19 @@ export default function AddTransactionModal({
     );
 
     const submitTransaction = async (formData: FormData) => {
-        if (kind === "EXPENSE" && expenseFunding === "credit") {
+        if (!recordOnly && kind === "EXPENSE" && expenseFunding === "credit") {
             formData.set("kind", "CREDIT_CARD_CHARGE");
         }
 
-        if (kind === "INCOME") {
+        if (recordOnly) {
+            formData.set("targetWalletAccountId", "");
+            formData.set("incomeStreamId", "");
+            formData.set("loanRecordId", "");
+            formData.delete("distributedBudgetEnvelopeId");
+            formData.delete("distributedAmountPhp");
+        }
+
+        if (kind === "INCOME" && !recordOnly) {
             formData.set("budgetEnvelopeId", "");
 
             const normalizedRows = incomeDistributionRows
@@ -215,6 +225,27 @@ export default function AddTransactionModal({
                             <input id="tx-amount" type="number" name="amountPhp" className="form-control" min="0.01" step="0.01" required />
                         </div>
 
+                        <div className="form-check">
+                            <input
+                                id="tx-record-only"
+                                type="checkbox"
+                                name="recordOnly"
+                                className="form-check-input"
+                                checked={recordOnly}
+                                onChange={(event) => {
+                                    const shouldRecordOnly = event.target.checked;
+                                    setRecordOnly(shouldRecordOnly);
+                                    if (shouldRecordOnly) {
+                                        setIncomeDistributionRows([getEmptyDistributionRow()]);
+                                        setSelectAllBudgets(false);
+                                    }
+                                }}
+                            />
+                            <label htmlFor="tx-record-only" className="form-check-label small">
+                                Record only (do not update wallet or budget balances)
+                            </label>
+                        </div>
+
                         {isExpense && (
                             <div className="d-grid gap-1">
                                 <label htmlFor="tx-expense-funding" className="small fw-semibold">Pay Using</label>
@@ -267,11 +298,13 @@ export default function AddTransactionModal({
                             <input type="hidden" name="targetWalletAccountId" value="" />
                         )}
 
-                        {requiresBudget ? (
+                        {showBudgetSelector ? (
                             <div className="d-grid gap-1">
-                                <label htmlFor="tx-budget" className="small fw-semibold">Budget Envelope</label>
-                                <select id="tx-budget" name="budgetEnvelopeId" className="form-control" required>
-                                    <option value="">Select budget envelope</option>
+                                <label htmlFor="tx-budget" className="small fw-semibold">
+                                    {recordOnly ? "Budget Envelope (Optional)" : "Budget Envelope"}
+                                </label>
+                                <select id="tx-budget" name="budgetEnvelopeId" className="form-control" required={requiresBudget}>
+                                    <option value="">{recordOnly ? "Optional" : "Select budget envelope"}</option>
                                     {budgets.map((budget) => (
                                         <option key={budget.id} value={budget.id}>
                                             {budget.label}

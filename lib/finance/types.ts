@@ -90,6 +90,24 @@ export type TransactionRow = Pick<
     | "remarks"
 >;
 
+export type RecordOnlyTransactionCandidate = Pick<
+    FinanceTransaction,
+    "kind" | "countsTowardBudget" | "targetWalletAccountId" | "budgetEnvelopeId" | "incomeStreamId" | "loanRecordId"
+>;
+
+export const isRecordOnlyTransaction = (transaction: RecordOnlyTransactionCandidate): boolean => {
+    return (
+        transaction.countsTowardBudget === false
+        && transaction.targetWalletAccountId === null
+        && transaction.budgetEnvelopeId === null
+        && transaction.incomeStreamId === null
+        && transaction.loanRecordId === null
+        && transaction.kind !== "TRANSFER"
+        && transaction.kind !== "CREDIT_CARD_PAYMENT"
+        && transaction.kind !== "LOAN_REPAY"
+    );
+};
+
 export const walletAccountTypeLabel: Record<WalletAccountType, string> = {
     CASH: "Cash",
     BANK: "Bank",

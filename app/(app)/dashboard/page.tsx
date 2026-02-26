@@ -84,7 +84,7 @@ export default async function DashboardPage() {
                 }
             }
 
-            if (parsed.kind === TransactionKind.INCOME) {
+            if (parsed.kind === TransactionKind.INCOME && !parsed.recordOnly) {
                 const distribution = parseIncomeDistributionForm(formData);
                 if (!distribution.ok) {
                     return {
@@ -106,6 +106,7 @@ export default async function DashboardPage() {
                         const created = await postFinanceTransaction({
                             userId: actionSession.userId,
                             kind: parsed.kind,
+                            recordOnly: parsed.recordOnly,
                             postedAt: parsed.postedAt,
                             amountPhp: row.amountPhp,
                             walletAccountId: sourceWalletAccountId,
@@ -134,6 +135,7 @@ export default async function DashboardPage() {
                 await postFinanceTransaction({
                     userId: actionSession.userId,
                     kind: parsed.kind,
+                    recordOnly: parsed.recordOnly,
                     postedAt: parsed.postedAt,
                     amountPhp: parsed.amountPhp,
                     walletAccountId: sourceWalletAccountId,

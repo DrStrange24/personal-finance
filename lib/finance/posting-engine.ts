@@ -8,13 +8,14 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SYSTEM_ENVELOPES } from "@/lib/finance/constants";
-import type { TransactionFormInput } from "@/lib/finance/types";
+import { isRecordOnlyTransaction, type TransactionFormInput } from "@/lib/finance/types";
 
 type TxClient = Prisma.TransactionClient;
 
 type PostTransactionParams = Omit<TransactionFormInput, "kind"> & {
     userId: string;
     kind: TransactionKind;
+    recordOnly?: boolean;
 };
 
 const ensureOwnedWallet = async (tx: TxClient, userId: string, walletId: string) => {
@@ -190,6 +191,29 @@ export const postFinanceTransaction = async (params: PostTransactionParams) => {
         const amount = new Prisma.Decimal(params.amountPhp);
         const negativeAmount = amount.mul(-1);
         const sourceWallet = await ensureOwnedWallet(tx, params.userId, params.walletAccountId);
+
+        if (params.recordOnly) {
+            const budgetEnvelope = params.budgetEnvelopeId
+                ? await ensureOwnedEnvelope(tx, params.userId, params.budgetEnvelopeId)
+                : null;
+
+            return tx.financeTransaction.create({
+                data: {
+                    userId: params.userId,
+                    postedAt: params.postedAt ?? new Date(),
+                    kind: params.kind,
+                    amountPhp: amount,
+                    walletAccountId: sourceWallet.id,
+                    targetWalletAccountId: null,
+                    budgetEnvelopeId: budgetEnvelope?.id ?? null,
+                    incomeStreamId: null,
+                    loanRecordId: null,
+                    countsTowardBudget: false,
+                    remarks: params.remarks?.trim() || null,
+                },
+            });
+        }
+
         const targetWallet = params.targetWalletAccountId
             ? await ensureOwnedWallet(tx, params.userId, params.targetWalletAccountId)
             : null;
@@ -301,6 +325,13 @@ export const deleteFinanceTransactionWithReversal = async (userId: string, trans
 
         if (!transaction) {
             throw new Error("Transaction not found.");
+        }
+
+        if (isRecordOnlyTransaction(transaction)) {
+            await tx.financeTransaction.delete({
+                where: { id: transaction.id },
+            });
+            return;
         }
 
         const amount = new Prisma.Decimal(transaction.amountPhp);

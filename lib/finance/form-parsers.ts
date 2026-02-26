@@ -48,6 +48,13 @@ export const parseOptionalId = (value: FormDataEntryValue | null) => {
     return normalized.length > 0 ? normalized : null;
 };
 
+export const parseCheckboxFlag = (value: FormDataEntryValue | null) => {
+    if (typeof value !== "string") {
+        return false;
+    }
+    return value.trim().toLowerCase() === "on";
+};
+
 export const parseTransactionForm = (formData: FormData) => {
     const kind = parseTransactionKind(formData.get("kind"));
     const postedAt = parsePostedAt(formData.get("postedAt"));
@@ -58,6 +65,7 @@ export const parseTransactionForm = (formData: FormData) => {
     const targetWalletAccountId = parseOptionalId(formData.get("targetWalletAccountId"));
     const incomeStreamId = parseOptionalId(formData.get("incomeStreamId"));
     const loanRecordId = parseOptionalId(formData.get("loanRecordId"));
+    const recordOnly = parseCheckboxFlag(formData.get("recordOnly"));
 
     const ok = Boolean(
         kind
@@ -79,6 +87,7 @@ export const parseTransactionForm = (formData: FormData) => {
         targetWalletAccountId,
         incomeStreamId,
         loanRecordId,
+        recordOnly,
     };
 };
 

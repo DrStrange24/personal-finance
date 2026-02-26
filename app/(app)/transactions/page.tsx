@@ -11,7 +11,7 @@ import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal, postFinanceTransaction } from "@/lib/finance/posting-engine";
-import type { FinanceActionResult } from "@/lib/finance/types";
+import { isRecordOnlyTransaction, type FinanceActionResult } from "@/lib/finance/types";
 import { getAuthenticatedSession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -87,7 +87,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 }
             }
 
-            if (parsed.kind === TransactionKind.INCOME) {
+            if (parsed.kind === TransactionKind.INCOME && !parsed.recordOnly) {
                 const distribution = parseIncomeDistributionForm(formData);
                 if (!distribution.ok) {
                     return {
@@ -109,6 +109,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                         const created = await postFinanceTransaction({
                             userId: actionSession.userId,
                             kind: parsed.kind,
+                            recordOnly: parsed.recordOnly,
                             postedAt: parsed.postedAt,
                             amountPhp: row.amountPhp,
                             walletAccountId: sourceWalletAccountId,
@@ -134,6 +135,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 await postFinanceTransaction({
                     userId: actionSession.userId,
                     kind: parsed.kind,
+                    recordOnly: parsed.recordOnly,
                     postedAt: parsed.postedAt,
                     amountPhp: parsed.amountPhp,
                     walletAccountId: sourceWalletAccountId,
@@ -164,6 +166,23 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         const oldTransactionId = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         if (!oldTransactionId) {
             return { ok: false, message: "Missing transaction id." };
+        }
+        const previousTransaction = await prisma.financeTransaction.findFirst({
+            where: {
+                id: oldTransactionId,
+                userId: actionSession.userId,
+            },
+            select: {
+                kind: true,
+                countsTowardBudget: true,
+                targetWalletAccountId: true,
+                budgetEnvelopeId: true,
+                incomeStreamId: true,
+                loanRecordId: true,
+            },
+        });
+        if (!previousTransaction) {
+            return { ok: false, message: "Transaction not found." };
         }
 
         const parsed = parseTransactionForm(formData);
@@ -221,6 +240,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             const created = await postFinanceTransaction({
                 userId: actionSession.userId,
                 kind: parsed.kind,
+                recordOnly: parsed.recordOnly || isRecordOnlyTransaction(previousTransaction),
                 postedAt: parsed.postedAt,
                 amountPhp: parsed.amountPhp,
                 walletAccountId: sourceWalletAccountId,
