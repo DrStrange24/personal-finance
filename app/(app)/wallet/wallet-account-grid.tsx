@@ -18,6 +18,9 @@ type AccountTypeOption = {
 
 type WalletAccountViewModel = {
     id: string;
+    entityId: string;
+    entityName: string;
+    entityType: "PERSONAL" | "BUSINESS";
     type: string;
     name: string;
     currentBalanceAmount: number;
@@ -100,7 +103,7 @@ export default function WalletAccountGrid({
                                                         {account.name}
                                                     </h4>
                                                     <small style={{ color: "var(--color-text-muted)" }}>
-                                                        Balance
+                                                        {account.entityName} ({account.entityType === "PERSONAL" ? "Personal" : "Business"})
                                                     </small>
                                                 </div>
                                                 <p className={`m-0 fw-semibold ${account.type === "CREDIT_CARD" ? "text-danger" : ""}`}>{formatPhp(account.currentBalanceAmount)}</p>
@@ -114,6 +117,7 @@ export default function WalletAccountGrid({
                                                 />
                                                 <form action={submitArchiveWalletAccount}>
                                                     <input type="hidden" name="id" value={account.id} />
+                                                    <input type="hidden" name="entityId" value={account.entityId} />
                                                     <ConfirmSubmitIconButton
                                                         action="delete"
                                                         label={`Archive wallet account ${account.name}`}
@@ -139,6 +143,7 @@ export default function WalletAccountGrid({
                 <form action={submitUpdateWalletAccount}>
                     <Modal.Body className="d-grid gap-3">
                         <input type="hidden" name="id" value={editState?.id ?? ""} />
+                        <input type="hidden" name="entityId" value={editState?.entityId ?? ""} />
                         <div className="d-grid gap-1">
                             <label htmlFor="edit-wallet-type" className="small fw-semibold">Type</label>
                             <select

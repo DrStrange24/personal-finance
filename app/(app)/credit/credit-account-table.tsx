@@ -14,6 +14,7 @@ import { formatPhp } from "@/lib/finance/money";
 type CreditAccountRow = {
     id: string;
     name: string;
+    entityName: string;
     creditLimitAmount: number;
     currentBalanceAmount: number;
     paymentReservePhp: number;
@@ -72,6 +73,7 @@ export default function CreditAccountTable({
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Entity</th>
                                     <th>Credit Limit</th>
                                     <th>Used</th>
                                     <th>Remaining</th>
@@ -83,7 +85,7 @@ export default function CreditAccountTable({
                             <tbody>
                                 {accounts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={8} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No credit accounts yet.
                                         </td>
                                     </tr>
@@ -91,6 +93,7 @@ export default function CreditAccountTable({
                                     accounts.map((account) => (
                                         <tr key={account.id}>
                                             <td>{account.name}</td>
+                                            <td>{account.entityName}</td>
                                             <td>{formatPhp(account.creditLimitAmount)}</td>
                                             <td className="text-danger">{formatPhp(account.currentBalanceAmount)}</td>
                                             <td className={account.creditLimitAmount - account.currentBalanceAmount >= 0 ? "text-success" : "text-danger"}>

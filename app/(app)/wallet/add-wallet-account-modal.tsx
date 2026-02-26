@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import ActionIconButton from "@/app/components/action-icon-button";
@@ -11,18 +11,32 @@ type AccountTypeOption = {
     label: string;
 };
 
+type EntityOption = {
+    id: string;
+    label: string;
+};
+
 type AddWalletAccountModalProps = {
     accountTypeOptions: AccountTypeOption[];
+    entityOptions: EntityOption[];
+    defaultEntityId: string;
     createWalletAccountAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
 };
 
 export default function AddWalletAccountModal({
     accountTypeOptions,
+    entityOptions,
+    defaultEntityId,
     createWalletAccountAction,
 }: AddWalletAccountModalProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [selectedEntityId, setSelectedEntityId] = useState(defaultEntityId);
     const [selectedType, setSelectedType] = useState(accountTypeOptions[0]?.value ?? "");
     const { showSuccess, showError } = useAppToast();
+
+    useEffect(() => {
+        setSelectedEntityId(defaultEntityId);
+    }, [defaultEntityId]);
 
     const submitCreateWalletAccount = async (formData: FormData) => {
         try {
@@ -55,6 +69,20 @@ export default function AddWalletAccountModal({
                 </Modal.Header>
                 <form action={submitCreateWalletAccount}>
                     <Modal.Body className="d-grid gap-3">
+                        <div className="d-grid gap-1">
+                            <label htmlFor="wallet-entity" className="small fw-semibold">Entity</label>
+                            <select
+                                id="wallet-entity"
+                                name="entityId"
+                                className="form-control"
+                                value={selectedEntityId}
+                                onChange={(event) => setSelectedEntityId(event.target.value)}
+                            >
+                                {entityOptions.map((entity) => (
+                                    <option key={entity.id} value={entity.id}>{entity.label}</option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="wallet-type" className="small fw-semibold">Type</label>
                             <select

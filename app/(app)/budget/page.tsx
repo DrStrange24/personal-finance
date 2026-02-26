@@ -5,11 +5,11 @@ import AllocateBudgetModal from "./allocate-budget-modal";
 import BudgetEnvelopeTable from "./budget-envelope-table";
 import MetricCard from "@/app/components/finance/metric-card";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
-import { getFinanceContextData } from "@/lib/finance/context";
+import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { formatPhp } from "@/lib/finance/money";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
-import { getBudgetStats } from "@/lib/finance/queries";
+import { getBudgetStatsAcrossEntities } from "@/lib/finance/queries";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -31,8 +31,7 @@ type BudgetActionResult = {
 
 export default async function BudgetPage() {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createBudgetEnvelopeAction = async (formData: FormData): Promise<BudgetActionResult> => {
         "use server";
@@ -107,11 +106,24 @@ export default async function BudgetPage() {
         }
 
         try {
+            const existing = await prisma.budgetEnvelope.findFirst({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isSystem: false,
+                },
+                select: {
+                    entityId: true,
+                },
+            });
+            if (!existing?.entityId) {
+                return { ok: false, message: "Budget envelope not found." };
+            }
             const updated = await prisma.budgetEnvelope.updateMany({
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    entityId: existing.entityId,
                     isSystem: false,
                 },
                 data: {
@@ -145,11 +157,25 @@ export default async function BudgetPage() {
         }
 
         try {
+            const existing = await prisma.budgetEnvelope.findFirst({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isSystem: false,
+                    isArchived: false,
+                },
+                select: {
+                    entityId: true,
+                },
+            });
+            if (!existing?.entityId) {
+                return { ok: false, message: "Budget envelope not found." };
+            }
             const archived = await prisma.budgetEnvelope.updateMany({
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    entityId: existing.entityId,
                     isSystem: false,
                     isArchived: false,
                 },
@@ -202,9 +228,25 @@ export default async function BudgetPage() {
         }
 
         try {
+            const wallet = await prisma.walletAccount.findFirst({
+                where: {
+                    id: walletAccountId,
+                    userId: actionSession.userId,
+                    isArchived: false,
+                    entity: {
+                        isArchived: false,
+                    },
+                },
+                select: {
+                    entityId: true,
+                },
+            });
+            if (!wallet?.entityId) {
+                return { ok: false, message: "Wallet account not found." };
+            }
             await postFinanceTransaction({
                 userId: actionSession.userId,
-                entityId: actionSession.activeEntity.id,
+                entityId: wallet.entityId,
                 actorUserId: actionSession.userId,
                 kind: "BUDGET_ALLOCATION",
                 postedAt,
@@ -227,19 +269,19 @@ export default async function BudgetPage() {
     };
 
     const [context, budgetStats] = await Promise.all([
-        getFinanceContextData(session.userId, activeEntityId),
-        getBudgetStats(session.userId, activeEntityId),
+        getFinanceContextDataAcrossEntities(session.userId),
+        getBudgetStatsAcrossEntities(session.userId),
     ]);
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
-        label: wallet.name,
+        label: `${wallet.name} (${wallet.entity?.name ?? "Entity"})`,
     }));
     const budgetOptions = context.budgets
         .filter((budget) => !budget.isSystem)
         .map((budget) => ({
             id: budget.id,
-            label: budget.name,
+            label: `${budget.name} (${budget.entity?.name ?? "Entity"})`,
         }));
     const budgetRows = budgetStats.map((budget) => ({
         id: budget.id,
@@ -285,7 +327,7 @@ export default async function BudgetPage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-tertiary)" }}>Budget</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Envelope Budgeting</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Fund envelopes from wallets, then let expenses deduct both wallet and envelope.
+                    Fund envelopes from wallets across all entities, then let expenses deduct both wallet and envelope.
                 </p>
             </header>
 

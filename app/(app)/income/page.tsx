@@ -26,8 +26,7 @@ type IncomeStreamActionResult = {
 
 export default async function IncomePage() {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createIncomeStreamAction = async (formData: FormData): Promise<IncomeStreamActionResult> => {
         "use server";
@@ -78,7 +77,6 @@ export default async function IncomePage() {
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
                 },
                 data: {
                     defaultAmountPhp: defaultAmountResult.value,
@@ -116,7 +114,6 @@ export default async function IncomePage() {
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
                 },
             });
 
@@ -136,7 +133,18 @@ export default async function IncomePage() {
     const streams = await prisma.incomeStream.findMany({
         where: {
             userId: session.userId,
-            entityId: activeEntityId,
+            entity: {
+                isArchived: false,
+            },
+        },
+        include: {
+            entity: {
+                select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                },
+            },
         },
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
     });
@@ -144,6 +152,7 @@ export default async function IncomePage() {
     const streamRows = streams.map((stream) => ({
         id: stream.id,
         name: stream.name,
+        entityName: stream.entity?.name ?? "-",
         defaultAmountPhp: Number(stream.defaultAmountPhp),
         isActive: stream.isActive,
         remarks: stream.remarks,
@@ -151,7 +160,9 @@ export default async function IncomePage() {
 
     const sciTechWhere = {
         userId: session.userId,
-        entityId: activeEntityId,
+        entity: {
+            isArchived: false,
+        },
         isReversal: false,
         voidedAt: null,
         kind: TransactionKind.INCOME,
@@ -190,7 +201,7 @@ export default async function IncomePage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-secondary)" }}>Income</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Income Streams</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Manage recurring income streams.
+                    Manage recurring income streams across all entities.
                 </p>
             </header>
 

@@ -22,6 +22,7 @@ type FormOption = {
 
 type TransactionRow = {
     id: string;
+    entityName: string;
     postedAt: string;
     kind: TransactionKind;
     amountPhp: number;
@@ -165,6 +166,7 @@ export default function TransactionsTable({
                                     <th>Date</th>
                                     <th>Kind</th>
                                     <th>Amount</th>
+                                    <th>Entity</th>
                                     <th>Wallet</th>
                                     <th>Target</th>
                                     <th>Budget</th>
@@ -177,7 +179,7 @@ export default function TransactionsTable({
                             <tbody>
                                 {transactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={10} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={11} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No transactions found.
                                         </td>
                                     </tr>
@@ -194,6 +196,7 @@ export default function TransactionsTable({
                                                 <td>{dateFormatter.format(new Date(`${tx.postedAt}T00:00:00`))}</td>
                                                 <td><TransactionKindBadge kind={tx.kind} /></td>
                                                 <td className={signed < 0 ? "text-danger" : "text-success"}>{amountLabel}</td>
+                                                <td>{tx.entityName}</td>
                                                 <td>{tx.walletName}</td>
                                                 <td>{tx.targetWalletName ?? "-"}</td>
                                                 <td>{tx.budgetName ?? "-"}</td>

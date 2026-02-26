@@ -6,8 +6,7 @@ import CardBody from "react-bootstrap/CardBody";
 import AddTransactionModal from "./add-transaction-modal";
 import TransactionsTable from "./transactions-table";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
-import { getFinanceContextData } from "@/lib/finance/context";
-import { listActiveCreditAccountsByEntity } from "@/lib/finance/entity-scoped-records";
+import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { deleteFinanceTransactionWithReversal } from "@/lib/finance/posting-engine";
@@ -57,8 +56,7 @@ const parseDateFilter = (value: string | undefined) => {
 
 export default async function TransactionsPage({ searchParams }: TransactionsPageProps) {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
     const params = (await searchParams) ?? {};
     const selectedKind = typeof params.kind === "string" ? params.kind.trim() : "";
     const selectedWalletId = typeof params.wallet === "string" ? params.wallet.trim() : "";
@@ -71,9 +69,31 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         "use server";
 
         const actionSession = await getAuthenticatedEntitySession();
+        const walletAccountId = typeof formData.get("walletAccountId") === "string" ? String(formData.get("walletAccountId")).trim() : "";
+        if (!walletAccountId) {
+            return { ok: false, message: "Missing wallet account." };
+        }
+
+        const sourceWallet = await prisma.walletAccount.findFirst({
+            where: {
+                id: walletAccountId,
+                userId: actionSession.userId,
+                isArchived: false,
+                entity: {
+                    isArchived: false,
+                },
+            },
+            select: {
+                entityId: true,
+            },
+        });
+        if (!sourceWallet?.entityId) {
+            return { ok: false, message: "Wallet account not found." };
+        }
+
         const result = await postTransactionFromFormData({
             userId: actionSession.userId,
-            entityId: actionSession.activeEntity.id,
+            entityId: sourceWallet.entityId,
             actorUserId: actionSession.userId,
             formData,
         });
@@ -104,11 +124,11 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             where: {
                 id: oldTransactionId,
                 userId: actionSession.userId,
-                entityId: actionSession.activeEntity.id,
                 isReversal: false,
                 voidedAt: null,
             },
             select: {
+                entityId: true,
                 kind: true,
                 countsTowardBudget: true,
                 targetWalletAccountId: true,
@@ -121,10 +141,13 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         if (!previousTransaction) {
             return { ok: false, message: "Transaction not found." };
         }
+        if (!previousTransaction.entityId) {
+            return { ok: false, message: "Transaction has no entity assignment." };
+        }
 
         const result = await updateTransactionFromFormData({
             userId: actionSession.userId,
-            entityId: actionSession.activeEntity.id,
+            entityId: previousTransaction.entityId,
             actorUserId: actionSession.userId,
             formData,
             transactionId: oldTransactionId,
@@ -152,11 +175,25 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         if (!id) {
             return { ok: false, message: "Missing transaction id." };
         }
+        const existing = await prisma.financeTransaction.findFirst({
+            where: {
+                id,
+                userId: actionSession.userId,
+                isReversal: false,
+                voidedAt: null,
+            },
+            select: {
+                entityId: true,
+            },
+        });
+        if (!existing?.entityId) {
+            return { ok: false, message: "Transaction not found." };
+        }
 
         try {
             await deleteFinanceTransactionWithReversal(
                 actionSession.userId,
-                actionSession.activeEntity.id,
+                existing.entityId,
                 actionSession.userId,
                 id,
             );
@@ -190,7 +227,9 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
     const transactionWhere: Prisma.FinanceTransactionWhereInput = {
         userId: session.userId,
-        entityId: activeEntityId,
+        entity: {
+            isArchived: false,
+        },
         isReversal: false,
         voidedAt: null,
         ...(selectedKind ? { kind: selectedKind as TransactionKind } : {}),
@@ -224,6 +263,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
             const rows = await prisma.financeTransaction.findMany({
                 where: transactionWhere,
                 include: {
+                    entity: true,
                     walletAccount: true,
                     targetWalletAccount: true,
                     budgetEnvelope: true,
@@ -240,7 +280,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                     scope: "finance-query",
                     level: "info",
                     queryType: "transactions-list",
-                    entityId: activeEntityId,
+                    entityId: "ALL_ENTITIES",
                     details: {
                         page: currentPage,
                         pageSize: TRANSACTIONS_PAGE_SIZE,
@@ -261,7 +301,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                     scope: "finance-query",
                     level: "error",
                     queryType: "transactions-list",
-                    entityId: activeEntityId,
+                    entityId: "ALL_ENTITIES",
                     error: error instanceof Error ? error.message : "Unknown transactions query error.",
                 }));
             }
@@ -270,26 +310,35 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     };
 
     const [context, transactionPage, creditAccounts] = await Promise.all([
-        getFinanceContextData(session.userId, activeEntityId),
+        getFinanceContextDataAcrossEntities(session.userId),
         fetchTransactionsPage(),
-        listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
+        prisma.creditAccount.findMany({
+            where: {
+                userId: session.userId,
+                isArchived: false,
+                entity: {
+                    isArchived: false,
+                },
+            },
+            orderBy: { name: "asc" },
+        }),
     ]);
     const transactions = transactionPage.rows;
 
     const walletOptions = context.wallets.map((wallet) => ({
         id: wallet.id,
         plainLabel: wallet.name,
-        label: `${wallet.name} (${formatPhp(Number(wallet.currentBalanceAmount))})`,
+        label: `${wallet.name} (${wallet.entity?.name ?? "Entity"} | ${formatPhp(Number(wallet.currentBalanceAmount))})`,
         type: wallet.type,
     }));
     const budgetOptions = mapBudgetFormOptions(context.budgets);
     const incomeOptions = context.incomes.map((income) => ({
         id: income.id,
-        label: income.name,
+        label: `${income.name} (${income.entity?.name ?? "Entity"})`,
     }));
     const loanOptions = context.loans.map((loan) => ({
         id: loan.id,
-        label: `${loan.itemName} (${formatPhp(Number(loan.remainingPhp))})`,
+        label: `${loan.itemName} (${loan.entity?.name ?? "Entity"} | ${formatPhp(Number(loan.remainingPhp))})`,
     }));
     const creditOptions = creditAccounts.map((credit) => ({
         id: `credit:${credit.id}`,
@@ -297,6 +346,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     }));
     const transactionRows = transactions.map((tx) => ({
         id: tx.id,
+        entityName: tx.entity?.name ?? "-",
         postedAt: tx.postedAt.toISOString().slice(0, 10),
         kind: tx.kind,
         amountPhp: Number(tx.amountPhp),
@@ -341,7 +391,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Ledger</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Transactions</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Unified ledger with wallet, budget envelope, and transaction type tracking.
+                    Unified ledger across all entities with wallet, budget envelope, and transaction type tracking.
                 </p>
             </header>
 
@@ -376,7 +426,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                             <select id="filter-wallet" name="wallet" className="form-control form-control-sm" defaultValue={selectedWalletId}>
                                 <option value="">All</option>
                                 {context.wallets.map((wallet) => (
-                                    <option key={wallet.id} value={wallet.id}>{wallet.name}</option>
+                                    <option key={wallet.id} value={wallet.id}>{`${wallet.name} (${wallet.entity?.name ?? "Entity"})`}</option>
                                 ))}
                             </select>
                         </div>

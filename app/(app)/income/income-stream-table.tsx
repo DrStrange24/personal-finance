@@ -14,6 +14,7 @@ import { formatPhp } from "@/lib/finance/money";
 type IncomeStreamRow = {
     id: string;
     name: string;
+    entityName: string;
     defaultAmountPhp: number;
     isActive: boolean;
     remarks: string | null;
@@ -71,6 +72,7 @@ export default function IncomeStreamTable({
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Entity</th>
                                     <th>Default Amount</th>
                                     <th>Status</th>
                                     <th>Remarks</th>
@@ -80,7 +82,7 @@ export default function IncomeStreamTable({
                             <tbody>
                                 {streams.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No income streams yet.
                                         </td>
                                     </tr>
@@ -88,6 +90,7 @@ export default function IncomeStreamTable({
                                     streams.map((stream) => (
                                         <tr key={stream.id}>
                                             <td>{stream.name}</td>
+                                            <td>{stream.entityName}</td>
                                             <td>{formatPhp(stream.defaultAmountPhp)}</td>
                                             <td>{stream.isActive ? "Active" : "Inactive"}</td>
                                             <td style={{ maxWidth: "20rem" }}>{stream.remarks?.trim() || "-"}</td>

@@ -14,6 +14,7 @@ import { formatPhp } from "@/lib/finance/money";
 type InvestmentRow = {
     id: string;
     name: string;
+    entityName: string;
     symbol: string;
     initialInvestmentPhp: number;
     value: number;
@@ -79,6 +80,7 @@ export default function InvestmentTable({
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Entity</th>
                                     <th>Initial</th>
                                     <th>Value (Units)</th>
                                     <th>Est. PHP Value</th>
@@ -90,7 +92,7 @@ export default function InvestmentTable({
                             <tbody>
                                 {investments.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={8} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No investments yet.
                                         </td>
                                     </tr>
@@ -98,6 +100,7 @@ export default function InvestmentTable({
                                     investments.map((investment) => (
                                         <tr key={investment.id}>
                                             <td>{investment.name}</td>
+                                            <td>{investment.entityName}</td>
                                             <td>{formatPhp(investment.initialInvestmentPhp)}</td>
                                             <td>{unitFormatter.format(investment.value)} {investment.symbol}</td>
                                             <td>{investment.estimatedPhpValue === null ? "-" : formatPhp(investment.estimatedPhpValue)}</td>

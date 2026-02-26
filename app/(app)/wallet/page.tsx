@@ -38,18 +38,20 @@ const parseAccountType = (value: FormDataEntryValue | null): WalletAccountType |
 
 export default async function WalletPage() {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createWalletAccountAction = async (formData: FormData): Promise<WalletAccountActionResult> => {
         "use server";
 
         const actionSession = await getAuthenticatedEntitySession();
+        const requestedEntityId = typeof formData.get("entityId") === "string" ? String(formData.get("entityId")).trim() : "";
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
         const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
+        const targetEntityId = requestedEntityId || actionSession.activeEntity.id;
+        const targetEntity = actionSession.entities.find((entity) => entity.id === targetEntityId);
 
-        if (!type || type === WalletAccountType.ASSET || !name || !balanceResult.ok || balanceResult.value === null) {
+        if (!targetEntity || !type || type === WalletAccountType.ASSET || !name || !balanceResult.ok || balanceResult.value === null) {
             return { ok: false, message: "Please provide valid wallet account details." };
         }
 
@@ -57,7 +59,7 @@ export default async function WalletPage() {
             const account = await prisma.walletAccount.create({
                 data: {
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    entityId: targetEntity.id,
                     type,
                     name,
                     currentBalanceAmount: 0,
@@ -67,7 +69,7 @@ export default async function WalletPage() {
             if (Math.abs(balanceResult.value) > 0.0001) {
                 await postFinanceTransaction({
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    entityId: targetEntity.id,
                     actorUserId: actionSession.userId,
                     kind: "ADJUSTMENT",
                     amountPhp: balanceResult.value,
@@ -93,6 +95,7 @@ export default async function WalletPage() {
 
         const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
+        const requestedEntityId = typeof formData.get("entityId") === "string" ? String(formData.get("entityId")).trim() : "";
         const type = parseAccountType(formData.get("type"));
         const name = parseRequiredName(formData.get("name"));
         const balanceResult = parseMoneyInput(formData.get("currentBalanceAmount"), true);
@@ -105,13 +108,18 @@ export default async function WalletPage() {
             where: {
                 id,
                 userId: actionSession.userId,
-                entityId: actionSession.activeEntity.id,
                 isArchived: false,
             },
         });
 
         if (!existing) {
             return { ok: false, message: "Wallet account not found." };
+        }
+        if (!existing.entityId) {
+            return { ok: false, message: "Wallet account has no entity assignment." };
+        }
+        if (requestedEntityId && requestedEntityId !== existing.entityId) {
+            return { ok: false, message: "Wallet account entity mismatch." };
         }
 
         try {
@@ -127,7 +135,7 @@ export default async function WalletPage() {
             if (Math.abs(delta) > 0.0001) {
                 await postFinanceTransaction({
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    entityId: existing.entityId,
                     actorUserId: actionSession.userId,
                     kind: "ADJUSTMENT",
                     amountPhp: delta,
@@ -152,6 +160,7 @@ export default async function WalletPage() {
         "use server";
         const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
+        const requestedEntityId = typeof formData.get("entityId") === "string" ? String(formData.get("entityId")).trim() : "";
 
         if (!id) {
             return { ok: false, message: "Missing wallet account id." };
@@ -162,7 +171,7 @@ export default async function WalletPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    ...(requestedEntityId ? { entityId: requestedEntityId } : {}),
                     isArchived: false,
                 },
                 data: {
@@ -185,10 +194,21 @@ export default async function WalletPage() {
     const accounts = await prisma.walletAccount.findMany({
         where: {
             userId: session.userId,
-            entityId: activeEntityId,
             isArchived: false,
+            entity: {
+                isArchived: false,
+            },
             type: {
                 in: [WalletAccountType.CASH, WalletAccountType.BANK, WalletAccountType.E_WALLET],
+            },
+        },
+        include: {
+            entity: {
+                select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                },
             },
         },
         orderBy: [{ type: "asc" }, { createdAt: "asc" }],
@@ -208,12 +228,19 @@ export default async function WalletPage() {
             type: account.type,
             name: account.name,
             currentBalanceAmount: Number(account.currentBalanceAmount),
+            entityId: account.entityId ?? account.entity?.id ?? "",
+            entityName: account.entity?.name ?? "Unknown",
+            entityType: account.entity?.type ?? "PERSONAL",
         })),
     }));
     const accountTypeOptions = visibleWalletTypes
         .map((type) => ({
         value: type,
         label: walletAccountTypeLabel[type],
+    }));
+    const entityOptions = session.entities.map((entity) => ({
+        id: entity.id,
+        label: `${entity.name} (${entity.type === "PERSONAL" ? "Personal" : "Business"})`,
     }));
 
     const totalNonCredit = accounts
@@ -225,7 +252,7 @@ export default async function WalletPage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Main Page</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Wallet Accounts</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Ledger-compatible accounts with cash, bank, e-wallet, and credit card support.
+                    Ledger-compatible cash, bank, and e-wallet accounts across all entities.
                 </p>
             </header>
 
@@ -240,6 +267,8 @@ export default async function WalletPage() {
 
             <AddWalletAccountModal
                 accountTypeOptions={accountTypeOptions}
+                entityOptions={entityOptions}
+                defaultEntityId={session.activeEntity.id}
                 createWalletAccountAction={createWalletAccountAction}
             />
 

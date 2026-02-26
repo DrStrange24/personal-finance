@@ -7,8 +7,6 @@ import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import {
     ensureUniqueActiveInvestmentName,
-    listActiveInvestmentsByEntity,
-    requireOwnedInvestment,
 } from "@/lib/finance/entity-scoped-records";
 import { formatPhp, parseMoneyInput, parseNumberInput, parseOptionalText } from "@/lib/finance/money";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
@@ -37,8 +35,7 @@ const inferAssetSymbol = (name: string) => {
 
 export default async function InvestmentPage() {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createInvestmentAction = async (formData: FormData): Promise<InvestmentActionResult> => {
         "use server";
@@ -112,16 +109,20 @@ export default async function InvestmentPage() {
         }
 
         try {
-            await requireOwnedInvestment(
-                prisma,
-                actionSession.userId,
-                actionSession.activeEntity.id,
-                id,
-            );
+            const existing = await prisma.investment.findFirst({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isArchived: false,
+                },
+            });
+            if (!existing) {
+                return { ok: false, message: "Investment not found." };
+            }
             await ensureUniqueActiveInvestmentName(
                 prisma,
                 actionSession.userId,
-                actionSession.activeEntity.id,
+                existing.entityId,
                 name,
                 id,
             );
@@ -130,7 +131,7 @@ export default async function InvestmentPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
+                    entityId: existing.entityId,
                     isArchived: false,
                 },
                 data: {
@@ -169,7 +170,6 @@ export default async function InvestmentPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
                     isArchived: false,
                 },
                 data: {
@@ -191,7 +191,25 @@ export default async function InvestmentPage() {
         }
     };
 
-    const investments = await listActiveInvestmentsByEntity(prisma, session.userId, activeEntityId);
+    const investments = await prisma.investment.findMany({
+        where: {
+            userId: session.userId,
+            isArchived: false,
+            entity: {
+                isArchived: false,
+            },
+        },
+        include: {
+            entity: {
+                select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                },
+            },
+        },
+        orderBy: [{ createdAt: "desc" }],
+    });
 
     const estimatedValuePairs = await Promise.all(investments.map(async (investment) => {
         const symbol = inferAssetSymbol(investment.name);
@@ -210,6 +228,7 @@ export default async function InvestmentPage() {
             id: investment.id,
             name: investment.name,
             symbol: estimation?.symbol ?? "UNITS",
+            entityName: investment.entity?.name ?? "-",
             initialInvestmentPhp,
             value,
             estimatedPhpValue,
@@ -233,7 +252,7 @@ export default async function InvestmentPage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-secondary)" }}>Portfolio</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Investments</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Track each investment with units and estimated PHP value from live market bids.
+                    Track investments across all entities with units and estimated PHP value from live market bids.
                 </p>
             </header>
 

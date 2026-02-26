@@ -8,8 +8,6 @@ import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { buildCreditCardPaymentEnvelopeName } from "@/lib/finance/credit-payment-envelope";
 import {
     ensureUniqueActiveCreditAccountName,
-    listActiveCreditAccountsByEntity,
-    requireOwnedCreditAccount,
 } from "@/lib/finance/entity-scoped-records";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
@@ -35,8 +33,7 @@ const parseRequiredName = (value: FormDataEntryValue | null) => {
 
 export default async function CreditPage() {
     const session = await getAuthenticatedEntitySession();
-    const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createCreditAccountAction = async (formData: FormData): Promise<CreditAccountActionResult> => {
         "use server";
@@ -99,16 +96,20 @@ export default async function CreditPage() {
         }
 
         try {
-            const existing = await requireOwnedCreditAccount(
-                prisma,
-                actionSession.userId,
-                actionSession.activeEntity.id,
-                id,
-            );
+            const existing = await prisma.creditAccount.findFirst({
+                where: {
+                    id,
+                    userId: actionSession.userId,
+                    isArchived: false,
+                },
+            });
+            if (!existing) {
+                return { ok: false, message: "Credit account not found." };
+            }
             await ensureUniqueActiveCreditAccountName(
                 prisma,
                 actionSession.userId,
-                actionSession.activeEntity.id,
+                existing.entityId,
                 name,
                 existing.id,
             );
@@ -146,7 +147,6 @@ export default async function CreditPage() {
                 where: {
                     id,
                     userId: actionSession.userId,
-                    entityId: actionSession.activeEntity.id,
                     isArchived: false,
                 },
                 data: {
@@ -169,14 +169,34 @@ export default async function CreditPage() {
     };
 
     const [accounts, ccPaymentEnvelopes] = await Promise.all([
-        listActiveCreditAccountsByEntity(prisma, session.userId, activeEntityId),
+        prisma.creditAccount.findMany({
+            where: {
+                userId: session.userId,
+                isArchived: false,
+                entity: {
+                    isArchived: false,
+                },
+            },
+            include: {
+                entity: {
+                    select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                    },
+                },
+            },
+            orderBy: { name: "asc" },
+        }),
         prisma.budgetEnvelope.findMany({
             where: {
                 userId: session.userId,
-                entityId: activeEntityId,
                 isArchived: false,
                 isSystem: true,
                 systemType: BudgetEnvelopeSystemType.CREDIT_CARD_PAYMENT,
+                entity: {
+                    isArchived: false,
+                },
             },
             select: {
                 id: true,
@@ -200,6 +220,7 @@ export default async function CreditPage() {
         name: account.name,
         creditLimitAmount: Number(account.creditLimitAmount),
         currentBalanceAmount: Number(account.currentBalanceAmount),
+        entityName: account.entity?.name ?? "-",
         paymentReservePhp: reserveByCreditAccountId.get(account.id)
             ?? reserveByEnvelopeName.get(buildCreditCardPaymentEnvelopeName(account.name))
             ?? 0,
@@ -217,7 +238,7 @@ export default async function CreditPage() {
                 <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-tertiary)" }}>Credit</p>
                 <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Credit Management</h2>
                 <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                    Manage your credit card accounts, balances, and account lifecycle in one place.
+                    Manage credit card accounts across all entities, with balances and lifecycle controls in one place.
                 </p>
             </header>
 

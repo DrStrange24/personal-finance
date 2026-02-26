@@ -12,7 +12,7 @@ import { listActiveCreditAccountsByEntity } from "@/lib/finance/entity-scoped-re
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
 import { formatPhp } from "@/lib/finance/money";
 import { postTransactionFromFormData } from "@/lib/finance/transaction-orchestration";
-import { getDashboardSummary } from "@/lib/finance/queries";
+import { getDashboardSummaryAcrossEntities } from "@/lib/finance/queries";
 import type { FinanceActionResult } from "@/lib/finance/types";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +26,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 export default async function DashboardPage() {
     const session = await getAuthenticatedEntitySession();
     const activeEntityId = session.activeEntity.id;
-    await ensureFinanceBootstrap(session.userId, activeEntityId);
+    await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
 
     const createTransactionAction = async (formData: FormData) => {
         "use server";
@@ -53,18 +53,21 @@ export default async function DashboardPage() {
     };
 
     const [summaryResult, context, recentTransactions, creditAccounts] = await Promise.all([
-        getDashboardSummary(session.userId, activeEntityId)
+        getDashboardSummaryAcrossEntities(session.userId)
             .then((data) => ({ ok: true as const, data }))
             .catch((error) => ({ ok: false as const, error })),
         getFinanceContextData(session.userId, activeEntityId),
         prisma.financeTransaction.findMany({
             where: {
                 userId: session.userId,
-                entityId: activeEntityId,
+                entity: {
+                    isArchived: false,
+                },
                 isReversal: false,
                 voidedAt: null,
             },
             include: {
+                entity: true,
                 walletAccount: true,
                 targetWalletAccount: true,
                 budgetEnvelope: true,
@@ -80,7 +83,7 @@ export default async function DashboardPage() {
             scope: "finance-kpi",
             level: "error",
             queryType: "dashboard-summary",
-            entityId: activeEntityId,
+            entityId: "ALL_ENTITIES",
             error: summaryResult.error instanceof Error ? summaryResult.error.message : "Unknown KPI error.",
         }));
     }
@@ -112,7 +115,7 @@ export default async function DashboardPage() {
                     <p className="m-0 text-uppercase small" style={{ letterSpacing: "0.3em", color: "var(--color-kicker-primary)" }}>Main Page</p>
                     <h2 className="m-0 fs-2 fw-semibold" style={{ color: "var(--color-text-strong)" }}>Dashboard</h2>
                     <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                        Quick post flow for income, expenses, transfers, credit card movements, and loan movements.
+                        Cross-entity totals and latest transactions. New posts use the currently active entity.
                     </p>
                 </div>
                 <AddTransactionModal
@@ -147,6 +150,7 @@ export default async function DashboardPage() {
                                     <th>Date</th>
                                     <th>Kind</th>
                                     <th>Amount</th>
+                                    <th>Entity</th>
                                     <th>Wallet</th>
                                     <th>Budget</th>
                                     <th>Remarks</th>
@@ -155,7 +159,7 @@ export default async function DashboardPage() {
                             <tbody>
                                 {recentTransactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No transactions yet.
                                         </td>
                                     </tr>
@@ -178,6 +182,7 @@ export default async function DashboardPage() {
                                                 <td>{dateFormatter.format(transaction.postedAt)}</td>
                                                 <td><TransactionKindBadge kind={transaction.kind} /></td>
                                                 <td className={signedAmount < 0 ? "text-danger" : "text-success"}>{amountLabel}</td>
+                                                <td>{transaction.entity?.name ?? "-"}</td>
                                                 <td>{transaction.walletAccount.name}</td>
                                                 <td>{transaction.budgetEnvelope?.name ?? "-"}</td>
                                                 <td>{transaction.remarks?.trim() || "-"}</td>

@@ -53,7 +53,16 @@ const sumTransactionKind = (
 };
 
 export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
+    return getDashboardSummaryWithScope(userId, entityId);
+};
+
+export const getDashboardSummaryAcrossEntities = async (userId: string): Promise<DashboardSummary> => {
+    return getDashboardSummaryWithScope(userId);
+};
+
+const getDashboardSummaryWithScope = async (userId: string, entityId?: string): Promise<DashboardSummary> => {
     const queryStartedAt = Date.now();
+    const entityScope = entityId ?? "ALL_ENTITIES";
 
     try {
         const monthStart = startOfMonth();
@@ -62,7 +71,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
                 by: ["type"],
                 where: {
                     userId,
-                    entityId,
+                    ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                     isArchived: false,
                 },
                 _sum: {
@@ -72,7 +81,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
             prisma.investment.findMany({
                 where: {
                     userId,
-                    entityId,
+                    ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                     isArchived: false,
                 },
                 select: {
@@ -85,7 +94,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
                 by: ["isSystem", "systemType"],
                 where: {
                     userId,
-                    entityId,
+                    ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                     isArchived: false,
                 },
                 _sum: {
@@ -96,7 +105,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
                 by: ["kind"],
                 where: {
                     userId,
-                    entityId,
+                    ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                     isReversal: false,
                     voidedAt: null,
                     postedAt: {
@@ -113,7 +122,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
             prisma.incomeStream.aggregate({
                 where: {
                     userId,
-                    entityId,
+                    ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                     isActive: true,
                 },
                 _sum: {
@@ -196,7 +205,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
 
         logFinanceQuery("info", {
             queryType: "dashboard-summary",
-            entityId,
+            entityId: entityScope,
             durationMs: Date.now() - queryStartedAt,
             details: {
                 investmentCount: investments.length,
@@ -208,7 +217,7 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
     } catch (error) {
         logFinanceQuery("error", {
             queryType: "dashboard-summary",
-            entityId,
+            entityId: entityScope,
             durationMs: Date.now() - queryStartedAt,
             error: error instanceof Error ? error.message : "Unknown query error.",
         });
@@ -217,14 +226,23 @@ export const getDashboardSummary = async (userId: string, entityId: string): Pro
 };
 
 export const getBudgetStats = async (userId: string, entityId: string) => {
+    return getBudgetStatsWithScope(userId, entityId);
+};
+
+export const getBudgetStatsAcrossEntities = async (userId: string) => {
+    return getBudgetStatsWithScope(userId);
+};
+
+const getBudgetStatsWithScope = async (userId: string, entityId?: string) => {
     const queryStartedAt = Date.now();
+    const entityScope = entityId ?? "ALL_ENTITIES";
 
     try {
         const start = startOfMonth();
         const envelopes = await prisma.budgetEnvelope.findMany({
             where: {
                 userId,
-                entityId,
+                ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                 isArchived: false,
                 isSystem: false,
             },
@@ -235,7 +253,7 @@ export const getBudgetStats = async (userId: string, entityId: string) => {
             by: ["budgetEnvelopeId"],
             where: {
                 userId,
-                entityId,
+                ...(entityId ? { entityId } : { entity: { isArchived: false } }),
                 isReversal: false,
                 voidedAt: null,
                 countsTowardBudget: true,
@@ -276,7 +294,7 @@ export const getBudgetStats = async (userId: string, entityId: string) => {
 
         logFinanceQuery("info", {
             queryType: "budget-stats",
-            entityId,
+            entityId: entityScope,
             durationMs: Date.now() - queryStartedAt,
             details: {
                 envelopeCount: envelopes.length,
@@ -287,7 +305,7 @@ export const getBudgetStats = async (userId: string, entityId: string) => {
     } catch (error) {
         logFinanceQuery("error", {
             queryType: "budget-stats",
-            entityId,
+            entityId: entityScope,
             durationMs: Date.now() - queryStartedAt,
             error: error instanceof Error ? error.message : "Unknown query error.",
         });
