@@ -7,6 +7,9 @@ const { mockPrisma, mockBidPrice } = vi.hoisted(() => ({
         walletAccount: {
             groupBy: vi.fn(),
         },
+        creditAccount: {
+            aggregate: vi.fn(),
+        },
         investment: {
             findMany: vi.fn(),
         },
@@ -40,6 +43,9 @@ describe("queries", () => {
             { type: WalletAccountType.CASH, _sum: { currentBalanceAmount: new Prisma.Decimal(1000) } },
             { type: WalletAccountType.CREDIT_CARD, _sum: { currentBalanceAmount: new Prisma.Decimal(200) } },
         ]);
+        mockPrisma.creditAccount.aggregate.mockResolvedValue({
+            _sum: { currentBalanceAmount: new Prisma.Decimal(200) },
+        });
         mockPrisma.investment.findMany.mockResolvedValue([
             {
                 name: "BTC",
@@ -76,7 +82,7 @@ describe("queries", () => {
         expect(summary.totalAssetsPhp).toBe(1400);
         expect(summary.netPositionPhp).toBe(800);
         expect(summary.budgetAvailablePhp).toBe(300);
-        expect(summary.unallocatedCashPhp).toBe(620);
+        expect(summary.unallocatedCashPhp).toBe(-200);
         expect(summary.monthIncomePhp).toBe(500);
         expect(summary.monthExpensePhp).toBe(200);
         expect(summary.monthNetCashflowPhp).toBe(300);
@@ -91,16 +97,19 @@ describe("queries", () => {
         expect(summary.totalAssetsPhp).toBe(1350);
     });
 
-    it("normalizes credit card debt when imported balances are stored negative", async () => {
+    it("uses credit-account total used for dashboard debt", async () => {
         mockPrisma.walletAccount.groupBy.mockResolvedValue([
             { type: WalletAccountType.CASH, _sum: { currentBalanceAmount: new Prisma.Decimal(1000) } },
             { type: WalletAccountType.CREDIT_CARD, _sum: { currentBalanceAmount: new Prisma.Decimal(-200) } },
         ]);
+        mockPrisma.creditAccount.aggregate.mockResolvedValue({
+            _sum: { currentBalanceAmount: new Prisma.Decimal(350) },
+        });
 
         const summary = await getDashboardSummary("u1", "e1");
 
-        expect(summary.totalCreditCardDebtPhp).toBe(200);
-        expect(summary.netPositionPhp).toBe(800);
+        expect(summary.totalCreditCardDebtPhp).toBe(350);
+        expect(summary.netPositionPhp).toBe(650);
     });
 
     it("enforces monthly budget spent aggregation with countsTowardBudget=true", async () => {

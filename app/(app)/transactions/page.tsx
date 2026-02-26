@@ -430,7 +430,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 col-md-6 col-lg-3">
+                        <div className="col-12 col-md-6 col-lg-2">
                             <label htmlFor="filter-q" className="small fw-semibold mb-1">Remarks Search</label>
                             <input id="filter-q" type="text" name="q" className="form-control form-control-sm" defaultValue={searchText} />
                         </div>
@@ -442,7 +442,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
                             <label htmlFor="filter-to" className="small fw-semibold mb-1">To</label>
                             <input id="filter-to" type="date" name="to" className="form-control form-control-sm" defaultValue={selectedToDate} />
                         </div>
-                        <div className="col-12 d-flex gap-2 justify-content-start justify-content-md-end pt-1">
+                        <div className="col-12 col-md-6 col-lg-2 d-flex gap-2 justify-content-start justify-content-lg-end">
                             <Button type="submit" variant="primary" size="sm">Apply</Button>
                             <Button type="button" variant="outline-secondary" href="/transactions" size="sm">Reset</Button>
                         </div>

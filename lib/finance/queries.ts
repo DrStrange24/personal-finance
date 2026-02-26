@@ -52,10 +52,6 @@ const sumTransactionKind = (
     return Number(row?._sum.amountPhp ?? 0);
 };
 
-const toOutstandingDebt = (balance: number) => {
-    return Math.abs(balance);
-};
-
 export const getDashboardSummary = async (userId: string, entityId: string): Promise<DashboardSummary> => {
     return getDashboardSummaryWithScope(userId, entityId);
 };
@@ -70,9 +66,19 @@ const getDashboardSummaryWithScope = async (userId: string, entityId?: string): 
 
     try {
         const monthStart = startOfMonth();
-        const [walletByType, investments, budgetBySystem, monthTransactionsByKind, incomeStreamAggregate] = await Promise.all([
+        const [walletByType, creditUsageAggregate, investments, budgetBySystem, monthTransactionsByKind, incomeStreamAggregate] = await Promise.all([
             prisma.walletAccount.groupBy({
                 by: ["type"],
+                where: {
+                    userId,
+                    ...(entityId ? { entityId } : { entity: { isArchived: false } }),
+                    isArchived: false,
+                },
+                _sum: {
+                    currentBalanceAmount: true,
+                },
+            }),
+            prisma.creditAccount.aggregate({
                 where: {
                     userId,
                     ...(entityId ? { entityId } : { entity: { isArchived: false } }),
@@ -151,18 +157,15 @@ const getDashboardSummaryWithScope = async (userId: string, entityId?: string): 
 
         let totalWalletBalancePhp = 0;
         let totalAllWalletsPhp = 0;
-        let totalCreditCardDebtPhp = 0;
         for (const wallet of walletByType) {
             const amount = Number(wallet._sum.currentBalanceAmount ?? 0);
             totalAllWalletsPhp += amount;
 
-            if (wallet.type === WalletAccountType.CREDIT_CARD) {
-                totalCreditCardDebtPhp += toOutstandingDebt(amount);
-            }
             if (wallet.type !== WalletAccountType.CREDIT_CARD && wallet.type !== WalletAccountType.ASSET) {
                 totalWalletBalancePhp += amount;
             }
         }
+        const totalCreditCardDebtPhp = Number(creditUsageAggregate._sum.currentBalanceAmount ?? 0);
 
         let budgetAvailablePhp = 0;
         let totalCreditPaymentReservePhp = 0;
@@ -200,7 +203,7 @@ const getDashboardSummaryWithScope = async (userId: string, entityId?: string): 
             totalInvestmentPhp: totalEstimatedInvestmentsPhp,
             netPositionPhp: totalWalletBalancePhp - totalCreditCardDebtPhp,
             budgetAvailablePhp,
-            unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditPaymentReservePhp),
+            unallocatedCashPhp: totalWalletBalancePhp - (budgetAvailablePhp + totalCreditCardDebtPhp),
             monthlyTotalIncomePhp,
             monthIncomePhp,
             monthExpensePhp,
