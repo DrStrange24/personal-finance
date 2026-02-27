@@ -79,8 +79,8 @@ export default function BudgetEnvelopeTable({
                                 <tr>
                                     <th>Name</th>
                                     <th>Target</th>
-                                    <th>Max Allocation</th>
                                     <th>Available</th>
+                                    <th>Max Allocation</th>
                                     <th>% of Income</th>
                                     <th>Rollover</th>
                                     <th>Pay To</th>
@@ -99,8 +99,8 @@ export default function BudgetEnvelopeTable({
                                         <tr key={budget.id}>
                                             <td>{budget.name}</td>
                                             <td>{formatPhp(budget.monthlyTargetPhp)}</td>
-                                            <td>{budget.maxAllocationPhp === null ? "-" : formatPhp(budget.maxAllocationPhp)}</td>
                                             <td>{formatPhp(budget.availablePhp)}</td>
+                                            <td>{budget.maxAllocationPhp === null ? "-" : formatPhp(budget.maxAllocationPhp)}</td>
                                             <td>{formatIncomeSharePercent(budget.monthlyIncomeSharePercent)}</td>
                                             <td>{budget.rolloverEnabled ? "On" : "Off"}</td>
                                             <td>{budget.payTo?.trim() || "-"}</td>
