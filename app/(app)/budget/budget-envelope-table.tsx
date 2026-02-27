@@ -15,6 +15,7 @@ type BudgetEnvelopeRow = {
     id: string;
     name: string;
     monthlyTargetPhp: number;
+    monthlyIncomeSharePercent: number;
     availablePhp: number;
     spentPhp: number;
     remainingPhp: number;
@@ -36,6 +37,7 @@ export default function BudgetEnvelopeTable({
 }: BudgetEnvelopeTableProps) {
     const [editState, setEditState] = useState<BudgetEnvelopeRow | null>(null);
     const { showSuccess, showError } = useAppToast();
+    const formatIncomeSharePercent = (value: number) => `${value.toFixed(2)}%`;
 
     const submitUpdateBudgetEnvelope = async (formData: FormData) => {
         try {
@@ -77,6 +79,7 @@ export default function BudgetEnvelopeTable({
                                     <th>Name</th>
                                     <th>Target</th>
                                     <th>Available</th>
+                                    <th>% of Income</th>
                                     <th>Rollover</th>
                                     <th>Pay To</th>
                                     <th>Actions</th>
@@ -85,7 +88,7 @@ export default function BudgetEnvelopeTable({
                             <tbody>
                                 {budgets.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No budget envelopes yet.
                                         </td>
                                     </tr>
@@ -95,6 +98,7 @@ export default function BudgetEnvelopeTable({
                                             <td>{budget.name}</td>
                                             <td>{formatPhp(budget.monthlyTargetPhp)}</td>
                                             <td>{formatPhp(budget.availablePhp)}</td>
+                                            <td>{formatIncomeSharePercent(budget.monthlyIncomeSharePercent)}</td>
                                             <td>{budget.rolloverEnabled ? "On" : "Off"}</td>
                                             <td>{budget.payTo?.trim() || "-"}</td>
                                             <td>

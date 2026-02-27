@@ -294,6 +294,16 @@ export default async function BudgetPage() {
         remarks: budget.remarks,
         rolloverEnabled: budget.rolloverEnabled,
     }));
+    const totalMonthlyIncomePhp = context.incomes.reduce(
+        (total, income) => total + Number(income.defaultAmountPhp),
+        0,
+    );
+    const budgetRowsWithIncomeShare = budgetRows.map((budget) => ({
+        ...budget,
+        monthlyIncomeSharePercent: totalMonthlyIncomePhp > 0
+            ? (budget.monthlyTargetPhp / totalMonthlyIncomePhp) * 100
+            : 0,
+    }));
     const totalWalletBalancePhp = context.wallets.reduce((total, wallet) => {
         if (wallet.type === WalletAccountType.CREDIT_CARD || wallet.type === WalletAccountType.ASSET) {
             return total;
@@ -348,7 +358,7 @@ export default async function BudgetPage() {
             </div>
 
             <BudgetEnvelopeTable
-                budgets={budgetRows}
+                budgets={budgetRowsWithIncomeShare}
                 updateBudgetEnvelopeAction={updateBudgetEnvelopeAction}
                 deleteBudgetEnvelopeAction={deleteBudgetEnvelopeAction}
             />
