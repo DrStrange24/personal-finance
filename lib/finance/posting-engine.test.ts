@@ -565,6 +565,24 @@ describe("posting-engine", () => {
         expect(envelopeAvailable(state, "budget_1")).toBe(450);
     });
 
+    it("allows EXPENSE even when budget envelope goes negative", async () => {
+        state.budgetEnvelopes[0].availablePhp = toDecimal(40);
+
+        await postFinanceTransaction({
+            userId: "u1",
+            entityId: "e1",
+            actorUserId: "u1",
+            kind: "EXPENSE",
+            amountPhp: 150,
+            walletAccountId: "cash_1",
+            budgetEnvelopeId: "budget_1",
+            remarks: "Over budget expense",
+        });
+
+        expect(walletBalance(state, "cash_1")).toBe(850);
+        expect(envelopeAvailable(state, "budget_1")).toBe(-110);
+    });
+
     it("posts BUDGET_ALLOCATION", async () => {
         await postFinanceTransaction({
             userId: "u1",
@@ -610,6 +628,25 @@ describe("posting-engine", () => {
             budgetEnvelopeId: "budget_1",
             remarks: "Big charge",
         })).rejects.toThrow("Credit card charge exceeds credit limit.");
+    });
+
+    it("allows CREDIT_CARD_CHARGE even when budget envelope goes negative", async () => {
+        state.budgetEnvelopes[0].availablePhp = toDecimal(10);
+
+        await postFinanceTransaction({
+            userId: "u1",
+            entityId: "e1",
+            actorUserId: "u1",
+            kind: "CREDIT_CARD_CHARGE",
+            amountPhp: 40,
+            walletAccountId: "cc_1",
+            budgetEnvelopeId: "budget_1",
+            remarks: "Over budget credit charge",
+        });
+
+        expect(walletBalance(state, "cc_1")).toBe(240);
+        expect(envelopeAvailable(state, "budget_1")).toBe(-30);
+        expect(envelopeAvailable(state, "ccpay_1")).toBe(240);
     });
 
     it("auto-creates per-card payment reserve envelope on credit card charge", async () => {
