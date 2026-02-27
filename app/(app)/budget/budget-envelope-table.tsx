@@ -15,6 +15,7 @@ type BudgetEnvelopeRow = {
     id: string;
     name: string;
     monthlyTargetPhp: number;
+    maxAllocationPhp: number | null;
     monthlyIncomeSharePercent: number;
     availablePhp: number;
     spentPhp: number;
@@ -78,6 +79,7 @@ export default function BudgetEnvelopeTable({
                                 <tr>
                                     <th>Name</th>
                                     <th>Target</th>
+                                    <th>Max Allocation</th>
                                     <th>Available</th>
                                     <th>% of Income</th>
                                     <th>Rollover</th>
@@ -88,7 +90,7 @@ export default function BudgetEnvelopeTable({
                             <tbody>
                                 {budgets.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+                                        <td colSpan={8} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
                                             No budget envelopes yet.
                                         </td>
                                     </tr>
@@ -97,6 +99,7 @@ export default function BudgetEnvelopeTable({
                                         <tr key={budget.id}>
                                             <td>{budget.name}</td>
                                             <td>{formatPhp(budget.monthlyTargetPhp)}</td>
+                                            <td>{budget.maxAllocationPhp === null ? "-" : formatPhp(budget.maxAllocationPhp)}</td>
                                             <td>{formatPhp(budget.availablePhp)}</td>
                                             <td>{formatIncomeSharePercent(budget.monthlyIncomeSharePercent)}</td>
                                             <td>{budget.rolloverEnabled ? "On" : "Off"}</td>
@@ -160,6 +163,20 @@ export default function BudgetEnvelopeTable({
                                 min="0"
                                 step="0.01"
                                 required
+                            />
+                        </div>
+                        <div className="d-grid gap-1">
+                            <label htmlFor="edit-budget-max-allocation" className="small fw-semibold">Max Allocation (PHP)</label>
+                            <input
+                                id="edit-budget-max-allocation"
+                                type="number"
+                                name="maxAllocationPhp"
+                                defaultValue={editState?.maxAllocationPhp === null || editState?.maxAllocationPhp === undefined ? "" : editState.maxAllocationPhp.toFixed(2)}
+                                key={editState?.id ? `${editState.id}-max-allocation` : "edit-budget-max-allocation-empty"}
+                                className="form-control"
+                                min="0"
+                                step="0.01"
+                                placeholder="Optional"
                             />
                         </div>
                         <div className="d-grid gap-1">

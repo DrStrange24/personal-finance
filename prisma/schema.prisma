@@ -202,6 +202,7 @@ model BudgetEnvelope {
   entityId              String?
   name                  String
   monthlyTargetPhp      Decimal                   @default(0)
+  maxAllocationPhp      Decimal?
   availablePhp          Decimal                   @default(0)
   rolloverEnabled       Boolean                   @default(true)
   payTo                 String?

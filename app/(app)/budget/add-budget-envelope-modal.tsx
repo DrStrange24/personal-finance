@@ -50,6 +50,10 @@ export default function AddBudgetEnvelopeModal({
                             <input id="budget-monthly-target" type="number" name="monthlyTargetPhp" className="form-control" min="0" step="0.01" required />
                         </div>
                         <div className="d-grid gap-1">
+                            <label htmlFor="budget-max-allocation" className="small fw-semibold">Max Allocation (PHP)</label>
+                            <input id="budget-max-allocation" type="number" name="maxAllocationPhp" className="form-control" min="0" step="0.01" placeholder="Optional" />
+                        </div>
+                        <div className="d-grid gap-1">
                             <label htmlFor="budget-pay-to" className="small fw-semibold">Pay To</label>
                             <input id="budget-pay-to" type="text" name="payTo" className="form-control" maxLength={80} />
                         </div>

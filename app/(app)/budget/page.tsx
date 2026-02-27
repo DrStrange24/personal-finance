@@ -8,7 +8,7 @@ import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { formatPhp } from "@/lib/finance/money";
 import { parseMoneyInput, parseOptionalText } from "@/lib/finance/money";
-import { postFinanceTransaction } from "@/lib/finance/posting-engine";
+import { postFinanceTransactionsBatch } from "@/lib/finance/posting-engine";
 import { calculateUnallocatedBudgetPhp, getBudgetStatsAcrossEntities } from "@/lib/finance/queries";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
@@ -29,6 +29,10 @@ type BudgetActionResult = {
     message: string;
 };
 
+const NEEDS_WANTS_ENVELOPE_NAME = "Needs/Wants";
+
+const normalizeMoney = (value: number) => Math.round(value * 100) / 100;
+
 export default async function BudgetPage() {
     const session = await getAuthenticatedEntitySession();
     await Promise.all(session.entities.map((entity) => ensureFinanceBootstrap(session.userId, entity.id)));
@@ -39,6 +43,7 @@ export default async function BudgetPage() {
         const actionSession = await getAuthenticatedEntitySession();
         const name = parseRequiredName(formData.get("name"));
         const monthlyTargetResult = parseMoneyInput(formData.get("monthlyTargetPhp"), true);
+        const maxAllocationResult = parseMoneyInput(formData.get("maxAllocationPhp"), false);
         const payToResult = parseOptionalText(formData.get("payTo"), 80);
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
 
@@ -46,6 +51,7 @@ export default async function BudgetPage() {
             !name
             || !monthlyTargetResult.ok
             || monthlyTargetResult.value === null
+            || !maxAllocationResult.ok
             || !payToResult.ok
             || !remarksResult.ok
         ) {
@@ -70,6 +76,7 @@ export default async function BudgetPage() {
                     entityId: actionSession.activeEntity.id,
                     name,
                     monthlyTargetPhp: monthlyTargetResult.value,
+                    maxAllocationPhp: maxAllocationResult.value,
                     availablePhp: 0,
                     payTo: payToResult.value,
                     remarks: remarksResult.value,
@@ -91,6 +98,7 @@ export default async function BudgetPage() {
         const actionSession = await getAuthenticatedEntitySession();
         const id = typeof formData.get("id") === "string" ? String(formData.get("id")).trim() : "";
         const monthlyTargetResult = parseMoneyInput(formData.get("monthlyTargetPhp"), true);
+        const maxAllocationResult = parseMoneyInput(formData.get("maxAllocationPhp"), false);
         const payToResult = parseOptionalText(formData.get("payTo"), 80);
         const remarksResult = parseOptionalText(formData.get("remarks"), 300);
         const rolloverEnabled = formData.get("rolloverEnabled") === "on";
@@ -99,6 +107,7 @@ export default async function BudgetPage() {
             !id
             || !monthlyTargetResult.ok
             || monthlyTargetResult.value === null
+            || !maxAllocationResult.ok
             || !payToResult.ok
             || !remarksResult.ok
         ) {
@@ -128,6 +137,7 @@ export default async function BudgetPage() {
                 },
                 data: {
                     monthlyTargetPhp: monthlyTargetResult.value,
+                    maxAllocationPhp: maxAllocationResult.value,
                     payTo: payToResult.value,
                     remarks: remarksResult.value,
                     rolloverEnabled,
@@ -244,28 +254,108 @@ export default async function BudgetPage() {
             if (!wallet?.entityId) {
                 return { ok: false, message: "Wallet account not found." };
             }
-            await postFinanceTransaction({
-                userId: actionSession.userId,
-                entityId: wallet.entityId,
-                actorUserId: actionSession.userId,
-                kind: "BUDGET_ALLOCATION",
-                postedAt,
-                amountPhp: amountResult.value,
-                walletAccountId,
-                budgetEnvelopeId,
-                remarks: remarksResult.value,
+
+            const targetEnvelope = await prisma.budgetEnvelope.findFirst({
+                where: {
+                    id: budgetEnvelopeId,
+                    userId: actionSession.userId,
+                    entityId: wallet.entityId,
+                    isArchived: false,
+                    isSystem: false,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    availablePhp: true,
+                    maxAllocationPhp: true,
+                },
             });
+
+            if (!targetEnvelope) {
+                return { ok: false, message: "Budget envelope not found." };
+            }
+
+            const requestedAmountPhp = amountResult.value;
+            let primaryAmountPhp = requestedAmountPhp;
+            let overflowAmountPhp = 0;
+            if (targetEnvelope.name !== NEEDS_WANTS_ENVELOPE_NAME && targetEnvelope.maxAllocationPhp !== null) {
+                const availablePhp = Number(targetEnvelope.availablePhp);
+                const maxAllocationPhp = Number(targetEnvelope.maxAllocationPhp);
+                const remainingCapacityPhp = normalizeMoney(Math.max(0, maxAllocationPhp - availablePhp));
+                primaryAmountPhp = normalizeMoney(Math.min(requestedAmountPhp, remainingCapacityPhp));
+                overflowAmountPhp = normalizeMoney(requestedAmountPhp - primaryAmountPhp);
+            }
+
+            let overflowEnvelopeId: string | null = null;
+            if (overflowAmountPhp > 0) {
+                const needsWantsEnvelope = await prisma.budgetEnvelope.findFirst({
+                    where: {
+                        userId: actionSession.userId,
+                        entityId: wallet.entityId,
+                        name: NEEDS_WANTS_ENVELOPE_NAME,
+                        isArchived: false,
+                        isSystem: false,
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+
+                if (!needsWantsEnvelope) {
+                    return {
+                        ok: false,
+                        message: `Overflow budget requires an active \"${NEEDS_WANTS_ENVELOPE_NAME}\" envelope.`,
+                    };
+                }
+
+                overflowEnvelopeId = needsWantsEnvelope.id;
+            }
+
+            const allocationTransactions = [
+                ...(primaryAmountPhp > 0
+                    ? [{
+                        userId: actionSession.userId,
+                        entityId: wallet.entityId,
+                        actorUserId: actionSession.userId,
+                        kind: "BUDGET_ALLOCATION" as const,
+                        postedAt,
+                        amountPhp: primaryAmountPhp,
+                        walletAccountId,
+                        budgetEnvelopeId: targetEnvelope.id,
+                        remarks: remarksResult.value,
+                    }]
+                    : []),
+                ...(overflowAmountPhp > 0 && overflowEnvelopeId
+                    ? [{
+                        userId: actionSession.userId,
+                        entityId: wallet.entityId,
+                        actorUserId: actionSession.userId,
+                        kind: "BUDGET_ALLOCATION" as const,
+                        postedAt,
+                        amountPhp: overflowAmountPhp,
+                        walletAccountId,
+                        budgetEnvelopeId: overflowEnvelopeId,
+                        remarks: remarksResult.value,
+                    }]
+                    : []),
+            ];
+
+            await postFinanceTransactionsBatch(allocationTransactions);
+
+            const message = overflowAmountPhp > 0
+                ? `Budget allocation posted. ${formatPhp(overflowAmountPhp)} overflow was moved to ${NEEDS_WANTS_ENVELOPE_NAME}.`
+                : "Budget allocation posted successfully.";
+
+            revalidatePath("/budget");
+            revalidatePath("/dashboard");
+            revalidatePath("/transactions");
+            return { ok: true, message };
         } catch (error) {
             return {
                 ok: false,
                 message: error instanceof Error ? error.message : "Could not allocate budget.",
             };
         }
-
-        revalidatePath("/budget");
-        revalidatePath("/dashboard");
-        revalidatePath("/transactions");
-        return { ok: true, message: "Budget allocation posted successfully." };
     };
 
     const [context, budgetStats] = await Promise.all([
@@ -287,6 +377,7 @@ export default async function BudgetPage() {
         id: budget.id,
         name: budget.name,
         monthlyTargetPhp: budget.monthlyTargetPhp,
+        maxAllocationPhp: budget.maxAllocationPhp === null ? null : Number(budget.maxAllocationPhp),
         availablePhp: budget.availablePhp,
         spentPhp: budget.spentPhp,
         remainingPhp: budget.remainingPhp,
