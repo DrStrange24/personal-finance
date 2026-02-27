@@ -1,4 +1,9 @@
 import { Prisma, TransactionKind, WalletAccountType } from "@prisma/client";
+import {
+    resolveBudgetAllocationEnvelopeEntityId,
+    resolveBudgetAllocationTransactions,
+    resolveFundingWalletAccountIdForBudgetAllocation,
+} from "@/lib/finance/budget-allocation";
 import { requireOwnedCreditAccount } from "@/lib/finance/entity-scoped-records";
 import { parseIncomeDistributionForm, parseTransactionForm } from "@/lib/finance/form-parsers";
 import {
@@ -25,7 +30,7 @@ type ValidParsedTransaction = {
     kind: TransactionKind;
     postedAt: Date;
     amountPhp: number;
-    walletAccountId: string;
+    walletAccountId: string | null;
     budgetEnvelopeId: string | null;
     targetWalletAccountId: string | null;
     incomeStreamId: string | null;
@@ -86,7 +91,7 @@ const parseAndValidateBaseTransaction = (formData: FormData): ValidParsedTransac
         || !parsed.kind
         || !parsed.postedAt
         || parsed.amountPhp === null
-        || !parsed.walletAccountId
+        || (parsed.kind !== TransactionKind.BUDGET_ALLOCATION && !parsed.walletAccountId)
     ) {
         throw new Error("Please provide valid transaction details.");
     }
@@ -111,7 +116,33 @@ export const resolvePostingEntityIdFromFormData = async (
     const walletAccountId = typeof params.formData.get("walletAccountId") === "string"
         ? String(params.formData.get("walletAccountId")).trim()
         : "";
+    const kind = typeof params.formData.get("kind") === "string"
+        ? String(params.formData.get("kind")).trim()
+        : "";
+
     if (!walletAccountId) {
+        if (kind === TransactionKind.BUDGET_ALLOCATION) {
+            const budgetEnvelopeId = typeof params.formData.get("budgetEnvelopeId") === "string"
+                ? String(params.formData.get("budgetEnvelopeId")).trim()
+                : "";
+            if (!budgetEnvelopeId) {
+                return { ok: false, message: "Missing budget envelope." };
+            }
+
+            try {
+                const entityId = await resolveBudgetAllocationEnvelopeEntityId(params.userId, budgetEnvelopeId);
+                return {
+                    ok: true,
+                    message: "Entity resolved.",
+                    entityId,
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    message: error instanceof Error ? error.message : "Budget envelope not found.",
+                };
+            }
+        }
         return { ok: false, message: "Missing wallet account." };
     }
 
@@ -169,11 +200,13 @@ export const postTransactionFromFormData = async (
 ): Promise<FinanceActionResult> => {
     try {
         const parsed = parseAndValidateBaseTransaction(params.formData);
-        const sourceWalletAccountId = await resolveSourceWalletAccountId(
-            params.userId,
-            params.entityId,
-            parsed.walletAccountId,
-        );
+        const sourceWalletAccountId = parsed.walletAccountId
+            ? await resolveSourceWalletAccountId(
+                params.userId,
+                params.entityId,
+                parsed.walletAccountId,
+            )
+            : await resolveFundingWalletAccountIdForBudgetAllocation(params.userId, params.entityId);
 
         if (parsed.kind === TransactionKind.INCOME && !parsed.recordOnly) {
             const distribution = parseIncomeDistributionForm(params.formData);
@@ -208,6 +241,19 @@ export const postTransactionFromFormData = async (
                     remarks: parsed.remarks,
                 })),
             );
+        } else if (parsed.kind === TransactionKind.BUDGET_ALLOCATION && parsed.budgetEnvelopeId) {
+            const { transactions } = await resolveBudgetAllocationTransactions({
+                userId: params.userId,
+                entityId: params.entityId,
+                actorUserId: params.actorUserId,
+                postedAt: parsed.postedAt,
+                requestedAmountPhp: parsed.amountPhp,
+                walletAccountId: sourceWalletAccountId,
+                budgetEnvelopeId: parsed.budgetEnvelopeId,
+                remarks: parsed.remarks,
+                recordOnly: parsed.recordOnly,
+            });
+            await postFinanceTransactionsBatch(transactions);
         } else {
             await postFinanceTransaction({
                 userId: params.userId,
@@ -244,32 +290,51 @@ export const updateTransactionFromFormData = async (
         fallbackRecordOnly?: boolean;
     },
 ): Promise<FinanceActionResult> => {
-    let createdTransactionId: string | null = null;
+    const createdTransactionIds: string[] = [];
 
     try {
         const parsed = parseAndValidateBaseTransaction(params.formData);
-        const sourceWalletAccountId = await resolveSourceWalletAccountId(
-            params.userId,
-            params.entityId,
-            parsed.walletAccountId,
-        );
+        const sourceWalletAccountId = parsed.walletAccountId
+            ? await resolveSourceWalletAccountId(
+                params.userId,
+                params.entityId,
+                parsed.walletAccountId,
+            )
+            : await resolveFundingWalletAccountIdForBudgetAllocation(params.userId, params.entityId);
+        const effectiveRecordOnly = parsed.recordOnly || params.fallbackRecordOnly;
 
-        const created = await postFinanceTransaction({
-            userId: params.userId,
-            entityId: params.entityId,
-            actorUserId: params.actorUserId,
-            kind: parsed.kind,
-            recordOnly: parsed.recordOnly || params.fallbackRecordOnly,
-            postedAt: parsed.postedAt,
-            amountPhp: parsed.amountPhp,
-            walletAccountId: sourceWalletAccountId,
-            budgetEnvelopeId: parsed.budgetEnvelopeId,
-            targetWalletAccountId: parsed.targetWalletAccountId,
-            incomeStreamId: parsed.incomeStreamId,
-            loanRecordId: parsed.loanRecordId,
-            remarks: parsed.remarks,
-        });
-        createdTransactionId = created.id;
+        if (parsed.kind === TransactionKind.BUDGET_ALLOCATION && parsed.budgetEnvelopeId) {
+            const { transactions } = await resolveBudgetAllocationTransactions({
+                userId: params.userId,
+                entityId: params.entityId,
+                actorUserId: params.actorUserId,
+                postedAt: parsed.postedAt,
+                requestedAmountPhp: parsed.amountPhp,
+                walletAccountId: sourceWalletAccountId,
+                budgetEnvelopeId: parsed.budgetEnvelopeId,
+                remarks: parsed.remarks,
+                recordOnly: effectiveRecordOnly,
+            });
+            const createdRows = await postFinanceTransactionsBatch(transactions);
+            createdTransactionIds.push(...createdRows.map((row) => row.id));
+        } else {
+            const created = await postFinanceTransaction({
+                userId: params.userId,
+                entityId: params.entityId,
+                actorUserId: params.actorUserId,
+                kind: parsed.kind,
+                recordOnly: effectiveRecordOnly,
+                postedAt: parsed.postedAt,
+                amountPhp: parsed.amountPhp,
+                walletAccountId: sourceWalletAccountId,
+                budgetEnvelopeId: parsed.budgetEnvelopeId,
+                targetWalletAccountId: parsed.targetWalletAccountId,
+                incomeStreamId: parsed.incomeStreamId,
+                loanRecordId: parsed.loanRecordId,
+                remarks: parsed.remarks,
+            });
+            createdTransactionIds.push(created.id);
+        }
 
         await deleteFinanceTransactionWithReversal(
             params.userId,
@@ -278,14 +343,16 @@ export const updateTransactionFromFormData = async (
             params.transactionId,
         );
     } catch (error) {
-        if (createdTransactionId) {
+        if (createdTransactionIds.length > 0) {
             try {
-                await deleteFinanceTransactionWithReversal(
-                    params.userId,
-                    params.entityId,
-                    params.actorUserId,
-                    createdTransactionId,
-                );
+                for (const createdId of createdTransactionIds.reverse()) {
+                    await deleteFinanceTransactionWithReversal(
+                        params.userId,
+                        params.entityId,
+                        params.actorUserId,
+                        createdId,
+                    );
+                }
             } catch {
                 return {
                     ok: false,

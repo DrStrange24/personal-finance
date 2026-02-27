@@ -12,7 +12,6 @@ type FormOption = {
 };
 
 type AllocateBudgetModalProps = {
-    wallets: FormOption[];
     budgets: FormOption[];
     postBudgetAllocationAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
 };
@@ -20,7 +19,6 @@ type AllocateBudgetModalProps = {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export default function AllocateBudgetModal({
-    wallets,
     budgets,
     postBudgetAllocationAction,
 }: AllocateBudgetModalProps) {
@@ -59,15 +57,6 @@ export default function AllocateBudgetModal({
                         <div className="d-grid gap-1">
                             <label htmlFor="allocate-amount" className="small fw-semibold">Amount (PHP)</label>
                             <input id="allocate-amount" type="number" name="amountPhp" className="form-control" min="0.01" step="0.01" required />
-                        </div>
-                        <div className="d-grid gap-1">
-                            <label htmlFor="allocate-wallet" className="small fw-semibold">Wallet</label>
-                            <select id="allocate-wallet" name="walletAccountId" className="form-control" required>
-                                <option value="">Select wallet</option>
-                                {wallets.map((wallet) => (
-                                    <option key={wallet.id} value={wallet.id}>{wallet.label}</option>
-                                ))}
-                            </select>
                         </div>
                         <div className="d-grid gap-1">
                             <label htmlFor="allocate-budget" className="small fw-semibold">Budget Envelope</label>

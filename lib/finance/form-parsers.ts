@@ -66,6 +66,7 @@ export const parseTransactionForm = (formData: FormData) => {
     const incomeStreamId = parseOptionalId(formData.get("incomeStreamId"));
     const loanRecordId = parseOptionalId(formData.get("loanRecordId"));
     const recordOnly = parseCheckboxFlag(formData.get("recordOnly"));
+    const walletIsRequired = kind !== TransactionKind.BUDGET_ALLOCATION;
 
     const ok = Boolean(
         kind
@@ -73,7 +74,7 @@ export const parseTransactionForm = (formData: FormData) => {
         && amountResult.ok
         && amountResult.value !== null
         && remarksResult.ok
-        && walletAccountId,
+        && (walletIsRequired ? walletAccountId : true),
     );
 
     return {

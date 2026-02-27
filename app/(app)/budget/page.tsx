@@ -4,6 +4,12 @@ import AddBudgetEnvelopeModal from "./add-budget-envelope-modal";
 import AllocateBudgetModal from "./allocate-budget-modal";
 import BudgetEnvelopeTable from "./budget-envelope-table";
 import MetricCard from "@/app/components/finance/metric-card";
+import {
+    NEEDS_WANTS_ENVELOPE_NAME,
+    resolveBudgetAllocationEnvelopeEntityId,
+    resolveBudgetAllocationTransactions,
+    resolveFundingWalletAccountIdForBudgetAllocation,
+} from "@/lib/finance/budget-allocation";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { formatPhp } from "@/lib/finance/money";
@@ -28,10 +34,6 @@ type BudgetActionResult = {
     ok: boolean;
     message: string;
 };
-
-const NEEDS_WANTS_ENVELOPE_NAME = "Needs/Wants";
-
-const normalizeMoney = (value: number) => Math.round(value * 100) / 100;
 
 export default async function BudgetPage() {
     const session = await getAuthenticatedEntitySession();
@@ -213,9 +215,6 @@ export default async function BudgetPage() {
 
         const postedAtRaw = formData.get("postedAt");
         const amountResult = parseMoneyInput(formData.get("amountPhp"), true);
-        const walletAccountId = typeof formData.get("walletAccountId") === "string"
-            ? String(formData.get("walletAccountId")).trim()
-            : "";
         const budgetEnvelopeId = typeof formData.get("budgetEnvelopeId") === "string"
             ? String(formData.get("budgetEnvelopeId")).trim()
             : "";
@@ -225,7 +224,6 @@ export default async function BudgetPage() {
             typeof postedAtRaw !== "string"
             || !amountResult.ok
             || amountResult.value === null
-            || !walletAccountId
             || !budgetEnvelopeId
             || !remarksResult.ok
         ) {
@@ -238,107 +236,19 @@ export default async function BudgetPage() {
         }
 
         try {
-            const wallet = await prisma.walletAccount.findFirst({
-                where: {
-                    id: walletAccountId,
-                    userId: actionSession.userId,
-                    isArchived: false,
-                    entity: {
-                        isArchived: false,
-                    },
-                },
-                select: {
-                    entityId: true,
-                },
+            const entityId = await resolveBudgetAllocationEnvelopeEntityId(actionSession.userId, budgetEnvelopeId);
+            const walletAccountId = await resolveFundingWalletAccountIdForBudgetAllocation(actionSession.userId, entityId);
+
+            const { transactions: allocationTransactions, overflowAmountPhp } = await resolveBudgetAllocationTransactions({
+                userId: actionSession.userId,
+                entityId,
+                actorUserId: actionSession.userId,
+                postedAt,
+                requestedAmountPhp: amountResult.value,
+                walletAccountId,
+                budgetEnvelopeId,
+                remarks: remarksResult.value,
             });
-            if (!wallet?.entityId) {
-                return { ok: false, message: "Wallet account not found." };
-            }
-
-            const targetEnvelope = await prisma.budgetEnvelope.findFirst({
-                where: {
-                    id: budgetEnvelopeId,
-                    userId: actionSession.userId,
-                    entityId: wallet.entityId,
-                    isArchived: false,
-                    isSystem: false,
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    availablePhp: true,
-                    maxAllocationPhp: true,
-                },
-            });
-
-            if (!targetEnvelope) {
-                return { ok: false, message: "Budget envelope not found." };
-            }
-
-            const requestedAmountPhp = amountResult.value;
-            let primaryAmountPhp = requestedAmountPhp;
-            let overflowAmountPhp = 0;
-            if (targetEnvelope.name !== NEEDS_WANTS_ENVELOPE_NAME && targetEnvelope.maxAllocationPhp !== null) {
-                const availablePhp = Number(targetEnvelope.availablePhp);
-                const maxAllocationPhp = Number(targetEnvelope.maxAllocationPhp);
-                const remainingCapacityPhp = normalizeMoney(Math.max(0, maxAllocationPhp - availablePhp));
-                primaryAmountPhp = normalizeMoney(Math.min(requestedAmountPhp, remainingCapacityPhp));
-                overflowAmountPhp = normalizeMoney(requestedAmountPhp - primaryAmountPhp);
-            }
-
-            let overflowEnvelopeId: string | null = null;
-            if (overflowAmountPhp > 0) {
-                const needsWantsEnvelope = await prisma.budgetEnvelope.findFirst({
-                    where: {
-                        userId: actionSession.userId,
-                        entityId: wallet.entityId,
-                        name: NEEDS_WANTS_ENVELOPE_NAME,
-                        isArchived: false,
-                        isSystem: false,
-                    },
-                    select: {
-                        id: true,
-                    },
-                });
-
-                if (!needsWantsEnvelope) {
-                    return {
-                        ok: false,
-                        message: `Overflow budget requires an active \"${NEEDS_WANTS_ENVELOPE_NAME}\" envelope.`,
-                    };
-                }
-
-                overflowEnvelopeId = needsWantsEnvelope.id;
-            }
-
-            const allocationTransactions = [
-                ...(primaryAmountPhp > 0
-                    ? [{
-                        userId: actionSession.userId,
-                        entityId: wallet.entityId,
-                        actorUserId: actionSession.userId,
-                        kind: "BUDGET_ALLOCATION" as const,
-                        postedAt,
-                        amountPhp: primaryAmountPhp,
-                        walletAccountId,
-                        budgetEnvelopeId: targetEnvelope.id,
-                        remarks: remarksResult.value,
-                    }]
-                    : []),
-                ...(overflowAmountPhp > 0 && overflowEnvelopeId
-                    ? [{
-                        userId: actionSession.userId,
-                        entityId: wallet.entityId,
-                        actorUserId: actionSession.userId,
-                        kind: "BUDGET_ALLOCATION" as const,
-                        postedAt,
-                        amountPhp: overflowAmountPhp,
-                        walletAccountId,
-                        budgetEnvelopeId: overflowEnvelopeId,
-                        remarks: remarksResult.value,
-                    }]
-                    : []),
-            ];
 
             await postFinanceTransactionsBatch(allocationTransactions);
 
@@ -363,10 +273,6 @@ export default async function BudgetPage() {
         getBudgetStatsAcrossEntities(session.userId),
     ]);
 
-    const walletOptions = context.wallets.map((wallet) => ({
-        id: wallet.id,
-        label: `${wallet.name} (${wallet.entity?.name ?? "Entity"})`,
-    }));
     const budgetOptions = context.budgets
         .filter((budget) => !budget.isSystem)
         .map((budget) => ({
@@ -433,7 +339,6 @@ export default async function BudgetPage() {
 
             <div className="d-flex justify-content-end gap-2">
                 <AllocateBudgetModal
-                    wallets={walletOptions}
                     budgets={budgetOptions}
                     postBudgetAllocationAction={postBudgetAllocationAction}
                 />

@@ -96,6 +96,7 @@ export default function AddTransactionModal({
     const supportsLoan = !recordOnly && kindsSupportingLoan.has(kind);
     const isIncome = !recordOnly && kind === "INCOME";
     const isExpense = !recordOnly && kind === "EXPENSE";
+    const hidesWalletSelector = kind === "BUDGET_ALLOCATION";
     const showBudgetSelector = requiresBudget || recordOnly;
 
     const visibleKinds = useMemo(() => allKinds, []);
@@ -103,6 +104,9 @@ export default function AddTransactionModal({
         if (kind === "CREDIT_CARD_CHARGE") {
             const creditWallets = wallets.filter((wallet) => wallet.type === "CREDIT_CARD");
             return creditWallets.length > 0 ? creditWallets : creditAccounts;
+        }
+        if (kind === "BUDGET_ALLOCATION") {
+            return wallets.filter((wallet) => wallet.type !== "CREDIT_CARD" && wallet.type !== "ASSET");
         }
         if (kind === "CREDIT_CARD_PAYMENT") {
             return wallets.filter((wallet) => wallet.type !== "CREDIT_CARD");
@@ -317,31 +321,35 @@ export default function AddTransactionModal({
                             </div>
                         )}
 
-                        <div className="d-grid gap-1">
-                            <label htmlFor="tx-wallet" className="small fw-semibold">{walletFieldLabel}</label>
-                            <select
-                                id="tx-wallet"
-                                name="walletAccountId"
-                                className="form-control"
-                                value={walletAccountId}
-                                onChange={(event) => setWalletAccountId(event.target.value)}
-                                required
-                            >
-                                <option value="">
-                                    {walletFieldLabel === "Credit Account" ? "Select credit account" : "Select wallet"}
-                                </option>
-                                {sourceWallets.map((wallet) => (
-                                    <option key={wallet.id} value={wallet.id}>
-                                        {recordOnly ? (wallet.plainLabel ?? wallet.label) : wallet.label}
+                        {hidesWalletSelector ? (
+                            <input type="hidden" name="walletAccountId" value="" />
+                        ) : (
+                            <div className="d-grid gap-1">
+                                <label htmlFor="tx-wallet" className="small fw-semibold">{walletFieldLabel}</label>
+                                <select
+                                    id="tx-wallet"
+                                    name="walletAccountId"
+                                    className="form-control"
+                                    value={walletAccountId}
+                                    onChange={(event) => setWalletAccountId(event.target.value)}
+                                    required
+                                >
+                                    <option value="">
+                                        {walletFieldLabel === "Credit Account" ? "Select credit account" : "Select wallet"}
                                     </option>
-                                ))}
-                            </select>
-                            {(walletFieldLabel === "Credit Account") && sourceWallets.length === 0 && (
-                                <small style={{ color: "var(--color-text-muted)" }}>
-                                    No credit account found. Add one in Credit or add a Credit Card wallet.
-                                </small>
-                            )}
-                        </div>
+                                    {sourceWallets.map((wallet) => (
+                                        <option key={wallet.id} value={wallet.id}>
+                                            {recordOnly ? (wallet.plainLabel ?? wallet.label) : wallet.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {(walletFieldLabel === "Credit Account") && sourceWallets.length === 0 && (
+                                    <small style={{ color: "var(--color-text-muted)" }}>
+                                        No credit account found. Add one in Credit or add a Credit Card wallet.
+                                    </small>
+                                )}
+                            </div>
+                        )}
 
                         {requiresTargetWallet ? (
                             <div className="d-grid gap-1">
