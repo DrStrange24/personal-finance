@@ -684,8 +684,6 @@ const applyPostingEffects = async (
             }
             if (!reverse) {
                 assertWalletCanDecrease(context.sourceWallet, positive, "Insufficient wallet funds for budget allocation.");
-            } else {
-                assertEnvelopeCanDecrease(context.budgetEnvelope, positive, "Cannot reverse allocation because budget envelope would go negative.");
             }
             await updateWalletBalance(tx, params.userId, params.entityId, context.sourceWallet, direction === 1 ? negative : positive);
             await updateEnvelopeBalance(tx, context.budgetEnvelope.id, direction === 1 ? positive : negative);

@@ -839,6 +839,26 @@ describe("posting-engine", () => {
         expect(reversal?.isReversal).toBe(true);
     });
 
+    it("allows reversing BUDGET_ALLOCATION even when envelope goes negative", async () => {
+        const created = await postFinanceTransaction({
+            userId: "u1",
+            entityId: "e1",
+            actorUserId: "u1",
+            kind: "BUDGET_ALLOCATION",
+            amountPhp: 200,
+            walletAccountId: "cash_1",
+            budgetEnvelopeId: "budget_1",
+            remarks: "Top-up",
+        });
+
+        state.budgetEnvelopes[0].availablePhp = toDecimal(50);
+
+        await deleteFinanceTransactionWithReversal("u1", "e1", "u1", created.id);
+
+        expect(walletBalance(state, "cash_1")).toBe(1000);
+        expect(envelopeAvailable(state, "budget_1")).toBe(-150);
+    });
+
     it.each([
         {
             label: "INCOME",
