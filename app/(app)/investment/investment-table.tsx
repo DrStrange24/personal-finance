@@ -8,7 +8,9 @@ import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 
 type InvestmentRow = {
@@ -41,6 +43,7 @@ export default function InvestmentTable({
 }: InvestmentTableProps) {
     const [editState, setEditState] = useState<InvestmentRow | null>(null);
     const { showSuccess, showError } = useAppToast();
+    const { isHidden } = useAmountVisibility();
 
     const submitUpdateInvestment = async (formData: FormData) => {
         try {
@@ -101,11 +104,11 @@ export default function InvestmentTable({
                                         <tr key={investment.id}>
                                             <td>{investment.name}</td>
                                             <td>{investment.entityName}</td>
-                                            <td>{formatPhp(investment.initialInvestmentPhp)}</td>
+                                            <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(investment.initialInvestmentPhp)}</td>
                                             <td>{unitFormatter.format(investment.value)} {investment.symbol}</td>
-                                            <td>{investment.estimatedPhpValue === null ? "-" : formatPhp(investment.estimatedPhpValue)}</td>
+                                            <td>{investment.estimatedPhpValue === null ? "-" : isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(investment.estimatedPhpValue)}</td>
                                             <td className={investment.gainLossPhp === null ? "" : investment.gainLossPhp >= 0 ? "text-success" : "text-danger"}>
-                                                {investment.gainLossPhp === null ? "-" : formatPhp(investment.gainLossPhp)}
+                                                {investment.gainLossPhp === null ? "-" : isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(investment.gainLossPhp)}
                                             </td>
                                             <td style={{ maxWidth: "20rem" }}>{investment.remarks?.trim() || "-"}</td>
                                             <td>

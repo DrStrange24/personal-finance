@@ -7,7 +7,9 @@ import CardBody from "react-bootstrap/CardBody";
 import Modal from "react-bootstrap/Modal";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 import styles from "./page.module.scss";
 
@@ -49,6 +51,7 @@ export default function WalletAccountGrid({
 }: WalletAccountGridProps) {
     const [editState, setEditState] = useState<EditState>(null);
     const { showSuccess, showError } = useAppToast();
+    const { isHidden } = useAmountVisibility();
 
     const submitUpdateWalletAccount = async (formData: FormData) => {
         try {
@@ -106,7 +109,9 @@ export default function WalletAccountGrid({
                                                         {account.entityName} ({account.entityType === "PERSONAL" ? "Personal" : "Business"})
                                                     </small>
                                                 </div>
-                                                <p className={`m-0 fw-semibold ${account.type === "CREDIT_CARD" ? "text-danger" : ""}`}>{formatPhp(account.currentBalanceAmount)}</p>
+                                                <p className={`m-0 fw-semibold ${account.type === "CREDIT_CARD" ? "text-danger" : ""}`}>
+                                                    {isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(account.currentBalanceAmount)}
+                                                </p>
                                             </div>
 
                                             <div className="d-flex gap-2 pt-1">

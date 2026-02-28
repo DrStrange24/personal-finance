@@ -5,7 +5,9 @@ import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 
 type EntryRow = {
     id: string;
@@ -88,6 +90,7 @@ export default function MonthlyOverviewEntryTable({
     const [editState, setEditState] = useState<EditState>(null);
     const [deleteState, setDeleteState] = useState<DeleteState>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const { isHidden } = useAmountVisibility();
     const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
     const safeCurrentPage = Math.min(currentPage, totalPages);
     const startIndex = (safeCurrentPage - 1) * pageSize;
@@ -182,9 +185,9 @@ export default function MonthlyOverviewEntryTable({
                                 <tr key={entry.id}>
                                     <td>{overallIndex + 1}</td>
                                     <td>{entry.entryDateLabel}</td>
-                                    <td>{entry.walletAmountLabel}</td>
+                                    <td>{isHidden ? HIDDEN_AMOUNT_MASK : entry.walletAmountLabel}</td>
                                     <td className={increaseTextClass}>
-                                        {increasedAmount === null ? "-" : formatSignedCurrencyDelta(increasedAmount)}
+                                        {increasedAmount === null ? "-" : isHidden ? HIDDEN_AMOUNT_MASK : formatSignedCurrencyDelta(increasedAmount)}
                                     </td>
                                     <td className={increaseTextClass}>
                                         {increasedPercent === null ? "-" : `${formatSignedPercent(increasedPercent)}%`}
@@ -366,7 +369,7 @@ export default function MonthlyOverviewEntryTable({
                         <input type="hidden" name="id" value={deleteState?.id ?? ""} />
                         <p className="m-0">Delete this monthly overview entry?</p>
                         <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>
-                            {deleteState ? `${deleteState.entryDateLabel} - ${deleteState.walletAmountLabel}` : ""}
+                            {deleteState ? `${deleteState.entryDateLabel} - ${isHidden ? HIDDEN_AMOUNT_MASK : deleteState.walletAmountLabel}` : ""}
                         </p>
                     </Modal.Body>
                     <Modal.Footer>

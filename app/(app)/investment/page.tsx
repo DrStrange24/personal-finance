@@ -3,6 +3,7 @@ import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import AddInvestmentModal from "./add-investment-modal";
 import InvestmentTable from "./investment-table";
+import AmountText from "@/app/components/finance/amount-text";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getCoinsPhEstimatedValuePhp } from "@/lib/finance/coins-ph";
 import {
@@ -260,20 +261,20 @@ export default async function InvestmentPage() {
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Initial</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totals.totalInitialPhp)}</p>
+                        <p className="m-0 fs-5 fw-semibold"><AmountText value={formatPhp(totals.totalInitialPhp)} /></p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Est. PHP Value</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totals.totalEstimatedPhp)}</p>
+                        <p className="m-0 fs-5 fw-semibold"><AmountText value={formatPhp(totals.totalEstimatedPhp)} /></p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Gain/Loss</small>
                         <p className={`m-0 fs-5 fw-semibold ${totalGainLossPhp >= 0 ? "text-success" : "text-danger"}`}>
-                            {formatPhp(totalGainLossPhp)}
+                            <AmountText value={formatPhp(totalGainLossPhp)} />
                         </p>
                     </CardBody>
                 </Card>

@@ -64,6 +64,7 @@
     - confirm-submit-icon-button.tsx
     - toast-provider.tsx
     - finance/
+      - amount-text.tsx (shared amount renderer that applies global hide/show masking)
       - metric-card.tsx
       - toggleable-metric-card-grid.tsx (shared metric-card grid with global hide/show-all toggle + local storage persistence)
       - use-amount-visibility.ts (shared amount hide/show state hook synchronized via localStorage and window event)

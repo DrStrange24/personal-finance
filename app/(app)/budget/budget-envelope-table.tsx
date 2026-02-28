@@ -8,7 +8,9 @@ import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 
 type BudgetEnvelopeRow = {
@@ -38,6 +40,7 @@ export default function BudgetEnvelopeTable({
 }: BudgetEnvelopeTableProps) {
     const [editState, setEditState] = useState<BudgetEnvelopeRow | null>(null);
     const { showSuccess, showError } = useAppToast();
+    const { isHidden } = useAmountVisibility();
     const formatIncomeSharePercent = (value: number) => `${value.toFixed(2)}%`;
 
     const submitUpdateBudgetEnvelope = async (formData: FormData) => {
@@ -98,9 +101,9 @@ export default function BudgetEnvelopeTable({
                                     budgets.map((budget) => (
                                         <tr key={budget.id}>
                                             <td>{budget.name}</td>
-                                            <td>{formatPhp(budget.monthlyTargetPhp)}</td>
-                                            <td>{formatPhp(budget.availablePhp)}</td>
-                                            <td>{budget.maxAllocationPhp === null ? "-" : formatPhp(budget.maxAllocationPhp)}</td>
+                                            <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(budget.monthlyTargetPhp)}</td>
+                                            <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(budget.availablePhp)}</td>
+                                            <td>{budget.maxAllocationPhp === null ? "-" : isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(budget.maxAllocationPhp)}</td>
                                             <td>{formatIncomeSharePercent(budget.monthlyIncomeSharePercent)}</td>
                                             <td>{budget.rolloverEnabled ? "On" : "Off"}</td>
                                             <td>{budget.payTo?.trim() || "-"}</td>

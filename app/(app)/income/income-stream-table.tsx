@@ -8,7 +8,9 @@ import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 
 type IncomeStreamRow = {
@@ -33,6 +35,7 @@ export default function IncomeStreamTable({
 }: IncomeStreamTableProps) {
     const [editState, setEditState] = useState<IncomeStreamRow | null>(null);
     const { showSuccess, showError } = useAppToast();
+    const { isHidden } = useAmountVisibility();
 
     const submitUpdateIncomeStream = async (formData: FormData) => {
         try {
@@ -91,7 +94,7 @@ export default function IncomeStreamTable({
                                         <tr key={stream.id}>
                                             <td>{stream.name}</td>
                                             <td>{stream.entityName}</td>
-                                            <td>{formatPhp(stream.defaultAmountPhp)}</td>
+                                            <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(stream.defaultAmountPhp)}</td>
                                             <td>{stream.isActive ? "Active" : "Inactive"}</td>
                                             <td style={{ maxWidth: "20rem" }}>{stream.remarks?.trim() || "-"}</td>
                                             <td>

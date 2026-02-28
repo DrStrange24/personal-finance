@@ -5,6 +5,7 @@ import CardBody from "react-bootstrap/CardBody";
 import AddWalletAccountModal from "./add-wallet-account-modal";
 import WalletAccountGrid from "./wallet-account-grid";
 import styles from "./page.module.scss";
+import AmountText from "@/app/components/finance/amount-text";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { formatPhp, parseMoneyInput } from "@/lib/finance/money";
 import { postFinanceTransaction } from "@/lib/finance/posting-engine";
@@ -260,7 +261,7 @@ export default async function WalletPage() {
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Wallet Total</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalNonCredit)}</p>
+                        <p className="m-0 fs-5 fw-semibold"><AmountText value={formatPhp(totalNonCredit)} /></p>
                     </CardBody>
                 </Card>
             </div>

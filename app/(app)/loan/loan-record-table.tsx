@@ -6,7 +6,9 @@ import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 
 type LoanRecordActionResult = {
@@ -46,6 +48,7 @@ export default function LoanRecordTable({
     const [editState, setEditState] = useState<LoanRow | null>(null);
     const [statusFilter, setStatusFilter] = useState<"NON_PAID" | "ALL" | LoanStatusValue>("NON_PAID");
     const { showError, showSuccess } = useAppToast();
+    const { isHidden } = useAmountVisibility();
     const visibleRows = statusFilter === "ALL"
         ? rows
         : statusFilter === "NON_PAID"
@@ -130,11 +133,11 @@ export default function LoanRecordTable({
                                     <tr key={loan.id}>
                                         <td>{loan.itemName}</td>
                                         <td>{loan.counterparty?.trim() || "-"}</td>
-                                        <td>{formatPhp(loan.principalPhp)}</td>
-                                        <td>{loan.monthlyDuePhp === null ? "-" : formatPhp(loan.monthlyDuePhp)}</td>
-                                        <td>{formatPhp(loan.paidToDatePhp)}</td>
+                                        <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(loan.principalPhp)}</td>
+                                        <td>{loan.monthlyDuePhp === null ? "-" : isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(loan.monthlyDuePhp)}</td>
+                                        <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(loan.paidToDatePhp)}</td>
                                         <td className={loan.remainingPhp > 0 ? remainingClassName : "text-success"}>
-                                            {formatPhp(loan.remainingPhp)}
+                                            {isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(loan.remainingPhp)}
                                         </td>
                                         <td>{loan.status}</td>
                                         <td>

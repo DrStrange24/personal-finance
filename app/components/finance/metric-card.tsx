@@ -1,6 +1,7 @@
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import type { CSSProperties } from "react";
+import AmountText from "@/app/components/finance/amount-text";
 
 type MetricCardProps = {
     label: string;
@@ -21,7 +22,7 @@ export default function MetricCard({ label, value, helper, className, style }: M
                     {label}
                 </small>
                 <p className="m-0 fs-5 fw-semibold" style={{ color: "var(--color-text-strong)" }}>
-                    {value}
+                    <AmountText value={value} />
                 </p>
                 {helper && (
                     <p className="m-0 small" style={{ color: "var(--color-text-muted)" }}>

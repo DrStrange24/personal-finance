@@ -8,7 +8,9 @@ import Modal from "react-bootstrap/Modal";
 import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 
 type CreditAccountRow = {
@@ -34,6 +36,7 @@ export default function CreditAccountTable({
 }: CreditAccountTableProps) {
     const [editState, setEditState] = useState<CreditAccountRow | null>(null);
     const { showSuccess, showError } = useAppToast();
+    const { isHidden } = useAmountVisibility();
 
     const submitUpdateCreditAccount = async (formData: FormData) => {
         try {
@@ -94,12 +97,12 @@ export default function CreditAccountTable({
                                         <tr key={account.id}>
                                             <td>{account.name}</td>
                                             <td>{account.entityName}</td>
-                                            <td>{formatPhp(account.creditLimitAmount)}</td>
-                                            <td className="text-danger">{formatPhp(account.currentBalanceAmount)}</td>
+                                            <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(account.creditLimitAmount)}</td>
+                                            <td className="text-danger">{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(account.currentBalanceAmount)}</td>
                                             <td className={account.creditLimitAmount - account.currentBalanceAmount >= 0 ? "text-success" : "text-danger"}>
-                                                {formatPhp(account.creditLimitAmount - account.currentBalanceAmount)}
+                                                {isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(account.creditLimitAmount - account.currentBalanceAmount)}
                                             </td>
-                                            <td>{formatPhp(account.paymentReservePhp)}</td>
+                                            <td>{isHidden ? HIDDEN_AMOUNT_MASK : formatPhp(account.paymentReservePhp)}</td>
                                             <td>{account.createdAtLabel}</td>
                                             <td>
                                                 <div className="d-flex align-items-center gap-2">

@@ -4,6 +4,7 @@ import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import AddCreditAccountModal from "./add-credit-account-modal";
 import CreditAccountTable from "./credit-account-table";
+import AmountText from "@/app/components/finance/amount-text";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { buildCreditCardPaymentEnvelopeName } from "@/lib/finance/credit-payment-envelope";
 import {
@@ -252,27 +253,27 @@ export default async function CreditPage() {
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Limit</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalLimitPhp)}</p>
+                        <p className="m-0 fs-5 fw-semibold"><AmountText value={formatPhp(totalLimitPhp)} /></p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Used</small>
-                        <p className="m-0 fs-5 fw-semibold text-danger">{formatPhp(totalUsedPhp)}</p>
+                        <p className="m-0 fs-5 fw-semibold text-danger"><AmountText value={formatPhp(totalUsedPhp)} /></p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Total Remaining</small>
                         <p className={`m-0 fs-5 fw-semibold ${totalRemainingPhp >= 0 ? "text-success" : "text-danger"}`}>
-                            {formatPhp(totalRemainingPhp)}
+                            <AmountText value={formatPhp(totalRemainingPhp)} />
                         </p>
                     </CardBody>
                 </Card>
                 <Card className="pf-surface-card">
                     <CardBody className="d-grid gap-1">
                         <small className="text-uppercase" style={{ letterSpacing: "0.08em", color: "var(--color-text-muted)" }}>Reserved For Payment</small>
-                        <p className="m-0 fs-5 fw-semibold">{formatPhp(totalReservePhp)}</p>
+                        <p className="m-0 fs-5 fw-semibold"><AmountText value={formatPhp(totalReservePhp)} /></p>
                     </CardBody>
                 </Card>
             </div>
