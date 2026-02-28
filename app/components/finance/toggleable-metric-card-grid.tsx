@@ -1,7 +1,7 @@
 "use client";
 
 import MetricCard from "@/app/components/finance/metric-card";
-import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
+import { HIDDEN_AMOUNT_MASK, useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 
 type MetricGridItem = {
     id: string;
@@ -58,7 +58,7 @@ export default function ToggleableMetricCardGrid({
                     <MetricCard
                         key={metric.id}
                         label={metric.label}
-                        value={isHidden ? "********" : metric.value}
+                        value={isHidden ? HIDDEN_AMOUNT_MASK : metric.value}
                         helper={metric.helper}
                     />
                 ))}

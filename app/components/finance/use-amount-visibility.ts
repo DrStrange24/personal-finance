@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const AMOUNT_VISIBILITY_EVENT = "pf-amount-visibility-change";
+export const HIDDEN_AMOUNT_MASK = "********";
 
 const readAmountVisibility = (storageKey: string): boolean => {
     if (typeof window === "undefined") {

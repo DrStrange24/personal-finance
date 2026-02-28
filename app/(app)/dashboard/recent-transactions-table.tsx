@@ -3,7 +3,7 @@
 import { TransactionKind } from "@prisma/client";
 import Table from "react-bootstrap/Table";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
-import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
+import { HIDDEN_AMOUNT_MASK, useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 
 type RecentTransactionRow = {
     id: string;
@@ -51,7 +51,7 @@ export default function RecentTransactionsTable({ rows, storageKey }: RecentTran
                             <tr key={row.id}>
                                 <td>{row.postedAtLabel}</td>
                                 <td><TransactionKindBadge kind={row.kind} /></td>
-                                <td className={row.amountClassName}>{isHidden ? "********" : row.amountLabel}</td>
+                                <td className={row.amountClassName}>{isHidden ? HIDDEN_AMOUNT_MASK : row.amountLabel}</td>
                                 <td>{row.entityName}</td>
                                 <td>{row.walletName}</td>
                                 <td>{row.budgetName}</td>
