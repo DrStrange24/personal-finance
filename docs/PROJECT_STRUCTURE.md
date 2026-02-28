@@ -64,6 +64,7 @@
     - toast-provider.tsx
     - finance/
       - metric-card.tsx
+      - toggleable-metric-card-grid.tsx (shared metric-card grid with global hide/show-all toggle + local storage persistence)
       - transaction-kind-badge.tsx
       - transaction-form.tsx
   - styles/

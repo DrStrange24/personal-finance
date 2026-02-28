@@ -4,7 +4,7 @@ import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
 import Table from "react-bootstrap/Table";
 import AddTransactionModal from "@/app/(app)/transactions/add-transaction-modal";
-import MetricCard from "@/app/components/finance/metric-card";
+import ToggleableMetricCardGrid from "@/app/components/finance/toggleable-metric-card-grid";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
@@ -138,6 +138,15 @@ export default async function DashboardPage() {
         id: `credit:${credit.id}`,
         label: `${credit.name} (${credit.entity?.name ?? "Entity"} | ${formatPhp(Number(credit.creditLimitAmount) - Number(credit.currentBalanceAmount))} remaining)`,
     }));
+    const metrics = [
+        { id: "total-assets", label: "Total Assets", value: summary ? formatPhp(summary.totalAssetsPhp) : "-" },
+        { id: "total-investment", label: "Total Investment", value: summary ? formatPhp(summary.totalInvestmentPhp) : "-" },
+        { id: "wallet-balance", label: "Wallet Balance", value: summary ? formatPhp(summary.totalWalletBalancePhp) : "-" },
+        { id: "allocated-budget", label: "Allocated Budget", value: summary ? formatPhp(summary.budgetAvailablePhp) : "-" },
+        { id: "credit-card-debt", label: "Credit Card Debt", value: summary ? formatPhp(summary.totalCreditCardDebtPhp) : "-" },
+        { id: "unallocated-budget", label: "Unallocated Budget", value: summary ? formatPhp(summary.unallocatedCashPhp) : "-" },
+        { id: "total-monthly-income", label: "Total Monthly Income", value: summary ? formatPhp(summary.monthlyTotalIncomePhp) : "-" },
+    ];
 
     return (
         <section className="d-grid gap-4">
@@ -159,15 +168,12 @@ export default async function DashboardPage() {
                 />
             </header>
 
-            <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                <MetricCard label="Total Assets" value={summary ? formatPhp(summary.totalAssetsPhp) : "-"} />
-                <MetricCard label="Total Investment" value={summary ? formatPhp(summary.totalInvestmentPhp) : "-"} />
-                <MetricCard label="Wallet Balance" value={summary ? formatPhp(summary.totalWalletBalancePhp) : "-"} />
-                <MetricCard label="Allocated Budget" value={summary ? formatPhp(summary.budgetAvailablePhp) : "-"} />
-                <MetricCard label="Credit Card Debt" value={summary ? formatPhp(summary.totalCreditCardDebtPhp) : "-"} />
-                <MetricCard label="Unallocated Budget" value={summary ? formatPhp(summary.unallocatedCashPhp) : "-"} />
-                <MetricCard label="Total Monthly Income" value={summary ? formatPhp(summary.monthlyTotalIncomePhp) : "-"} />
-            </div>
+            <ToggleableMetricCardGrid
+                metrics={metrics}
+                storageKey="pf-dashboard-metrics-hidden"
+                hideAllLabel="Hide all amounts"
+                showAllLabel="Show all amounts"
+            />
 
             <Card className="pf-surface-panel">
                 <CardBody className="d-grid gap-3">
