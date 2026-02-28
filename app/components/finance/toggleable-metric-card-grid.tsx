@@ -72,7 +72,7 @@ export default function ToggleableMetricCardGrid({
                     <MetricCard
                         key={metric.id}
                         label={metric.label}
-                        value={isHidden ? "****" : metric.value}
+                        value={isHidden ? "********" : metric.value}
                         helper={metric.helper}
                     />
                 ))}
