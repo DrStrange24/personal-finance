@@ -7,6 +7,7 @@
     - app-sidebar.tsx (route nav + active finance entity selector)
     - dashboard/
       - page.tsx (main transaction-first dashboard + quick posting)
+      - recent-transactions-table.tsx (dashboard recent transactions table with shared amount visibility masking)
     - transactions/
       - page.tsx (transactions page shell + server actions + indexed filters + server pagination)
       - add-transaction-modal.tsx (transaction create modal trigger/form with icon action)
@@ -65,6 +66,7 @@
     - finance/
       - metric-card.tsx
       - toggleable-metric-card-grid.tsx (shared metric-card grid with global hide/show-all toggle + local storage persistence)
+      - use-amount-visibility.ts (shared amount hide/show state hook synchronized via localStorage and window event)
       - transaction-kind-badge.tsx
       - transaction-form.tsx
   - styles/

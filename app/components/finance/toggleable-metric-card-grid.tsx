@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import MetricCard from "@/app/components/finance/metric-card";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 
 type MetricGridItem = {
     id: string;
@@ -37,28 +37,14 @@ export default function ToggleableMetricCardGrid({
     hideAllLabel = "Hide all amounts",
     showAllLabel = "Show all amounts",
 }: ToggleableMetricCardGridProps) {
-    const [isHidden, setIsHidden] = useState<boolean>(() => {
-        if (typeof window === "undefined") {
-            return false;
-        }
-
-        return window.localStorage.getItem(storageKey) === "1";
-    });
-
-    const toggleAllMetrics = () => {
-        setIsHidden((current) => {
-            const next = !current;
-            window.localStorage.setItem(storageKey, next ? "1" : "0");
-            return next;
-        });
-    };
+    const { isHidden, toggleAmountVisibility } = useAmountVisibility(storageKey);
 
     return (
         <div className="d-grid gap-2">
             <div className="d-flex justify-content-end">
                 <button
                     type="button"
-                    onClick={toggleAllMetrics}
+                    onClick={toggleAmountVisibility}
                     className="btn btn-link p-0 d-inline-flex align-items-center"
                     style={{ color: "var(--color-text-muted)" }}
                     aria-label={isHidden ? showAllLabel : hideAllLabel}
@@ -72,7 +58,7 @@ export default function ToggleableMetricCardGrid({
                     <MetricCard
                         key={metric.id}
                         label={metric.label}
-                        value={isHidden ? "********" : metric.value}
+                        value={isHidden ? "****" : metric.value}
                         helper={metric.helper}
                     />
                 ))}

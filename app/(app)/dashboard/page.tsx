@@ -2,10 +2,9 @@ import { TransactionKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import Card from "react-bootstrap/Card";
 import CardBody from "react-bootstrap/CardBody";
-import Table from "react-bootstrap/Table";
 import AddTransactionModal from "@/app/(app)/transactions/add-transaction-modal";
+import RecentTransactionsTable from "@/app/(app)/dashboard/recent-transactions-table";
 import ToggleableMetricCardGrid from "@/app/components/finance/toggleable-metric-card-grid";
-import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
 import { ensureFinanceBootstrap } from "@/lib/finance/bootstrap";
 import { getFinanceContextDataAcrossEntities } from "@/lib/finance/context";
 import { mapBudgetFormOptions } from "@/lib/finance/form-options";
@@ -147,6 +146,32 @@ export default async function DashboardPage() {
         { id: "unallocated-budget", label: "Unallocated Budget", value: summary ? formatPhp(summary.unallocatedCashPhp) : "-" },
         { id: "total-monthly-income", label: "Total Monthly Income", value: summary ? formatPhp(summary.monthlyTotalIncomePhp) : "-" },
     ];
+    const negativeKinds = new Set<TransactionKind>([
+        "EXPENSE",
+        "BUDGET_ALLOCATION",
+        "CREDIT_CARD_PAYMENT",
+        "LOAN_REPAY",
+    ]);
+    const recentTransactionRows = recentTransactions.map((transaction) => {
+        const signedAmount = negativeKinds.has(transaction.kind)
+            ? -Math.abs(Number(transaction.amountPhp))
+            : Math.abs(Number(transaction.amountPhp));
+        const amountLabel = signedAmount < 0
+            ? `(${formatPhp(Math.abs(signedAmount))})`
+            : formatPhp(signedAmount);
+
+        return {
+            id: transaction.id,
+            postedAtLabel: dateFormatter.format(transaction.postedAt),
+            kind: transaction.kind,
+            amountLabel,
+            amountClassName: signedAmount < 0 ? "text-danger" as const : "text-success" as const,
+            entityName: transaction.entity?.name ?? "-",
+            walletName: transaction.walletAccount.name,
+            budgetName: transaction.budgetEnvelope?.name ?? "-",
+            remarks: transaction.remarks?.trim() || "-",
+        };
+    });
 
     return (
         <section className="d-grid gap-4">
@@ -180,56 +205,7 @@ export default async function DashboardPage() {
                     <h3 className="m-0 fs-6 fw-semibold" style={{ color: "var(--color-text-strong)" }}>
                         Recent Transactions
                     </h3>
-                    <div className="table-responsive">
-                        <Table hover className="align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Kind</th>
-                                    <th>Amount</th>
-                                    <th>Entity</th>
-                                    <th>Wallet</th>
-                                    <th>Budget</th>
-                                    <th>Remarks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentTransactions.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="text-center py-4" style={{ color: "var(--color-text-muted)" }}>
-                                            No transactions yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    recentTransactions.map((transaction) => {
-                                        const negativeKinds = new Set<TransactionKind>([
-                                            "EXPENSE",
-                                            "BUDGET_ALLOCATION",
-                                            "CREDIT_CARD_PAYMENT",
-                                            "LOAN_REPAY",
-                                        ]);
-                                        const signedAmount = negativeKinds.has(transaction.kind)
-                                            ? -Math.abs(Number(transaction.amountPhp))
-                                            : Math.abs(Number(transaction.amountPhp));
-                                        const amountLabel = signedAmount < 0
-                                            ? `(${formatPhp(Math.abs(signedAmount))})`
-                                            : formatPhp(signedAmount);
-                                        return (
-                                            <tr key={transaction.id}>
-                                                <td>{dateFormatter.format(transaction.postedAt)}</td>
-                                                <td><TransactionKindBadge kind={transaction.kind} /></td>
-                                                <td className={signedAmount < 0 ? "text-danger" : "text-success"}>{amountLabel}</td>
-                                                <td>{transaction.entity?.name ?? "-"}</td>
-                                                <td>{transaction.walletAccount.name}</td>
-                                                <td>{transaction.budgetEnvelope?.name ?? "-"}</td>
-                                                <td>{transaction.remarks?.trim() || "-"}</td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </Table>
-                    </div>
+                    <RecentTransactionsTable rows={recentTransactionRows} storageKey="pf-dashboard-metrics-hidden" />
                 </CardBody>
             </Card>
         </section>
