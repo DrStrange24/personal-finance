@@ -15,6 +15,7 @@ import {
 } from "@/lib/finance/transaction-orchestration";
 import { getDashboardSummaryAcrossEntities } from "@/lib/finance/queries";
 import type { FinanceActionResult } from "@/lib/finance/types";
+import { AMOUNT_VISIBILITY_STORAGE_KEY } from "@/lib/finance/constants";
 import { getAuthenticatedEntitySession } from "@/lib/server-session";
 import { prisma } from "@/lib/prisma";
 
@@ -195,9 +196,7 @@ export default async function DashboardPage() {
 
             <ToggleableMetricCardGrid
                 metrics={metrics}
-                storageKey="pf-dashboard-metrics-hidden"
-                hideAllLabel="Hide all amounts"
-                showAllLabel="Show all amounts"
+                storageKey={AMOUNT_VISIBILITY_STORAGE_KEY}
             />
 
             <Card className="pf-surface-panel">
@@ -205,7 +204,7 @@ export default async function DashboardPage() {
                     <h3 className="m-0 fs-6 fw-semibold" style={{ color: "var(--color-text-strong)" }}>
                         Recent Transactions
                     </h3>
-                    <RecentTransactionsTable rows={recentTransactionRows} storageKey="pf-dashboard-metrics-hidden" />
+                    <RecentTransactionsTable rows={recentTransactionRows} storageKey={AMOUNT_VISIBILITY_STORAGE_KEY} />
                 </CardBody>
             </Card>
         </section>

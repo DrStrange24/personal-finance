@@ -10,3 +10,5 @@ export const LEGACY_SHARED_CREDIT_PAYMENT_ENVELOPE_NAME = "System: Credit Paymen
 
 export const ACTIVE_FINANCE_ENTITY_COOKIE = "pf_entity";
 export const ACTIVE_FINANCE_ENTITY_STORAGE_KEY = "pf-active-entity";
+export const AMOUNT_VISIBILITY_STORAGE_KEY = "pf-amount-visibility-hidden";
+export const HIDDEN_AMOUNT_MASK = "********";

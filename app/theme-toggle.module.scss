@@ -1,8 +1,14 @@
-.toggle {
+.toggleStack {
   position: fixed;
   bottom: 1rem;
   right: 1rem;
   z-index: 50;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toggle {
   display: inline-flex;
   align-items: center;
   border-radius: 9999px;
@@ -56,9 +62,12 @@
 }
 
 @media (min-width: 640px) {
-  .toggle {
+  .toggleStack {
     bottom: 1.5rem;
     right: 1.5rem;
+  }
+
+  .toggle {
     padding: 0.55rem 0.85rem;
   }
 }

@@ -10,7 +10,9 @@ import Table from "react-bootstrap/Table";
 import ActionIconButton from "@/app/components/action-icon-button";
 import ConfirmSubmitIconButton from "@/app/components/confirm-submit-icon-button";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
 import { useAppToast } from "@/app/components/toast-provider";
+import { AMOUNT_VISIBILITY_STORAGE_KEY, HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 import { formatPhp } from "@/lib/finance/money";
 import { transactionKindLabel } from "@/lib/finance/types";
 
@@ -47,6 +49,7 @@ type TransactionsTableProps = {
     loanRecords: FormOption[];
     updateTransactionAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
     deleteTransactionAction: (formData: FormData) => Promise<{ ok: boolean; message: string }>;
+    amountVisibilityStorageKey?: string;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -96,10 +99,12 @@ export default function TransactionsTable({
     loanRecords,
     updateTransactionAction,
     deleteTransactionAction,
+    amountVisibilityStorageKey = AMOUNT_VISIBILITY_STORAGE_KEY,
 }: TransactionsTableProps) {
     const [editState, setEditState] = useState<TransactionRow | null>(null);
     const [editKind, setEditKind] = useState<TransactionKind>("EXPENSE");
     const { showSuccess, showError } = useAppToast();
+    const { isHidden } = useAmountVisibility(amountVisibilityStorageKey);
 
     const editRequiresBudget = kindsRequiringBudget.has(editKind);
     const editRequiresTargetWallet = kindsRequiringTargetWallet.has(editKind);
@@ -195,7 +200,9 @@ export default function TransactionsTable({
                                             <tr key={tx.id}>
                                                 <td>{dateFormatter.format(new Date(`${tx.postedAt}T00:00:00`))}</td>
                                                 <td><TransactionKindBadge kind={tx.kind} /></td>
-                                                <td className={signed < 0 ? "text-danger" : "text-success"}>{amountLabel}</td>
+                                                <td className={signed < 0 ? "text-danger" : "text-success"}>
+                                                    {isHidden ? HIDDEN_AMOUNT_MASK : amountLabel}
+                                                </td>
                                                 <td>{tx.entityName}</td>
                                                 <td>{tx.walletName}</td>
                                                 <td>{tx.targetWalletName ?? "-"}</td>

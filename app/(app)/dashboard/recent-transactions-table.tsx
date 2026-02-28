@@ -3,7 +3,8 @@
 import { TransactionKind } from "@prisma/client";
 import Table from "react-bootstrap/Table";
 import TransactionKindBadge from "@/app/components/finance/transaction-kind-badge";
-import { HIDDEN_AMOUNT_MASK, useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
+import { useAmountVisibility } from "@/app/components/finance/use-amount-visibility";
+import { HIDDEN_AMOUNT_MASK } from "@/lib/finance/constants";
 
 type RecentTransactionRow = {
     id: string;

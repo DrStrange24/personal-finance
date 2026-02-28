@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AMOUNT_VISIBILITY_STORAGE_KEY } from "@/lib/finance/constants";
 
 const AMOUNT_VISIBILITY_EVENT = "pf-amount-visibility-change";
-export const HIDDEN_AMOUNT_MASK = "********";
 
 const readAmountVisibility = (storageKey: string): boolean => {
     if (typeof window === "undefined") {
@@ -24,7 +24,7 @@ export const setAmountVisibility = (storageKey: string, hidden: boolean) => {
     }));
 };
 
-export const useAmountVisibility = (storageKey: string) => {
+export const useAmountVisibility = (storageKey: string = AMOUNT_VISIBILITY_STORAGE_KEY) => {
     const [isHidden, setIsHidden] = useState<boolean>(() => readAmountVisibility(storageKey));
 
     useEffect(() => {
