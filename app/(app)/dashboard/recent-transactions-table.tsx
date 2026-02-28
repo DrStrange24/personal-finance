@@ -51,7 +51,7 @@ export default function RecentTransactionsTable({ rows, storageKey }: RecentTran
                             <tr key={row.id}>
                                 <td>{row.postedAtLabel}</td>
                                 <td><TransactionKindBadge kind={row.kind} /></td>
-                                <td className={row.amountClassName}>{isHidden ? "****" : row.amountLabel}</td>
+                                <td className={row.amountClassName}>{isHidden ? "********" : row.amountLabel}</td>
                                 <td>{row.entityName}</td>
                                 <td>{row.walletName}</td>
                                 <td>{row.budgetName}</td>
